@@ -1,0 +1,53 @@
+import { Hono } from "hono";
+import type { AppEnv } from "./env";
+import { ApiError, notFound } from "./lib/errors";
+import { log } from "./lib/log";
+import { requireTrustedOrigin } from "./middleware/auth";
+import { requestContext } from "./middleware/request-context";
+import { auth } from "./routes/auth";
+import { ingest } from "./routes/ingest";
+import { portal } from "./routes/portal";
+
+// Request flow:
+//
+//   /api/v1/ingest/:key/feedback   public, CORS, called by the SDK on any site
+//   /api/auth/*                    login/logout (cookie-based)
+//   /api/v1/*                      portal API (cookie session + origin check)
+//   everything else                the portal's static files (see wrangler.jsonc)
+
+const app = new Hono<AppEnv>().basePath("/api");
+
+app.use(requestContext);
+
+app.get("/health", (c) => c.json({ ok: true }));
+
+app.route("/v1/ingest", ingest);
+
+app.use("/auth/*", requireTrustedOrigin);
+app.route("/auth", auth);
+
+app.use("/v1/*", requireTrustedOrigin);
+app.route("/v1", portal);
+
+app.notFound((c) => c.json(notFound("Route").toBody(), 404));
+
+app.onError((err, c) => {
+  if (err instanceof ApiError) {
+    for (const [name, value] of Object.entries(err.headers ?? {})) c.header(name, value);
+    return c.json(err.toBody(), err.status);
+  }
+  // Unexpected: log everything, tell the client nothing beyond the request ID.
+  log("error", "unhandled error", {
+    requestId: c.get("requestId"),
+    error: err.message,
+    stack: err.stack,
+  });
+  const body = new ApiError(
+    500,
+    "internal_error",
+    `Something went wrong on our end (request ${c.get("requestId")})`,
+  ).toBody();
+  return c.json(body, 500);
+});
+
+export default app;

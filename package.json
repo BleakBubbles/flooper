@@ -1,0 +1,25 @@
+{
+  "name": "flooper",
+  "private": true,
+  "description": "A tiny, chill feedback widget for indie websites.",
+  "license": "MIT",
+  "packageManager": "pnpm@10.16.1",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm --parallel --filter @flooper/api --filter @flooper/portal --filter @flooper/sdk dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "db:migrate": "pnpm --filter @flooper/api db:migrate",
+    "db:seed": "pnpm --filter @flooper/api db:seed",
+    "size": "pnpm --filter @flooper/sdk size"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.4",
+    "typescript": "7.0.2"
+  }
+}

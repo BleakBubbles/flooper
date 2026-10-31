@@ -1,0 +1,10 @@
+# Copy this file to .dev.vars (which is gitignored) and fill in real values.
+#
+# Create a GitHub OAuth app at https://github.com/settings/developers with:
+#   Homepage URL:               http://localhost:5173
+#   Authorization callback URL: http://localhost:5173/api/auth/github/callback
+#
+# You can skip this entirely for local development: the portal offers a
+# "Continue as dev user" button whenever ENVIRONMENT=development.
+GITHUB_CLIENT_ID=
+GITHUB_CLIENT_SECRET=
