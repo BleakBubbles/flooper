@@ -1,0 +1,36 @@
+{
+  "name": "@flooper/sdk",
+  "version": "0.0.0",
+  "private": true,
+  "description": "A tiny, chill feedback widget for your website.",
+  "license": "MIT",
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "main": "./dist/flooper.mjs",
+  "module": "./dist/flooper.mjs",
+  "types": "./dist/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/flooper.mjs"
+    }
+  },
+  "unpkg": "./dist/flooper.js",
+  "jsdelivr": "./dist/flooper.js",
+  "sideEffects": false,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "size": "node scripts/check-size.mjs"
+  },
+  "devDependencies": {
+    "@flooper/shared": "workspace:*",
+    "happy-dom": "21.0.4",
+    "vite": "8.3.5",
+    "vitest": "5.0.5"
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "flooper",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "observability": { "enabled": true },
+
+  // One Worker serves both the API (/api/*) and the portal's static files, so
+  // the portal and its API share an origin: no CORS, and session cookies just work.
+  "assets": {
+    "directory": "../portal/dist",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "flooper",
+      // Local dev and tests don't need a real ID. Before deploying, run
+      // `wrangler d1 create flooper` and paste the ID it prints here.
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+
+  // Non-secret config. Secrets (GITHUB_CLIENT_SECRET etc.) go in .dev.vars
+  // locally and `wrangler secret put` in production.
+  "vars": {
+    "ENVIRONMENT": "development",
+    // Where to send people after they log in.
+    "APP_URL": "http://localhost:5173",
+    // Extra origins allowed to make cookie-authenticated portal requests.
+    // In production the portal is same-origin, so this can be empty.
+    "TRUSTED_ORIGINS": "http://localhost:5173"
+  },
+
+  "env": {
+    "production": {
+      "vars": {
+        "ENVIRONMENT": "production",
+        "APP_URL": "/",
+        "TRUSTED_ORIGINS": ""
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "flooper",
+          "database_id": "00000000-0000-0000-0000-000000000000",
+          "migrations_dir": "migrations"
+        }
+      ]
+    }
+  }
+}

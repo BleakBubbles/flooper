@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Flooper playground</title>
+    <style>
+      /* Deliberately opinionated host-page styles, to prove the widget is
+         unaffected by them (Shadow DOM + `all: initial`). */
+      :root { color-scheme: light dark; }
+      body {
+        margin: 0;
+        font: 18px/1.7 Georgia, serif;
+        color: #3b2f2f;
+        background: #fbf6ee;
+      }
+      @media (prefers-color-scheme: dark) {
+        body { color: #eadfce; background: #1f1a17; }
+      }
+      button { all: unset; color: hotpink; font-size: 40px; }
+      main { max-width: 640px; margin: 0 auto; padding: 48px 20px 120px; }
+      h1 { font-size: 44px; margin: 0 0 8px; }
+      section { margin-top: 40px; }
+      .note { font: 14px/1.5 system-ui, sans-serif; opacity: 0.7; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Hi, I'm Sam 👋</h1>
+      <p>I build small, odd things on the internet. This is a pretend personal site for trying out the Flooper widget. Click the creature in the corner.</p>
+
+      <section id="projects">
+        <h2>Projects</h2>
+        <p>A plant-watering bot, a CLI for naming things, and a very slow blog engine.</p>
+      </section>
+
+      <section id="about">
+        <h2>About</h2>
+        <p>Coffee, cycling, and an unreasonable number of browser tabs.</p>
+      </section>
+
+      <p class="note">
+        Playground: run <code>pnpm dev</code> from the repo root, then submit something here and
+        watch it appear in the portal at http://localhost:5173.
+      </p>
+    </main>
+
+    <script type="module">
+      import { init } from "/src/index.ts";
+
+      // The dev seed creates this project, with this page's origin allowlisted.
+      window.flooper = init({
+        projectKey: "pk_dev_playground",
+        apiUrl: "http://localhost:8787",
+        visitor: { name: "Playground visitor" },
+        metadata: { source: "playground" },
+      });
+    </script>
+  </body>
+</html>
