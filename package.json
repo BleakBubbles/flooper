@@ -16,7 +16,8 @@
     "format": "biome check --write .",
     "db:migrate": "pnpm --filter @flooper/api db:migrate",
     "db:seed": "pnpm --filter @flooper/api db:seed",
-    "size": "pnpm --filter @flooper/sdk size"
+    "size": "pnpm --filter @flooper/sdk size",
+    "logo": "node design/logo/generate.mjs && biome format --write packages/sdk/src/ui/icon.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.4",
