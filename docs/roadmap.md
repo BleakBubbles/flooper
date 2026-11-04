@@ -17,6 +17,11 @@ Ship to Cloudflare (Workers + D1) and exercise everything that only exists in
 production: GitHub OAuth, `Secure` cookies, the single-origin asset routing,
 and production config. Then put the widget on a real page.
 
+Deploy checklist extras: make `og:image` in `apps/portal/index.html` an
+absolute URL on the real domain, and upload
+`design/logo/github-social-preview.png` in the GitHub repo's settings
+(Settings → General → Social preview).
+
 ## Later
 
 ### Notifications

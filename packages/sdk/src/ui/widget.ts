@@ -201,7 +201,10 @@ export class Widget {
     if (!el) return;
     if (options.scroll) {
       const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-      el.scrollIntoView({ block: "center", behavior: reduceMotion ? "auto" : "smooth" });
+      el.scrollIntoView({
+        block: "center",
+        behavior: reduceMotion ? "auto" : "smooth",
+      });
     }
     this.highlighter.show(el);
   }
@@ -328,7 +331,7 @@ function template(position: WidgetOptions["position"]): string {
 </div>
 <div class="highlight" hidden><span class="highlight-label"></span></div>
 <div class="pick-layer" hidden>
-  <div class="pick-bar" role="status">Choose an element to reference in your message
+  <div class="pick-bar" role="status">Selecting an element
     <button type="button" class="pick-cancel">Cancel</button>
   </div>
 </div>`;
