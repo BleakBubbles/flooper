@@ -13,11 +13,23 @@ element and outlines it.
 
 ### Remaining from the first deploy
 
-- Upload `design/logo/github-social-preview.png` in the GitHub repo's
-  settings (Settings → General → Social preview).
 - Put the widget on a real page (your own site) and live with it for a bit.
 
 ## Later
+
+### Going public (open-sourcing)
+
+The repo is private for now. When it's time to make it public:
+
+1. Check the full git history for anything that shouldn't be public (secrets,
+   personal data). Making the repo public publishes every past commit too.
+2. Switch the visibility: Settings → General → Danger Zone → Change visibility.
+3. Upload `design/logo/github-social-preview.png` under Settings → General →
+   Social preview. (GitHub only offers this for public repositories.)
+4. Turn on private vulnerability reporting (Settings → Security), which
+   `SECURITY.md` tells people to use.
+5. Optionally publish the SDK to npm as `@flooper/sdk` (claim the `@flooper`
+   scope first).
 
 ### Notifications
 
