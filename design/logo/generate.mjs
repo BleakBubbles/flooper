@@ -139,31 +139,40 @@ const touchIcon = svgDoc(
   `<rect width="512" height="512" fill="#000"/>\n${placed(256, 256, 440)}`,
 );
 
-// Link previews: the logo beside the name and tagline. Text is rendered with
-// fonts installed on the machine that runs this script, then baked into the PNG.
+// Link previews: the logo beside the name, centered together. Text is rendered
+// with fonts installed on the machine that runs this script, then baked into the PNG.
+const FONT = "'Segoe UI', 'Helvetica Neue', Arial, sans-serif";
+const fontOptions = { font: { loadSystemFonts: true } };
+
+/** The rendered width of `text`, measured with the same fonts the PNG will use. */
+function textWidth(text, size) {
+  const svg = svgDoc(
+    4000,
+    size * 2,
+    `<text x="0" y="${size}" font-family="${FONT}" font-size="${size}" font-weight="700">${text}</text>`,
+  );
+  return new Resvg(svg, fontOptions).innerBBox()?.width ?? 0;
+}
+
 function card(w, h) {
-  const logo = Math.round(h * 0.56);
-  const x = Math.round(w * 0.1);
-  const textX = x + logo + Math.round(w * 0.05);
-  const font = "'Segoe UI', 'Helvetica Neue', Arial, sans-serif";
-  const small = Math.round(h * 0.048);
+  const logo = Math.round(h * 0.5);
+  const size = Math.round(h * 0.2);
+  const gap = Math.round(h * 0.06);
+  const left = (w - (logo + gap + textWidth("Flooper", size))) / 2;
   return svgDoc(
     w,
     h,
     [
       `<rect width="${w}" height="${h}" fill="#000"/>`,
-      placed(x + logo / 2, h / 2, logo),
-      `<text x="${textX}" y="${h / 2 - 4}" font-family="${font}" font-size="${Math.round(h * 0.16)}" font-weight="700" fill="#fff">Flooper</text>`,
-      `<text x="${textX}" y="${h / 2 + Math.round(h * 0.1)}" font-family="${font}" font-size="${small}" fill="#a1a1aa">A tiny, chill feedback widget</text>`,
-      `<text x="${textX}" y="${h / 2 + Math.round(h * 0.17)}" font-family="${font}" font-size="${small}" fill="#a1a1aa">for indie websites.</text>`,
+      placed(left + logo / 2, h / 2, logo),
+      // dominant-baseline centers the text on the logo's middle line.
+      `<text x="${n(left + logo + gap)}" y="${h / 2}" dominant-baseline="central" font-family="${FONT}" font-size="${size}" font-weight="700" fill="#fff">Flooper</text>`,
     ].join("\n"),
   );
 }
 
 const png = (svg, width) =>
-  new Resvg(svg, { fitTo: { mode: "width", value: width }, font: { loadSystemFonts: true } })
-    .render()
-    .asPng();
+  new Resvg(svg, { fitTo: { mode: "width", value: width }, ...fontOptions }).render().asPng();
 
 /**
  * An .ico is a tiny directory of images, and modern ones may hold PNGs as-is:
