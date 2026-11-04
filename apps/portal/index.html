@@ -13,12 +13,13 @@
     <link rel="icon" type="image/svg+xml" href="/logo.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
-    <!-- Link previews (Slack, Discord, iMessage, X...). Some crawlers need
-         og:image to be an absolute URL; set it to the real domain at deploy. -->
+    <!-- Link previews (Slack, Discord, iMessage, X...). Crawlers need og:image as
+         an absolute URL, so this names the live domain. Update it if the domain
+         changes (see "Moving to a custom domain" in the README). -->
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Flooper" />
     <meta property="og:description" content="A tiny, chill feedback widget for indie websites." />
-    <meta property="og:image" content="/og-image.png" />
+    <meta property="og:image" content="https://flooper.macks0554.workers.dev/og-image.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta name="twitter:card" content="summary_large_image" />

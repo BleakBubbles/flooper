@@ -11,16 +11,11 @@ Next to a picked element in the portal, a button opens the page with
 `?flooper-highlight=<selector>`. The SDK (already on that site) scrolls to the
 element and outlines it.
 
-### First deploy
+### Remaining from the first deploy
 
-Ship to Cloudflare (Workers + D1) and exercise everything that only exists in
-production: GitHub OAuth, `Secure` cookies, the single-origin asset routing,
-and production config. Then put the widget on a real page.
-
-Deploy checklist extras: make `og:image` in `apps/portal/index.html` an
-absolute URL on the real domain, and upload
-`design/logo/github-social-preview.png` in the GitHub repo's settings
-(Settings → General → Social preview).
+- Upload `design/logo/github-social-preview.png` in the GitHub repo's
+  settings (Settings → General → Social preview).
+- Put the widget on a real page (your own site) and live with it for a bit.
 
 ## Later
 
@@ -78,6 +73,8 @@ code splitting, aggregation queries, and designing for data that drifts.
 
 ## Done
 
+- **First deploy, 2026-11-04.** Live at https://flooper.macks0554.workers.dev
+  (Workers + D1, GitHub login). Verified end to end, including a picked element.
 - **Point at a thing (element picker), 2026-11-04.** Visitors pick an element;
   notes carry `target: { selector, text }`. See `packages/sdk/src/picker/`.
 
