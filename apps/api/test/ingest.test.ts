@@ -97,6 +97,27 @@ describe("POST /api/v1/ingest/:publicKey/feedback", () => {
     expect(statuses.at(-1)).toBe(429);
   });
 
+  it("rejects a page URL that isn't on the sending site", async () => {
+    const { path } = await setup();
+    const res = await json(
+      "POST",
+      path,
+      submission({
+        context: {
+          url: "https://phishing.example/login",
+          path: "/login",
+          viewport: { width: 1, height: 1 },
+          sdkVersion: "0.0.0",
+        },
+      }),
+      { Origin: SITE },
+    );
+    expect(res.status).toBe(422);
+    expect(await res.json()).toMatchObject({
+      error: { code: "validation_failed", details: { "context.url": expect.any(Array) } },
+    });
+  });
+
   it("rejects oversized bodies", async () => {
     const { path } = await setup();
     const res = await json("POST", path, submission({ message: "x".repeat(20_000) }), {

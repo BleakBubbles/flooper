@@ -406,7 +406,9 @@ textarea:focus + .ghost .autofill-hint {
   bottom: auto;
   top: calc(100% + 6px);
 }
-.pick-bar {
+/* The pick-mode bar, and short notices, sit at the top center of the page. */
+.pick-bar,
+.notice {
   position: fixed;
   top: 16px;
   left: 50%;
@@ -427,6 +429,10 @@ textarea:focus + .ghost .autofill-hint {
     sans-serif;
   white-space: nowrap;
   cursor: default;
+}
+.notice {
+  z-index: 2147483001;
+  padding: 10px 16px;
 }
 .pick-cancel {
   padding: 6px 12px;
