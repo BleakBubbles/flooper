@@ -3,7 +3,7 @@ import { Highlighter } from "../picker/highlight";
 import { type PickedTarget, Picker } from "../picker/picker";
 import { LOGO_SVG } from "./icon";
 import { ICONS } from "./icons";
-import { STYLES } from "./styles";
+import STYLES from "./widget.css?inline";
 
 /** Shown as the placeholder; → in the empty box fills it in for real. */
 const EXAMPLE_MESSAGE = "Cool website!";
