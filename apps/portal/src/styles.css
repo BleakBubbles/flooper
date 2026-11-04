@@ -268,6 +268,26 @@ code {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+.target-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 6px;
+  min-width: 0;
+}
+.target-row p.target {
+  margin: 0;
+}
+.show-me {
+  flex: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg);
+  border-bottom: 1px solid var(--border);
+}
+.show-me:hover {
+  border-bottom-color: var(--fg);
+}
 .feedback-body p.target {
   display: inline-block;
   max-width: 100%;

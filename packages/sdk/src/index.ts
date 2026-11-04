@@ -56,7 +56,10 @@ export function init(options: FlooperOptions): FlooperInstance {
     },
   );
 
-  whenDomReady(() => widget.mount());
+  whenDomReady(() => {
+    widget.mount();
+    void widget.revealFromUrl();
+  });
 
   current = {
     open: () => widget.open(),
