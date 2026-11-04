@@ -5,13 +5,13 @@
 //   .k  = background fill    .ks = background stroke
 export const LOGO_SVG = `<svg viewBox="40 40 432 432" aria-hidden="true" focusable="false">
 <path class="ws" fill="none" stroke-width="84" stroke-linecap="round" d="M391.1 178A156 156 0 1 1 228.91 102.37"/>
-<path class="ks" fill="none" stroke-width="25" d="M350.26 299.95A51 51 0 0 0 444.51 343.9"/>
-<path class="ks" fill="none" stroke-width="25" d="M265.06 359.6A51 51 0 0 0 274.13 463.21"/>
-<path class="ks" fill="none" stroke-width="25" d="M170.81 315.65A51 51 0 0 0 85.62 375.3"/>
-<path class="ks" fill="none" stroke-width="25" d="M161.74 212.05A51 51 0 0 0 67.49 168.1"/>
+<path class="ks" fill="none" stroke-width="25" d="M347.99 298.9A54.5 54.5 0 0 0 446.78 344.96"/>
+<path class="ks" fill="none" stroke-width="25" d="M264.85 357.11A54.5 54.5 0 0 0 274.35 465.7"/>
+<path class="ks" fill="none" stroke-width="25" d="M172.86 314.22A54.5 54.5 0 0 0 83.57 376.74"/>
+<path class="ks" fill="none" stroke-width="25" d="M164.01 213.1A54.5 54.5 0 0 0 65.22 167.04"/>
 <circle class="w ks" stroke-width="16" cx="391.1" cy="178" r="50"/>
 <circle class="k" cx="364.96" cy="179.14" r="12"/>
 <circle class="k" cx="404.74" cy="156.41" r="12"/>
-<path class="ws" stroke-width="14" stroke-linecap="round" d="M343.37 142.77L357.01 166.64"/>
-<path class="ws" stroke-width="14" stroke-linecap="round" d="M383.15 120.05L396.78 143.91"/>
+<path class="ws" stroke-width="14" stroke-linecap="round" d="M343.37 142.77L353.18 159.94"/>
+<path class="ws" stroke-width="14" stroke-linecap="round" d="M383.15 120.05L392.27 136.02"/>
 </svg>`;

@@ -22,7 +22,6 @@ const LOGO = {
   tailAngle: 260,
   segments: [25, 85, 145, 205], // angles along the body
   segmentWidth: 25,
-  segmentCurve: 51, // radius of each segment arc
   // The head's outline (16 wide, in the background color) covers 8 units of the
   // disc, so r = bodyWidth / 2 + 8 makes the visible head exactly body-width.
   headRadius: 50,
@@ -45,14 +44,17 @@ function parts(L) {
     role: "fgStroke",
     el: `<path fill="none" stroke-width="${L.bodyWidth}" stroke-linecap="round" d="M${xy(point(L.headAngle, r))}A${r} ${r} 0 1 1 ${xy(point(L.tailAngle, r))}"/>`,
   });
-  const half = L.bodyWidth / 2 + 10; // overshoot so segments cut cleanly across
+  // Each segment is a half-moon: a semicircular stroke across the body. Its
+  // inner (concave) edge must be exactly as wide as the body, so the stroke's
+  // ends sit just outside both edges instead of poking their corners into it.
+  const arc = L.bodyWidth / 2 + L.segmentWidth / 2;
   for (const a of L.segments) {
     out.push({
       role: "bgStroke",
-      el: `<path fill="none" stroke-width="${L.segmentWidth}" d="M${xy(point(a, r - half))}A${L.segmentCurve} ${L.segmentCurve} 0 0 0 ${xy(point(a, r + half))}"/>`,
+      el: `<path fill="none" stroke-width="${L.segmentWidth}" d="M${xy(point(a, r - arc))}A${arc} ${arc} 0 0 0 ${xy(point(a, r + arc))}"/>`,
     });
   }
-  // Eye and antenna positions are proportional to a reference head of radius 44.
+  // Eye positions and antenna tips are proportional to a reference head of radius 44.
   const [hx, hy] = point(L.headAngle, r);
   const s = L.headRadius / 44;
   const at = ([dx, dy]) => [hx + dx * s, hy + dy * s];
@@ -67,19 +69,23 @@ function parts(L) {
     const [x, y] = at(eye);
     out.push({ role: "bg", el: `<circle cx="${n(x)}" cy="${n(y)}" r="${L.eyeRadius}"/>` });
   }
-  for (const [from, to] of [
-    [
-      [-42, -31],
-      [-30, -10],
-    ],
-    [
-      [-7, -51],
-      [5, -30],
-    ],
+  // Antennae: parallel stalks from the tips back to the head's visible edge, so
+  // they join the head without reaching into it (and over the eyes).
+  const visibleHead = L.headRadius - 8;
+  const [dx, dy] = [12 / Math.hypot(12, 21), 21 / Math.hypot(12, 21)];
+  for (const tipOffset of [
+    [-42, -31],
+    [-7, -51],
   ]) {
+    const [tx, ty] = at(tipOffset);
+    // Walk from the tip toward the head until we reach its visible edge.
+    const ox = tx - hx;
+    const oy = ty - hy;
+    const b = ox * dx + oy * dy;
+    const t = -b - Math.sqrt(b * b - (ox * ox + oy * oy - visibleHead ** 2));
     out.push({
       role: "fgStroke",
-      el: `<path stroke-width="${L.antennaWidth}" stroke-linecap="round" d="M${xy(at(from))}L${xy(at(to))}"/>`,
+      el: `<path stroke-width="${L.antennaWidth}" stroke-linecap="round" d="M${xy([tx, ty])}L${xy([tx + t * dx, ty + t * dy])}"/>`,
     });
   }
   return out;
