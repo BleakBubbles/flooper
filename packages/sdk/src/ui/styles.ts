@@ -109,12 +109,37 @@ textarea {
   font: inherit;
   resize: vertical;
 }
-textarea::placeholder { color: var(--muted); }
+/* We draw the placeholder ourselves (the "ghost") so the → keycap can sit right
+   after its text. The native placeholder stays for :placeholder-shown and
+   assistive tech, but is invisible. */
+.message { position: relative; }
+textarea::placeholder { color: transparent; }
+.ghost {
+  position: absolute;
+  top: 11px; left: 13px; right: 13px; /* the textarea's border + padding */
+  display: none;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  pointer-events: none;
+}
+textarea:placeholder-shown + .ghost { display: flex; }
+.ghost-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The keycap only shows while the box is focused, and only with a keyboard-and-
+   mouse style pointer (touch screens have no arrow keys). */
+.autofill-hint {
+  display: grid; place-items: center; flex: none; width: 20px; height: 18px;
+  border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 5px;
+  background: var(--soft); opacity: 0; transition: opacity 120ms ease;
+}
+.autofill-hint svg.lucide { width: 12px; height: 12px; }
+textarea:focus + .ghost .autofill-hint { opacity: 1; }
+@media (hover: none) { .autofill-hint { display: none; } }
 
 .hp { position: absolute; left: -10000px; width: 1px; height: 1px; opacity: 0; }
 
-.footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px; }
-.status { font-size: 12px; color: var(--muted); }
+.footer { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.status { flex: 1; font-size: 12px; color: var(--muted); }
 .status[data-tone="error"] { color: var(--danger); }
 .send {
   padding: 8px 16px;
@@ -128,8 +153,96 @@ textarea::placeholder { color: var(--muted); }
 }
 .send:disabled { opacity: 0.4; cursor: default; }
 
+/* Lucide icons are 24x24 line drawings; size them to the text around them. */
+svg.lucide { display: block; width: 18px; height: 18px; flex: none; }
+
+/* The pick button: an icon with no label, so curiosity does the explaining. */
+.point {
+  display: grid; place-items: center; width: 34px; height: 34px; padding: 0;
+  border: 1px solid var(--border); border-radius: 10px;
+  background: var(--soft); color: var(--muted); cursor: pointer;
+  transition: color 120ms ease, border-color 120ms ease, transform 120ms ease;
+}
+.point:hover { color: var(--fg); border-color: var(--fg); transform: translateY(-1px); }
+.point[aria-pressed="true"] { color: var(--fg); border-color: var(--fg); background: var(--bg); }
+
+/* Shown only once something is picked, so it costs no space otherwise. */
+.target-chip {
+  display: flex; align-items: center; gap: 6px; max-width: 100%; margin-top: 8px;
+  padding: 3px; border-radius: 999px; background: var(--soft);
+  font-size: 12px; width: fit-content;
+}
+.target-chip svg.lucide { width: 14px; height: 14px; color: var(--muted); }
+/* Icon and text together are one button: hover, focus or click to see the element. */
+.target-text {
+  display: flex; align-items: center; gap: 6px; min-width: 0;
+  padding: 0 2px 0 5px; border: 0; border-radius: 999px;
+  background: none; color: inherit; font: inherit; cursor: pointer;
+}
+.target-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.target-clear {
+  display: grid; place-items: center; padding: 3px; border: 0; border-radius: 50%;
+  background: none; color: var(--muted); cursor: pointer;
+}
+.target-clear:hover { color: var(--fg); background: var(--bg); }
+.target-clear svg.lucide { width: 14px; height: 14px; }
+
+/* Pick mode: a layer over the whole page. */
+.pick-layer { position: fixed; inset: 0; z-index: 2147483001; cursor: crosshair; }
+.highlight {
+  position: fixed;
+  /* Above the page, below the widget's own panel and pick-mode layer. */
+  z-index: 2147482999;
+  pointer-events: none;
+  border: 2px solid #6366f1;
+  border-radius: 6px;
+  background: rgba(99, 102, 241, 0.12);
+  box-shadow: 0 0 0 4000px rgba(0, 0, 0, 0.08);
+  transition: all 80ms ease-out;
+}
+.highlight-label {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: -2px;
+  max-width: 260px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: #6366f1;
+  color: #fff;
+  font: 12px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.highlight[data-label-below="true"] .highlight-label { bottom: auto; top: calc(100% + 6px); }
+.pick-bar {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 8px 8px 16px;
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--fg);
+  box-shadow: var(--shadow);
+  font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  white-space: nowrap;
+  cursor: default;
+}
+.pick-cancel {
+  padding: 6px 12px; border: 1px solid var(--border); border-radius: 999px;
+  background: var(--bg); color: var(--fg); font: inherit; cursor: pointer;
+}
+
 .thanks { padding: 12px 4px; text-align: center; }
-.thanks strong { display: block; font-size: 16px; margin-bottom: 4px; }
+.thanks strong {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  font-size: 16px; margin-bottom: 4px;
+}
+.thanks svg.lucide { color: #ec4899; fill: currentColor; }
 .thanks span { color: var(--muted); }
 
 button:focus-visible, textarea:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }

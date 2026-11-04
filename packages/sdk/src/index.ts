@@ -4,7 +4,12 @@ import { collectContext, uuid } from "./context";
 import type { FlooperInstance, FlooperOptions, Metadata, Visitor } from "./types";
 import { Widget } from "./ui/widget";
 
-export type { FlooperInstance, FlooperOptions, Metadata, Visitor } from "./types";
+export type {
+  FlooperInstance,
+  FlooperOptions,
+  Metadata,
+  Visitor,
+} from "./types";
 export const version: string = __SDK_VERSION__;
 
 let current: FlooperInstance | null = null;
@@ -29,17 +34,23 @@ export function init(options: FlooperOptions): FlooperInstance {
     {
       position: options.position ?? "bottom-right",
       theme: options.theme ?? "auto",
-      title: options.title ?? "Leave a note for the dev ✨",
+      title: options.title ?? "Leave a note for the dev!",
     },
     async (input) => {
       const payload: FeedbackSubmission = {
         idempotencyKey: uuid(),
         ...input,
-        context: collectContext({ captureQueryString: options.captureQueryString ?? false }),
+        context: collectContext({
+          captureQueryString: options.captureQueryString ?? false,
+        }),
         visitor,
         metadata,
       };
-      const result = await submitFeedback({ apiUrl, projectKey: options.projectKey, payload });
+      const result = await submitFeedback({
+        apiUrl,
+        projectKey: options.projectKey,
+        payload,
+      });
       if (!result.ok) console.warn(`[flooper] ${result.message}`);
       return result.ok;
     },
