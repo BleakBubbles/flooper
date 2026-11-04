@@ -10,8 +10,10 @@ export const STYLES = `
   --muted: #71717a;
   --border: #e4e4e7;
   --soft: #f4f4f5;
-  --launcher-bg: #18181b;
+  /* The launcher is always the logo's white-on-black, in every theme. */
+  --launcher-bg: #000000;
   --launcher-fg: #ffffff;
+  --launcher-shadow: var(--shadow);
   --accent: #18181b;
   --accent-fg: #ffffff;
   --danger: #dc2626;
@@ -20,13 +22,15 @@ export const STYLES = `
 @media (prefers-color-scheme: dark) {
   :host(:not([data-theme="light"])) {
     --bg: #1c1c1f; --fg: #f4f4f5; --muted: #a1a1aa; --border: #333338; --soft: #27272a;
-    --launcher-bg: #f4f4f5; --launcher-fg: #18181b; --accent: #f4f4f5; --accent-fg: #18181b;
+    --launcher-shadow: 0 0 0 1px rgba(255, 255, 255, 0.22), 0 0 18px rgba(255, 255, 255, 0.08);
+    --accent: #f4f4f5; --accent-fg: #18181b;
     --danger: #f87171; --shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
   }
 }
 :host([data-theme="dark"]) {
   --bg: #1c1c1f; --fg: #f4f4f5; --muted: #a1a1aa; --border: #333338; --soft: #27272a;
-  --launcher-bg: #f4f4f5; --launcher-fg: #18181b; --accent: #f4f4f5; --accent-fg: #18181b;
+  --launcher-shadow: 0 0 0 1px rgba(255, 255, 255, 0.22), 0 0 18px rgba(255, 255, 255, 0.08);
+  --accent: #f4f4f5; --accent-fg: #18181b;
   --danger: #f87171; --shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
 }
 
@@ -55,7 +59,7 @@ export const STYLES = `
   border-radius: 50%;
   background: var(--launcher-bg);
   color: var(--launcher-fg);
-  box-shadow: var(--shadow);
+  box-shadow: var(--launcher-shadow);
   cursor: pointer;
   transition: transform 160ms ease;
 }
