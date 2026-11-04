@@ -82,10 +82,33 @@ GitHub login is optional locally. To try it, copy `apps/api/.dev.vars.example` t
 
 ## Deploying (Cloudflare)
 
-1. `pnpm --filter @flooper/api exec wrangler d1 create flooper`, then put the ID it prints in `apps/api/wrangler.jsonc` (both `database_id` entries).
-2. `pnpm --filter @flooper/api db:migrate:remote`
-3. Set secrets: `wrangler secret put GITHUB_CLIENT_ID --env production` (same for `GITHUB_CLIENT_SECRET`).
-4. `pnpm build && pnpm --filter @flooper/api exec wrangler deploy --env production`
+The live instance runs at https://flooper.macks0554.workers.dev. Deploying your
+own copy from scratch:
+
+1. Log in: `pnpm --filter @flooper/api exec wrangler login`
+2. Create the database: `pnpm --filter @flooper/api exec wrangler d1 create flooper`,
+   then put the ID it prints in `apps/api/wrangler.jsonc` under `env.production`.
+3. Create the tables: `pnpm --filter @flooper/api db:migrate:remote`
+4. Deploy: `pnpm --filter @flooper/api run deploy` (builds everything, then
+   deploys). It prints your URL, `https://flooper.<account>.workers.dev`.
+5. Create a [GitHub OAuth app](https://github.com/settings/developers) with that
+   URL as the homepage, and `<url>/api/auth/github/callback` as the redirect URI.
+6. Store its credentials as secrets (each command prompts for the value):
+   `pnpm --filter @flooper/api exec wrangler secret put GITHUB_CLIENT_ID --env production`,
+   then the same for `GITHUB_CLIENT_SECRET`.
+
+Later database changes: add a migration, run step 3, then step 4.
+
+### Moving to a custom domain
+
+1. Add the domain to Cloudflare, then add a `"routes": [{ "pattern": "your.domain",
+   "custom_domain": true }]` entry under `env.production` in `wrangler.jsonc`.
+2. Add `https://your.domain/api/auth/github/callback` as a second redirect URI in
+   the GitHub OAuth app (the old one can stay during the switch), and update its
+   homepage URL.
+3. Change the `og:image` URL in `apps/portal/index.html`, then deploy.
+4. Sessions don't carry over between domains, so everyone signs in once more.
+   Widgets already embedded with the workers.dev URL keep working.
 
 ## License
 

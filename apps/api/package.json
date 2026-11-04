@@ -8,12 +8,12 @@
   "scripts": {
     "predev": "node -e \"require('fs').mkdirSync('../portal/dist',{recursive:true})\"",
     "dev": "wrangler dev --port 8787",
-    "deploy": "wrangler deploy",
+    "deploy": "pnpm -w run build && wrangler deploy --env production",
     "cf-typegen": "wrangler types",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
     "db:migrate": "wrangler d1 migrations apply flooper --local",
-    "db:migrate:remote": "wrangler d1 migrations apply flooper --remote",
+    "db:migrate:remote": "wrangler d1 migrations apply flooper --remote --env production",
     "db:seed": "wrangler d1 execute flooper --local --file=seed/dev.sql",
     "db:reset": "node -e \"require('fs').rmSync('.wrangler/state',{recursive:true,force:true})\" && pnpm db:migrate && pnpm db:seed"
   },
