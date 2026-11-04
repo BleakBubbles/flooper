@@ -4,11 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
-
-# Cancel superseded runs on the same branch/PR.
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # Lets you re-run a deploy by hand from the Actions tab.
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -16,6 +13,10 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
+    # A newer push to the same branch or PR makes this run pointless: cancel it.
+    concurrency:
+      group: check-${{ github.ref }}
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -29,3 +30,39 @@ jobs:
       - run: pnpm test
       - run: pnpm build
       - run: pnpm size
+
+  # Continuous deployment: every commit on main that passes the checks above
+  # goes live. Pull requests never deploy.
+  deploy:
+    needs: check
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    # Shows up under the repo's "Deployments", and is where the Cloudflare
+    # token lives (as an environment secret).
+    environment:
+      name: production
+      url: https://flooper.macks0554.workers.dev
+    # Never cancel a deploy halfway (e.g. between migrating and deploying);
+    # a newer one waits its turn instead.
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Migrations run before the new code, so they must keep the *old* code
+      # working too (add columns and tables; don't rename or drop in one step).
+      - name: Apply database migrations
+        run: pnpm --filter @flooper/api db:migrate:remote
+      - name: Build and deploy
+        run: pnpm --filter @flooper/api run deploy
+      - name: Smoke test
+        run: curl --fail --silent --show-error https://flooper.macks0554.workers.dev/api/health

@@ -82,8 +82,18 @@ GitHub login is optional locally. To try it, copy `apps/api/.dev.vars.example` t
 
 ## Deploying (Cloudflare)
 
-The live instance runs at https://flooper.macks0554.workers.dev. Deploying your
-own copy from scratch:
+The live instance runs at https://flooper.macks0554.workers.dev.
+
+**Deploys are automatic.** Every push to `main` that passes CI applies any new
+database migrations and deploys (see `.github/workflows/ci.yml`). Migrations run
+_before_ the new code goes live, so each one must keep the current code working:
+add tables and columns freely, but rename or drop things across two releases.
+To redeploy by hand, use **Run workflow** on the CI workflow in the Actions tab.
+
+The pipeline uses a `CLOUDFLARE_API_TOKEN` secret (Workers edit + D1 edit) in
+the repo's `production` environment, and a `CLOUDFLARE_ACCOUNT_ID` variable.
+
+Deploying your own copy from scratch:
 
 1. Log in: `pnpm --filter @flooper/api exec wrangler login`
 2. Create the database: `pnpm --filter @flooper/api exec wrangler d1 create flooper`,
