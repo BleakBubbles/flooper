@@ -138,4 +138,35 @@ describe("init", () => {
     });
     heading.remove();
   });
+
+  it("highlights the element named in a Show me link, then cleans up the URL", async () => {
+    document.body.insertAdjacentHTML("afterbegin", `<h2 id="pricing">Pricing</h2>`);
+    history.replaceState(null, "", "/?ref=x&flooper-highlight=%23pricing");
+
+    instance = init({ projectKey: "pk_test" });
+    const root = shadow();
+    const highlight = root.querySelector(".highlight") as HTMLElement;
+
+    await vi.waitFor(() => expect(highlight.hidden).toBe(false));
+    expect(root.querySelector(".highlight-label")?.textContent).toBe("Feedback pointed here");
+    expect(window.location.search).toBe("?ref=x");
+
+    // Any click dismisses it.
+    document.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true }));
+    expect(highlight.hidden).toBe(true);
+
+    document.getElementById("pricing")?.remove();
+    history.replaceState(null, "", "/");
+  });
+
+  it("says so when the linked element no longer exists", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "Date"] });
+    history.replaceState(null, "", "/?flooper-highlight=%23gone");
+    instance = init({ projectKey: "pk_test" });
+    await vi.advanceTimersByTimeAsync(6000);
+    const notice = shadow().querySelector(".notice") as HTMLElement;
+    expect(notice.textContent).toContain("Couldn't find");
+    vi.useRealTimers();
+    history.replaceState(null, "", "/");
+  });
 });

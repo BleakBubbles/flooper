@@ -6,6 +6,9 @@
 
 export const API_VERSION = "v1";
 
+/** URL parameter the portal adds to "Show me" links; the widget reads it. */
+export const HIGHLIGHT_PARAM = "flooper-highlight";
+
 /** One-click reactions a visitor can leave without typing anything. */
 export const REACTIONS = ["love", "idea", "confused", "bug"] as const;
 export type Reaction = (typeof REACTIONS)[number];

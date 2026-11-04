@@ -1,4 +1,4 @@
-import { type FeedbackStatus, REACTION_EMOJI } from "@flooper/shared";
+import { type FeedbackStatus, HIGHLIGHT_PARAM, REACTION_EMOJI } from "@flooper/shared";
 import type { Feedback } from "@flooper/shared/schemas";
 
 const ACTIONS: { status: FeedbackStatus; label: string }[] = [
@@ -9,12 +9,16 @@ const ACTIONS: { status: FeedbackStatus; label: string }[] = [
 
 export function FeedbackCard({
   feedback,
+  allowedOrigins,
   onStatus,
 }: {
   feedback: Feedback;
+  /** The project's allowed origins: "Show me" only links to these. */
+  allowedOrigins: string[];
   onStatus: (status: FeedbackStatus) => void;
 }) {
   const { context, visitor } = feedback;
+  const showMe = showMeUrl(feedback, allowedOrigins);
   return (
     <article className="card feedback">
       <div className="feedback-reaction" aria-hidden={!feedback.reaction}>
@@ -25,9 +29,16 @@ export function FeedbackCard({
           {feedback.message ?? "Just a reaction, no note."}
         </p>
         {feedback.target && (
-          <p className="target" title={feedback.target.selector}>
-            📍 {feedback.target.text ? `“${feedback.target.text}”` : feedback.target.selector}
-          </p>
+          <div className="target-row">
+            <p className="target" title={feedback.target.selector}>
+              📍 {feedback.target.text ? `“${feedback.target.text}”` : feedback.target.selector}
+            </p>
+            {showMe && (
+              <a className="show-me" href={showMe} target="_blank" rel="noopener noreferrer">
+                Show me ↗
+              </a>
+            )}
+          </div>
         )}
         <div className="meta">
           <span title={context.url}>{context.path}</span>
@@ -54,6 +65,26 @@ export function FeedbackCard({
       </div>
     </article>
   );
+}
+
+/**
+ * A link to the page the feedback came from, telling the widget there which
+ * element to highlight. The page URL was sent by a visitor's browser, so it's
+ * untrusted: only link to http(s) pages on one of the project's own allowed
+ * origins, never to whatever address someone typed into a crafted request.
+ */
+function showMeUrl(feedback: Feedback, allowedOrigins: string[]): string | null {
+  if (!feedback.target) return null;
+  let url: URL;
+  try {
+    url = new URL(feedback.context.url);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+  if (!allowedOrigins.includes(url.origin)) return null;
+  url.searchParams.set(HIGHLIGHT_PARAM, feedback.target.selector);
+  return url.toString();
 }
 
 const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });

@@ -5,11 +5,11 @@ place to keep ideas so they don't get lost. Finished items move to the bottom.
 
 ## Next
 
-### "Show me on the page"
+### Portal design pass
 
-Next to a picked element in the portal, a button opens the page with
-`?flooper-highlight=<selector>`. The SDK (already on that site) scrolls to the
-element and outlines it.
+Give the portal a clear visual direction: mockups of the main screens first
+(your sites, the inbox, a feedback card, setup), then shared design tokens and
+components so later screens stay consistent.
 
 ### Remaining from the first deploy
 
@@ -85,6 +85,10 @@ code splitting, aggregation queries, and designing for data that drifts.
 
 ## Done
 
+- **"Show me on the page", 2026-11-05.** Feedback cards with a picked element
+  link to the page with `?flooper-highlight=<selector>`; the widget there
+  scrolls to the element and outlines it. Links only go to the project's own
+  allowed origins, and ingest now rejects page URLs from other origins.
 - **First deploy, 2026-11-04.** Live at https://flooper.macks0554.workers.dev
   (Workers + D1, GitHub login). Verified end to end, including a picked element.
 - **Point at a thing (element picker), 2026-11-04.** Visitors pick an element;

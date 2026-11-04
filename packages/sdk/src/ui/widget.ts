@@ -1,6 +1,7 @@
 import { LIMITS, REACTION_EMOJI, REACTIONS, type Reaction } from "@flooper/shared";
 import { Highlighter } from "../picker/highlight";
 import { type PickedTarget, Picker } from "../picker/picker";
+import { takeHighlightParam, waitForElement } from "../picker/show-me";
 import { LOGO_SVG } from "./icon";
 import { ICONS } from "./icons";
 import STYLES from "./widget.css?inline";
@@ -49,6 +50,7 @@ export class Widget {
     send: HTMLButtonElement;
     status: HTMLElement;
     reactions: HTMLButtonElement[];
+    notice: HTMLElement;
     point: HTMLButtonElement;
     chip: HTMLElement;
     chipText: HTMLButtonElement;
@@ -84,6 +86,7 @@ export class Widget {
       send: $(".send"),
       status: $(".status"),
       reactions: [...this.root.querySelectorAll<HTMLButtonElement>(".reaction")],
+      notice: $(".notice"),
       point: $(".point"),
       chip: $(".target-chip"),
       chipText: $(".target-text"),
@@ -199,14 +202,43 @@ export class Widget {
   private showTarget(options: { scroll?: boolean } = {}): void {
     const el = this.findTarget();
     if (!el) return;
-    if (options.scroll) {
-      const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-      el.scrollIntoView({
-        block: "center",
-        behavior: reduceMotion ? "auto" : "smooth",
-      });
-    }
+    if (options.scroll) scrollToCenter(el);
     this.highlighter.show(el);
+  }
+
+  /**
+   * If the page was opened from a "Show me" link in the portal, scroll to the
+   * element the feedback pointed at and outline it until the visitor clicks,
+   * presses a key, or ten seconds pass.
+   */
+  async revealFromUrl(): Promise<void> {
+    const selector = takeHighlightParam();
+    if (!selector) return;
+    const el = await waitForElement(selector);
+    if (!el) {
+      this.notify("Couldn't find that element on this page anymore.");
+      return;
+    }
+    scrollToCenter(el);
+    this.highlighter.show(el, "Feedback pointed here");
+    const dismiss = () => {
+      clearTimeout(timer);
+      document.removeEventListener("pointerdown", dismiss, true);
+      document.removeEventListener("keydown", dismiss, true);
+      this.highlighter.hide();
+    };
+    const timer = setTimeout(dismiss, 10_000);
+    document.addEventListener("pointerdown", dismiss, true);
+    document.addEventListener("keydown", dismiss, true);
+  }
+
+  /** A short message at the top of the page that fades after a few seconds. */
+  private notify(text: string): void {
+    this.el.notice.textContent = text;
+    this.el.notice.hidden = false;
+    setTimeout(() => {
+      this.el.notice.hidden = true;
+    }, 5000);
   }
 
   /** The picked element, or its replacement if the page re-rendered it. */
@@ -283,6 +315,12 @@ export class Widget {
   }
 }
 
+/** Bring an element to the middle of the screen, gently unless motion is reduced. */
+function scrollToCenter(el: Element): void {
+  const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  el.scrollIntoView?.({ block: "center", behavior: reduceMotion ? "auto" : "smooth" });
+}
+
 function template(position: WidgetOptions["position"]): string {
   const reactions = REACTIONS.map(
     (r) =>
@@ -330,6 +368,7 @@ function template(position: WidgetOptions["position"]): string {
     aria-controls="flooper-panel">${LOGO_SVG}</button>
 </div>
 <div class="highlight" hidden><span class="highlight-label"></span></div>
+<div class="notice" role="status" hidden></div>
 <div class="pick-layer" hidden>
   <div class="pick-bar" role="status">Selecting an element
     <button type="button" class="pick-cancel">Cancel</button>

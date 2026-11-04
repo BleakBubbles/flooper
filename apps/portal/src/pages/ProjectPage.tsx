@@ -51,14 +51,18 @@ export function ProjectPage() {
           </button>
         </nav>
       </div>
-      {tab === "inbox" ? <Inbox projectId={projectId} /> : <Setup project={project.data} />}
+      {tab === "inbox" ? (
+        <Inbox projectId={projectId} allowedOrigins={project.data.allowedOrigins} />
+      ) : (
+        <Setup project={project.data} />
+      )}
     </>
   );
 }
 
 type FeedbackPages = InfiniteData<Paginated<Feedback>, string | undefined>;
 
-function Inbox({ projectId }: { projectId: string }) {
+function Inbox({ projectId, allowedOrigins }: { projectId: string; allowedOrigins: string[] }) {
   const queryClient = useQueryClient();
   const [status, setStatus] = useState<FeedbackStatus | undefined>("new");
   const queryKey = keys.feedback(projectId, status);
@@ -136,6 +140,7 @@ function Inbox({ projectId }: { projectId: string }) {
           <FeedbackCard
             key={item.id}
             feedback={item}
+            allowedOrigins={allowedOrigins}
             onStatus={(next) => updateStatus.mutate({ id: item.id, status: next })}
           />
         ))}

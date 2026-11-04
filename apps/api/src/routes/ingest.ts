@@ -36,6 +36,15 @@ ingest.post("/:publicKey/feedback", async (c) => {
   const project = await authorizeOrigin(c);
   const submission = await parseJsonBody(c, feedbackSubmissionSchema, LIMITS.ingestBodyMaxBytes);
 
+  // The page the note is about must be on the site that sent it. Otherwise a
+  // crafted request could store any address, e.g. a phishing page that the
+  // portal's "Show me" link would then send the site owner to.
+  if (pageOrigin(submission.context.url) !== c.req.header("Origin")) {
+    throw new ApiError(422, "validation_failed", "The page URL must be on the sending site", {
+      "context.url": ["Must be on the same origin as the request"],
+    });
+  }
+
   // Honeypot: a hidden field real visitors never see. If it's filled in, a bot
   // did it. Pretend it worked so the bot learns nothing, but store nothing.
   if (submission.hp) {
@@ -89,4 +98,12 @@ async function authorizeOrigin(c: Context<AppEnv>): Promise<ProjectRow> {
   // The response depends on Origin, so caches must not share it across origins.
   c.header("Vary", "Origin");
   return project;
+}
+
+function pageOrigin(url: string): string | null {
+  try {
+    return new URL(url).origin;
+  } catch {
+    return null;
+  }
 }
