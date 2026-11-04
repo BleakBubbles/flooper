@@ -12,8 +12,10 @@ Visitors leave a reaction or a little note; you read them in the portal.</p>
 
 ## What it does
 
-- **A small floating button** on your site (about 8 KB gzipped, no dependencies, isolated in Shadow DOM).
+- **A small floating button** on your site (about 7 KB gzipped, no dependencies, isolated in Shadow DOM).
 - **One-click reactions** (❤️ 💡 🤔 🐛) and/or a short note.
+- **Point at a thing:** visitors can pick the exact part of the page they mean.
+  Add `data-flooper-ignore` to anything that should never be pickable.
 - **Useful context, nothing creepy:** page, viewport, language. Query strings are dropped by default.
 - **A portal** where you see notes per site and mark them seen, done or archived.
 

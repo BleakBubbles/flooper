@@ -24,6 +24,11 @@ export function FeedbackCard({
         <p className={feedback.message ? "" : "muted"}>
           {feedback.message ?? "Just a reaction, no note."}
         </p>
+        {feedback.target && (
+          <p className="target" title={feedback.target.selector}>
+            📍 {feedback.target.text ? `“${feedback.target.text}”` : feedback.target.selector}
+          </p>
+        )}
         <div className="meta">
           <span title={context.url}>{context.path}</span>
           <span>{timeAgo(feedback.createdAt)}</span>

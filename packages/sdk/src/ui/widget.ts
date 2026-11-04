@@ -1,6 +1,12 @@
 import { LIMITS, REACTION_EMOJI, REACTIONS, type Reaction } from "@flooper/shared";
+import { Highlighter } from "../picker/highlight";
+import { type PickedTarget, Picker } from "../picker/picker";
 import { LOGO_SVG } from "./icon";
+import { ICONS } from "./icons";
 import { STYLES } from "./styles";
+
+/** Shown as the placeholder; → in the empty box fills it in for real. */
+const EXAMPLE_MESSAGE = "Cool website!";
 
 const REACTION_LABELS: Record<Reaction, string> = {
   love: "Love it",
@@ -18,6 +24,7 @@ export interface WidgetOptions {
 export interface WidgetInput {
   reaction?: Reaction;
   message?: string;
+  target?: PickedTarget;
   hp?: string;
 }
 
@@ -42,8 +49,18 @@ export class Widget {
     send: HTMLButtonElement;
     status: HTMLElement;
     reactions: HTMLButtonElement[];
+    point: HTMLButtonElement;
+    chip: HTMLElement;
+    chipText: HTMLButtonElement;
+    chipLabel: HTMLElement;
+    chipClear: HTMLButtonElement;
   };
+  private readonly picker: Picker;
+  private readonly highlighter: Highlighter;
   private reaction: Reaction | undefined;
+  private target: PickedTarget | undefined;
+  /** The picked element itself, while it's still on the page. */
+  private targetElement: Element | null = null;
   private sending = false;
   private resetTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -67,7 +84,14 @@ export class Widget {
       send: $(".send"),
       status: $(".status"),
       reactions: [...this.root.querySelectorAll<HTMLButtonElement>(".reaction")],
+      point: $(".point"),
+      chip: $(".target-chip"),
+      chipText: $(".target-text"),
+      chipLabel: $(".target-label"),
+      chipClear: $(".target-clear"),
     };
+    this.highlighter = new Highlighter($(".highlight"), $(".highlight-label"));
+    this.picker = new Picker(this.root, this.host, this.highlighter);
     // textContent, not innerHTML: the title comes from site config and must
     // never be interpreted as markup.
     $<HTMLElement>(".title").textContent = options.title;
@@ -79,12 +103,38 @@ export class Widget {
       );
     }
     this.el.message.addEventListener("input", () => this.refresh());
+    this.el.message.addEventListener("keydown", (event) => {
+      // Like accepting an inline suggestion: → in an empty box takes the example.
+      if (event.key === "ArrowRight" && this.el.message.value === "") {
+        event.preventDefault();
+        this.el.message.value = this.el.message.placeholder;
+        this.refresh();
+      }
+    });
+    this.el.point.addEventListener("click", () => void this.pickTarget());
+    // Hovering or focusing the chip outlines the picked element on the page;
+    // clicking it also scrolls there (and is how this works on touch screens).
+    this.el.chip.addEventListener("mouseenter", () => this.showTarget());
+    this.el.chip.addEventListener("mouseleave", () => {
+      if (!this.el.chip.matches(":focus-within")) this.highlighter.hide();
+    });
+    this.el.chipText.addEventListener("focus", () => this.showTarget());
+    this.el.chipText.addEventListener("blur", () => this.highlighter.hide());
+    this.el.chipText.addEventListener("click", () => this.showTarget({ scroll: true }));
+    this.el.chipClear.addEventListener("click", () => {
+      this.target = undefined;
+      this.targetElement = null;
+      this.highlighter.hide();
+      this.refresh();
+      this.el.point.focus();
+    });
     this.el.form.addEventListener("submit", (event) => {
       event.preventDefault();
       void this.submit();
     });
     this.root.addEventListener("keydown", (event) => {
-      if ((event as KeyboardEvent).key === "Escape") this.close();
+      // While picking, Escape belongs to the picker (it cancels pick mode).
+      if ((event as KeyboardEvent).key === "Escape" && !this.picker.active) this.close();
     });
     this.refresh();
   }
@@ -100,6 +150,8 @@ export class Widget {
 
   destroy(): void {
     clearTimeout(this.resetTimer);
+    this.picker.cancel();
+    this.highlighter.hide();
     document.removeEventListener("pointerdown", this.onOutsidePointer, true);
     this.host.remove();
   }
@@ -112,6 +164,7 @@ export class Widget {
 
   close(): void {
     if (!this.isOpen) return;
+    this.highlighter.hide();
     this.el.panel.hidden = true;
     this.el.launcher.setAttribute("aria-expanded", "false");
     this.el.launcher.focus();
@@ -125,8 +178,44 @@ export class Widget {
   private onOutsidePointer = (event: Event) => {
     // composedPath() sees through the shadow boundary; event.target alone
     // would just be the host element for clicks inside the widget.
-    if (this.isOpen && !event.composedPath().includes(this.host)) this.close();
+    if (this.isOpen && !this.picker.active && !event.composedPath().includes(this.host)) {
+      this.close();
+    }
   };
+
+  /** Hide the panel, let the visitor point at something, then come back. */
+  private async pickTarget(): Promise<void> {
+    this.el.panel.hidden = true;
+    const picked = await this.picker.pick();
+    this.el.panel.hidden = false;
+    if (picked) {
+      this.target = picked.target;
+      this.targetElement = picked.element;
+    }
+    this.refresh();
+    (picked ? this.el.message : this.el.point).focus();
+  }
+
+  private showTarget(options: { scroll?: boolean } = {}): void {
+    const el = this.findTarget();
+    if (!el) return;
+    if (options.scroll) {
+      const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+      el.scrollIntoView({ block: "center", behavior: reduceMotion ? "auto" : "smooth" });
+    }
+    this.highlighter.show(el);
+  }
+
+  /** The picked element, or its replacement if the page re-rendered it. */
+  private findTarget(): Element | null {
+    if (this.targetElement?.isConnected) return this.targetElement;
+    if (!this.target) return null;
+    try {
+      return document.querySelector(this.target.selector);
+    } catch {
+      return null;
+    }
+  }
 
   private pickReaction(reaction: Reaction): void {
     this.reaction = this.reaction === reaction ? undefined : reaction;
@@ -140,6 +229,11 @@ export class Widget {
     const hasContent = this.reaction !== undefined || this.el.message.value.trim().length > 0;
     this.el.send.disabled = this.sending || !hasContent;
     this.el.send.textContent = this.sending ? "Sending…" : "Send";
+    this.el.point.setAttribute("aria-pressed", String(this.target !== undefined));
+    this.el.chip.hidden = this.target === undefined;
+    if (this.target) {
+      this.el.chipLabel.textContent = this.target.text ? `“${this.target.text}”` : "Picked element";
+    }
   }
 
   private setStatus(text: string, tone: "info" | "error" = "info"): void {
@@ -156,6 +250,7 @@ export class Widget {
     const ok = await this.onSubmit({
       reaction: this.reaction,
       message: this.el.message.value.trim() || undefined,
+      target: this.target,
       hp: this.el.hp.value || undefined,
     });
 
@@ -175,6 +270,8 @@ export class Widget {
 
   private reset(): void {
     this.reaction = undefined;
+    this.target = undefined;
+    this.targetElement = null;
     this.el.message.value = "";
     this.el.form.hidden = false;
     this.el.thanks.hidden = true;
@@ -197,20 +294,42 @@ function template(position: WidgetOptions["position"]): string {
       <p class="title" id="flooper-title"></p>
       <div class="reactions" role="group" aria-label="Quick reaction">${reactions}</div>
       <label class="sr-only" for="flooper-message">Your note</label>
-      <textarea id="flooper-message" rows="3" maxlength="${LIMITS.messageMaxLength}"
-        placeholder="Anything on your mind? (optional)"></textarea>
+      <div class="message">
+        <textarea id="flooper-message" rows="3" maxlength="${LIMITS.messageMaxLength}"
+          placeholder="${EXAMPLE_MESSAGE}" aria-describedby="flooper-autofill"></textarea>
+        <div class="ghost" aria-hidden="true">
+          <span class="ghost-text">${EXAMPLE_MESSAGE}</span>
+          <kbd class="autofill-hint">${ICONS.arrowRight}</kbd>
+        </div>
+      </div>
+      <span class="sr-only" id="flooper-autofill">Press the right arrow key to use the example message.</span>
+      <div class="target-chip" hidden>
+        <button type="button" class="target-text" title="Show it on the page">
+          ${ICONS.element}<span class="target-label"></span>
+        </button>
+        <button type="button" class="target-clear" aria-label="Remove the picked element"
+          title="Remove">${ICONS.close}</button>
+      </div>
       <input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
       <div class="footer">
+        <button type="button" class="point" aria-pressed="false"
+          aria-label="Point at something on the page" title="Point at something on the page">${ICONS.pick}</button>
         <span class="status" role="status" aria-live="polite"></span>
         <button type="submit" class="send">Send</button>
       </div>
     </form>
     <div class="thanks" role="status" hidden>
-      <strong>Thanks! 💛</strong>
+      <strong>${ICONS.heart} Thanks!</strong>
       <span>The dev will see this soon.</span>
     </div>
   </div>
   <button type="button" class="launcher" aria-label="Leave feedback" aria-expanded="false"
     aria-controls="flooper-panel">${LOGO_SVG}</button>
+</div>
+<div class="highlight" hidden><span class="highlight-label"></span></div>
+<div class="pick-layer" hidden>
+  <div class="pick-bar" role="status">Choose an element to reference in your message
+    <button type="button" class="pick-cancel">Cancel</button>
+  </div>
 </div>`;
 }

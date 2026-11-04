@@ -120,6 +120,8 @@ never edit one that has already run somewhere.
 Things a bigger system would have, skipped until they're actually needed:
 
 - A queue between ingest and the database (D1 writes are fast enough here).
-- Email notifications, replies to visitors, and the "point at an element" picker.
+- Email notifications and replies to visitors.
 - Screenshots, which would mean object storage (R2) and a privacy review.
 - Multiple members per project, roles, and billing.
+
+See [roadmap.md](roadmap.md) for what's planned and in what order.
