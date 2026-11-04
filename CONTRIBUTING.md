@@ -13,6 +13,19 @@ pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm size
 
 CI runs the same checks.
 
+## How changes reach production
+
+`main` is protected, and every commit on it deploys automatically. So:
+
+1. Work on a branch: `git switch -c fix/short-description`.
+2. Push it and open a pull request (`gh pr create --fill` works).
+3. CI must pass before GitHub allows the merge, and the branch must be up to
+   date with `main`. Direct pushes to `main` are rejected.
+4. PRs are squash-merged, so each one becomes a single commit on `main`, titled
+   with the PR's title. Merging deploys it, and the branch is deleted.
+
+Tip: `gh pr merge --auto --squash` merges a PR by itself as soon as CI passes.
+
 ## Guidelines
 
 - **Small PRs** are much easier to review. For anything big, open an issue first to discuss it.
