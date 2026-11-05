@@ -90,6 +90,23 @@ export async function updateProject(
     .first<ProjectRow>();
 }
 
+/**
+ * Delete a project and its notes, but only if it belongs to the owner. Both
+ * statements run as one batch (a single transaction), so a failure can't
+ * leave orphaned notes behind. Returns false if there was nothing to delete.
+ */
+export async function deleteProject(db: D1Database, id: string, ownerId: string): Promise<boolean> {
+  const [, removed] = await db.batch([
+    db
+      .prepare(
+        "DELETE FROM feedback WHERE project_id IN (SELECT id FROM projects WHERE id = ? AND owner_id = ?)",
+      )
+      .bind(id, ownerId),
+    db.prepare("DELETE FROM projects WHERE id = ? AND owner_id = ?").bind(id, ownerId),
+  ]);
+  return (removed?.meta.changes ?? 0) > 0;
+}
+
 export function allowedOrigins(row: ProjectRow): string[] {
   return JSON.parse(row.allowed_origins) as string[];
 }

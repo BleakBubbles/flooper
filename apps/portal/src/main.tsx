@@ -4,8 +4,9 @@ import { createRoot } from "react-dom/client";
 import { createBrowserRouter, RouterProvider } from "react-router";
 import { ApiRequestError } from "./api";
 import { Layout } from "./components/Layout";
-import { ProjectPage } from "./pages/ProjectPage";
-import { ProjectsPage } from "./pages/ProjectsPage";
+import { SettingsPage } from "./pages/SettingsPage";
+import { SitePage } from "./pages/SitePage";
+import { SitesPage } from "./pages/SitesPage";
 import "./styles.css";
 
 const queryClient = new QueryClient({
@@ -23,8 +24,9 @@ const router = createBrowserRouter([
   {
     element: <Layout />,
     children: [
-      { index: true, element: <ProjectsPage /> },
-      { path: "projects/:projectId", element: <ProjectPage /> },
+      { index: true, element: <SitesPage /> },
+      { path: "projects/:projectId", element: <SitePage /> },
+      { path: "projects/:projectId/settings", element: <SettingsPage /> },
     ],
   },
 ]);
