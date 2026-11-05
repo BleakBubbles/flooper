@@ -20,6 +20,22 @@ describe("portal API", () => {
     expect(res.status).toBe(403);
   });
 
+  it("hides other users' notes behind a 404", async () => {
+    const cookie = await loginAsDev();
+    await env.DB.prepare(
+      `INSERT INTO users (id, github_id, login, created_at) VALUES ('usr_y', 97, 'y', 0);`,
+    ).run();
+    await env.DB.prepare(
+      `INSERT INTO projects (id, owner_id, name, public_key, created_at) VALUES ('prj_y', 'usr_y', 'Y', 'pk_y', 0);`,
+    ).run();
+    await env.DB.prepare(
+      `INSERT INTO feedback (id, project_id, message, page_url, context, idempotency_key, created_at)
+       VALUES ('fb_y', 'prj_y', 'secret', 'https://y.example/', '{}', 'k', 0);`,
+    ).run();
+    const res = await request("/api/v1/feedback/fb_y", { headers: { Cookie: cookie } });
+    expect(res.status).toBe(404);
+  });
+
   it("hides other users' projects behind a 404", async () => {
     const cookie = await loginAsDev();
     await env.DB.prepare(
@@ -62,6 +78,10 @@ describe("portal API", () => {
     expect(pages).toBe(3);
 
     const [first] = seen;
+    const one = await request(`/api/v1/feedback/${first}`, { headers: { Cookie: cookie } });
+    expect(one.status).toBe(200);
+    expect(await one.json()).toMatchObject({ id: first, projectId: project.id });
+
     const patched = await json(
       "PATCH",
       `/api/v1/feedback/${first}`,
@@ -74,6 +94,55 @@ describe("portal API", () => {
       headers: { Cookie: cookie },
     });
     expect(((await done.json()) as { data: unknown[] }).data).toHaveLength(1);
+
+    const counts = await request(`/api/v1/projects/${project.id}/feedback/counts`, {
+      headers: { Cookie: cookie },
+    });
+    expect(await counts.json()).toMatchObject({
+      new: 4,
+      seen: 0,
+      done: 1,
+      archived: 0,
+      total: 5,
+      latest: { createdAt: expect.any(String), pageUrl: `${SITE}/about` },
+    });
+  });
+
+  it("deletes a site with its notes, but only the owner's", async () => {
+    const cookie = await loginAsDev();
+    const project = await createProject(cookie);
+    await json("POST", `/api/v1/ingest/${project.publicKey}/feedback`, submission(), {
+      Origin: SITE,
+    });
+
+    const res = await request(`/api/v1/projects/${project.id}`, {
+      method: "DELETE",
+      headers: { Cookie: cookie, Origin: BASE },
+    });
+    expect(res.status).toBe(204);
+    expect(
+      (await request(`/api/v1/projects/${project.id}`, { headers: { Cookie: cookie } })).status,
+    ).toBe(404);
+    const orphans = await env.DB.prepare("SELECT COUNT(*) AS n FROM feedback WHERE project_id = ?")
+      .bind(project.id)
+      .first<{ n: number }>();
+    expect(orphans?.n).toBe(0);
+
+    // Someone else's site: 404, and it's still there.
+    await env.DB.prepare(
+      `INSERT INTO users (id, github_id, login, created_at) VALUES ('usr_x', 98, 'x', 0);`,
+    ).run();
+    await env.DB.prepare(
+      `INSERT INTO projects (id, owner_id, name, public_key, created_at) VALUES ('prj_x', 'usr_x', 'X', 'pk_x', 0);`,
+    ).run();
+    const other = await request("/api/v1/projects/prj_x", {
+      method: "DELETE",
+      headers: { Cookie: cookie, Origin: BASE },
+    });
+    expect(other.status).toBe(404);
+    expect(
+      await env.DB.prepare("SELECT id FROM projects WHERE id = 'prj_x'").first(),
+    ).not.toBeNull();
   });
 
   it("logs out", async () => {

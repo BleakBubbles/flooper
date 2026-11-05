@@ -1,5 +1,7 @@
+import type { Project, User } from "@flooper/shared/schemas";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, Outlet } from "react-router";
+import { type ReactNode, useEffect, useRef } from "react";
+import { Link, Outlet, useLocation, useMatch } from "react-router";
 import { ApiRequestError, api, keys } from "../api";
 import { LoginPage } from "../pages/LoginPage";
 
@@ -8,35 +10,178 @@ import { LoginPage } from "../pages/LoginPage";
  * login page instead of whatever route was requested.
  */
 export function Layout() {
-  const queryClient = useQueryClient();
   const me = useQuery({ queryKey: keys.me, queryFn: api.me });
-  const logout = useMutation({
-    mutationFn: api.logout,
-    onSuccess: () => queryClient.clear(),
-  });
 
   if (me.isPending) return <div className="center muted">Loading…</div>;
   if (me.error instanceof ApiRequestError && me.error.status === 401) return <LoginPage />;
   if (me.isError) return <div className="center error">{me.error.message}</div>;
 
   return (
-    <div className="shell">
-      <header className="topbar">
-        <Link to="/" className="brand">
-          <img src="/logo.svg" alt="" width={28} height={28} />
-          Flooper
-        </Link>
-        <div className="topbar-user">
-          {me.data.avatarUrl && <img className="avatar" src={me.data.avatarUrl} alt="" />}
-          <span>{me.data.name ?? me.data.login}</span>
-          <button type="button" className="btn ghost" onClick={() => logout.mutate()}>
-            Log out
-          </button>
+    <>
+      <Header user={me.data} />
+      <Outlet />
+    </>
+  );
+}
+
+/** Logo / site switcher on the left; site settings and account on the right. */
+function Header({ user }: { user: User }) {
+  const match = useMatch("/projects/:projectId/*");
+  const projectId = match?.params.projectId;
+  const onSettings = useMatch("/projects/:projectId/settings") !== null;
+  const projects = useQuery({ queryKey: keys.projects, queryFn: api.listProjects });
+  const current = projects.data?.data.find((p) => p.id === projectId);
+
+  return (
+    <header className="header">
+      <div className="header-inner">
+        <div className="header-left">
+          <Link to="/" className="brand">
+            <img src="/logo.svg" alt="" width={30} height={30} />
+            Flooper
+          </Link>
+          {projectId && (
+            <>
+              <span className="crumb-slash" aria-hidden="true">
+                /
+              </span>
+              <SiteSwitcher current={current} projects={projects.data?.data ?? []} />
+            </>
+          )}
         </div>
-      </header>
-      <main className="content">
-        <Outlet />
-      </main>
-    </div>
+        <div className="header-right">
+          {projectId && (
+            <Link
+              to={`/projects/${projectId}/settings`}
+              className="header-link"
+              aria-current={onSettings ? "page" : undefined}
+            >
+              <GearIcon />
+              Site settings
+            </Link>
+          )}
+          <AccountMenu user={user} />
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function SiteSwitcher({ current, projects }: { current?: Project; projects: Project[] }) {
+  return (
+    <Menu label={current?.name ?? "…"} buttonClass="menu-button" showChevron>
+      <span className="menu-label">Your sites</span>
+      {projects.map((p) => (
+        <Link
+          key={p.id}
+          to={`/projects/${p.id}`}
+          aria-current={p.id === current?.id ? "page" : undefined}
+        >
+          {p.name}
+        </Link>
+      ))}
+      <hr />
+      <Link to="/">All sites</Link>
+      <Link to="/?new=1">Add a site</Link>
+    </Menu>
+  );
+}
+
+function AccountMenu({ user }: { user: User }) {
+  const queryClient = useQueryClient();
+  const logout = useMutation({
+    mutationFn: api.logout,
+    onSuccess: () => queryClient.clear(),
+  });
+  const name = user.name ?? user.login;
+  return (
+    <Menu
+      label={
+        <span className="avatar">
+          {user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : name[0]?.toUpperCase()}
+        </span>
+      }
+      ariaLabel={`Account: ${name}`}
+      alignRight
+    >
+      <span className="menu-label">Signed in as {user.login}</span>
+      <button type="button" onClick={() => logout.mutate()}>
+        Log out
+      </button>
+    </Menu>
+  );
+}
+
+/**
+ * A small dropdown built on <details>: keyboard and screen-reader support come
+ * from the browser. It closes when you pick something, click elsewhere, or
+ * navigate.
+ */
+function Menu({
+  label,
+  ariaLabel,
+  buttonClass,
+  showChevron,
+  alignRight,
+  children,
+}: {
+  label: ReactNode;
+  ariaLabel?: string;
+  buttonClass?: string;
+  showChevron?: boolean;
+  alignRight?: boolean;
+  children: ReactNode;
+}) {
+  const ref = useRef<HTMLDetailsElement>(null);
+  const location = useLocation();
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: close on every navigation.
+  useEffect(() => {
+    if (ref.current) ref.current.open = false;
+  }, [location]);
+
+  useEffect(() => {
+    const close = (event: PointerEvent) => {
+      if (ref.current?.open && !ref.current.contains(event.target as Node)) {
+        ref.current.open = false;
+      }
+    };
+    document.addEventListener("pointerdown", close);
+    return () => document.removeEventListener("pointerdown", close);
+  }, []);
+
+  return (
+    <details className="menu" ref={ref}>
+      <summary className={buttonClass} aria-label={ariaLabel}>
+        {label}
+        {showChevron && <ChevronIcon />}
+      </summary>
+      <div className={alignRight ? "menu-list align-right" : "menu-list"}>{children}</div>
+    </details>
+  );
+}
+
+const iconProps = {
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: 2,
+  strokeLinecap: "round" as const,
+  strokeLinejoin: "round" as const,
+};
+
+function ChevronIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" {...iconProps}>
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}
+
+function GearIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" {...iconProps}>
+      <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
   );
 }

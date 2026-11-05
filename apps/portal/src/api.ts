@@ -1,4 +1,4 @@
-import type { ApiErrorBody, FeedbackStatus, Paginated } from "@flooper/shared";
+import type { ApiErrorBody, FeedbackCounts, FeedbackStatus, Paginated } from "@flooper/shared";
 import type {
   CreateProjectInput,
   Feedback,
@@ -52,6 +52,7 @@ export const api = {
   createProject: (input: CreateProjectInput) => request<Project>("POST", "/v1/projects", input),
   updateProject: (id: string, input: UpdateProjectInput) =>
     request<Project>("PATCH", `/v1/projects/${id}`, input),
+  deleteProject: (id: string) => request<void>("DELETE", `/v1/projects/${id}`),
 
   listFeedback: (projectId: string, opts: { status?: FeedbackStatus; cursor?: string }) => {
     const qs = new URLSearchParams();
@@ -59,6 +60,9 @@ export const api = {
     if (opts.cursor) qs.set("cursor", opts.cursor);
     return request<Paginated<Feedback>>("GET", `/v1/projects/${projectId}/feedback?${qs}`);
   },
+  feedbackCounts: (projectId: string) =>
+    request<FeedbackCounts>("GET", `/v1/projects/${projectId}/feedback/counts`),
+  getFeedback: (id: string) => request<Feedback>("GET", `/v1/feedback/${id}`),
   updateFeedback: (id: string, status: FeedbackStatus) =>
     request<Feedback>("PATCH", `/v1/feedback/${id}`, { status }),
 };
@@ -73,4 +77,7 @@ export const keys = {
   project: (id: string) => ["projects", id] as const,
   feedback: (projectId: string, status?: FeedbackStatus) =>
     ["feedback", projectId, status ?? "all"] as const,
+  // Under the "feedback" prefix, so invalidating a project's feedback refreshes its counts too.
+  counts: (projectId: string) => ["feedback", projectId, "counts"] as const,
+  note: (projectId: string, id: string) => ["feedback", projectId, "note", id] as const,
 };

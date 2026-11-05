@@ -5,12 +5,6 @@ place to keep ideas so they don't get lost. Finished items move to the bottom.
 
 ## Next
 
-### Portal design pass
-
-Give the portal a clear visual direction: mockups of the main screens first
-(your sites, the inbox, a feedback card, setup), then shared design tokens and
-components so later screens stay consistent.
-
 ### Remaining from the first deploy
 
 - Put the widget on a real page (your own site) and live with it for a bit.
@@ -85,6 +79,11 @@ code splitting, aggregation queries, and designing for data that drifts.
 
 ## Done
 
+- **Portal redesign, 2026-11-05.** One header (logo / site switcher, Site
+  settings, account); the inbox is a single panel whose toolbar holds the
+  heading and filters; new sites open on a Setup checklist that turns into the
+  inbox when the first note arrives. Light theme from the "wall of notes"
+  direction, dark from "ink". Mockups: the "Flooper portal directions" canvas.
 - **"Show me on the page", 2026-11-05.** Feedback cards with a picked element
   link to the page with `?flooper-highlight=<selector>`; the widget there
   scrolls to the element and outlines it. Links only go to the project's own
