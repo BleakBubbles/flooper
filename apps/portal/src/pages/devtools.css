@@ -1,0 +1,579 @@
+/* The DevTools showcase on the landing page (DevtoolsShowcase.tsx). The window
+   is dark in every theme, like DevTools on a dark page; its syntax colors
+   follow DevTools' own dark theme, so it reads as the real thing. */
+.dt-showcase {
+  --dt-bg: #151517;
+  --dt-bar: #1c1c1f;
+  --dt-line: #2a2a2e;
+  --dt-text: #d6d6d0;
+  --dt-dim: #8b8b93;
+  --dt-tag: #7cacf8;
+  --dt-attr: #9bbbdc;
+  --dt-string: #f29766;
+  --dt-key: #c58af9;
+  --dt-pick: rgba(124, 172, 248, 0.16);
+  --dt-fail: #f28b82;
+  --dt-ok: #81c995;
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 28px;
+  align-items: start;
+}
+@media (min-width: 1000px) {
+  .dt-showcase {
+    grid-template-columns: minmax(280px, 360px) 1fr;
+    gap: 48px;
+  }
+}
+
+.dt-side {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+/* The claims: a list of tabs, with a bar that fills while each one is shown. */
+.dt-claims {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.dt-claim {
+  position: relative;
+  display: grid;
+  grid-template-columns: 36px 1fr;
+  align-items: start;
+  column-gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
+}
+.dt-claim-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+/* A small tile per claim; the chosen one lights up in the accent. */
+.dt-claim-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--muted);
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
+}
+.dt-claim[aria-selected="true"] .dt-claim-icon {
+  border-color: rgba(244, 114, 182, 0.35);
+  background: rgba(244, 114, 182, 0.12);
+  color: var(--accent);
+}
+.dt-claim:hover {
+  color: var(--fg-2);
+}
+.dt-claim[aria-selected="true"] {
+  border-color: var(--border);
+  background: var(--surface);
+  color: var(--fg-2);
+}
+.dt-claim strong {
+  color: var(--fg);
+  font-size: 17px;
+  letter-spacing: -0.015em;
+}
+.dt-claim[aria-selected="false"] strong {
+  color: var(--fg-2);
+}
+.dt-claim-line {
+  font-size: 14px;
+  line-height: 1.45;
+}
+/* Every sentence always shows, so nothing moves; the others are just quieter. */
+.dt-claim[aria-selected="false"] .dt-claim-line {
+  color: var(--faint);
+}
+.dt-progress {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  width: 100%;
+  background: var(--accent);
+  transform-origin: left;
+  animation: dt-progress linear forwards;
+}
+@keyframes dt-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* The window: a browser with DevTools docked at the bottom, on a soft glow. */
+.dt-window {
+  position: relative;
+  min-width: 0;
+  border: 1px solid var(--dt-line);
+  border-radius: 14px;
+  background: var(--dt-bg);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.03),
+    0 30px 80px rgba(0, 0, 0, 0.7);
+  overflow: hidden;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--dt-text);
+}
+.dt-window::before {
+  content: "";
+  position: absolute;
+  inset: -40% -20% auto;
+  height: 80%;
+  background: radial-gradient(closest-side, rgba(244, 114, 182, 0.12), transparent);
+  pointer-events: none;
+  z-index: -1;
+}
+.dt-showcase::before {
+  content: "";
+  position: absolute;
+  right: 10%;
+  top: 0;
+  width: 60%;
+  height: 100%;
+  background: radial-gradient(closest-side, rgba(244, 114, 182, 0.1), transparent 70%);
+  pointer-events: none;
+}
+.dt-chrome {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 14px;
+  background: var(--dt-bar);
+  border-bottom: 1px solid var(--dt-line);
+}
+.dt-dots {
+  display: flex;
+  gap: 6px;
+}
+.dt-dots i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #3a3a40;
+}
+.dt-url {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 340px;
+  margin: 0 auto;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: #0d0d0f;
+  color: var(--dt-text);
+  font-family: var(--font);
+  font-size: 12px;
+}
+.dt-url svg {
+  color: var(--dt-dim);
+}
+.dt-url .dim {
+  color: var(--dt-dim);
+}
+
+/* The page being inspected: a light site, like most sites the widget lives on. */
+.dt-page {
+  position: relative;
+  height: 184px;
+  padding: 12px 16px;
+  background: #f4f4f1;
+  overflow: hidden;
+}
+.dt-page i {
+  display: block;
+  height: 7px;
+  border-radius: 4px;
+  background: #dcdcd6;
+}
+.dt-page-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.dt-page-nav i {
+  width: 36px;
+}
+.dt-page-nav i.logo {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  background: #1a1a1a;
+  margin-right: auto;
+}
+.dt-page-body {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 18px;
+  max-width: 520px;
+}
+.dt-page-body > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.dt-page-body i.h {
+  height: 14px;
+  width: 80%;
+  background: #c9c9c3;
+}
+.dt-page-body i.short {
+  width: 55%;
+}
+.dt-page-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+.dt-page-pay {
+  align-self: flex-start;
+  margin-top: 4px;
+  padding: 5px 12px;
+  border-radius: 6px;
+  background: #1a1a1a;
+  color: #f4f4f1;
+  font-family: var(--font);
+  font-size: 11px;
+  font-weight: 600;
+}
+.dt-page-launcher {
+  position: absolute;
+  right: 14px;
+  bottom: 12px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+.dt-page-launcher img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+}
+/* What DevTools draws over the element you've picked in the Elements tab. */
+.dt-page-launcher.inspected::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 4px;
+  background: rgba(124, 172, 248, 0.35);
+  outline: 1px solid var(--dt-tag);
+}
+.dt-inspect-label {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  color: #1a1a1a;
+  font-size: 10.5px;
+  white-space: nowrap;
+}
+.dt-page-widget {
+  position: absolute;
+  right: 14px;
+  bottom: 50px;
+  width: 168px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 9px;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+  color: #1a1a1a;
+  font-family: var(--font);
+  font-size: 10px;
+  transform-origin: bottom right;
+  animation: dt-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) 2.1s backwards;
+}
+.dt-page-reactions {
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: #efefea;
+  letter-spacing: 6px;
+}
+.dt-page-field {
+  height: 18px;
+  border: 1px solid #dcdcd6;
+  border-radius: 5px;
+}
+.dt-page-send {
+  align-self: flex-end;
+  padding: 3px 9px;
+  border-radius: 5px;
+  background: #1a1a1a;
+  color: #ffffff;
+  font-weight: 600;
+}
+@keyframes dt-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+
+/* DevTools itself. Fixed height, so switching tabs doesn't move the page. */
+.dt-tools {
+  border-top: 1px solid var(--dt-line);
+}
+.dt-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 0 8px;
+  background: var(--dt-bar);
+  border-bottom: 1px solid var(--dt-line);
+  font-family: var(--font);
+  font-size: 12px;
+  overflow: hidden;
+}
+.dt-tabs > * {
+  padding: 7px 10px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--dt-dim);
+  font: inherit;
+  white-space: nowrap;
+}
+.dt-tabs button {
+  cursor: pointer;
+}
+.dt-tabs button:hover {
+  color: var(--dt-text);
+}
+.dt-tabs .on {
+  color: var(--dt-text);
+  border-bottom-color: var(--dt-tag);
+}
+.dt-body {
+  height: 236px;
+  overflow: hidden;
+  animation: dt-fade 0.3s ease;
+}
+@keyframes dt-fade {
+  from {
+    opacity: 0;
+  }
+}
+.dt-split {
+  display: grid;
+  grid-template-columns: 1fr;
+  height: 100%;
+}
+@media (min-width: 640px) {
+  .dt-split {
+    grid-template-columns: 1.15fr 1fr;
+  }
+}
+.dt-detail {
+  display: none;
+  border-left: 1px solid var(--dt-line);
+  overflow: hidden;
+}
+@media (min-width: 640px) {
+  .dt-detail {
+    display: block;
+  }
+}
+.dt-detail-heading {
+  display: block;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--dt-line);
+  background: var(--dt-bar);
+  color: var(--dt-dim);
+  font-family: var(--font);
+  font-size: 11.5px;
+}
+.dt-detail pre {
+  margin: 0;
+  padding: 10px 12px;
+  font: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Syntax: tags, attributes, strings, keys, comments, selectors. */
+.dt-window .t {
+  color: var(--dt-tag);
+}
+.dt-window .a {
+  color: var(--dt-attr);
+}
+.dt-window .s {
+  color: var(--dt-string);
+}
+.dt-window .k {
+  color: var(--dt-key);
+}
+.dt-window .c,
+.dt-window .p {
+  color: var(--dt-dim);
+}
+.dt-window .sel {
+  color: var(--dt-text);
+}
+.dt-window .src {
+  float: right;
+  color: var(--dt-dim);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.dt-window .ok {
+  color: var(--dt-ok);
+}
+
+/* Elements */
+.dt-dom {
+  padding: 6px 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.dt-line {
+  padding-right: 10px;
+}
+.dt-line.dt-picked {
+  background: var(--dt-pick);
+}
+.dt-line.root {
+  color: var(--dt-dim);
+}
+
+/* Network */
+.dt-net-pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.dt-status {
+  margin-top: auto;
+  padding: 5px 10px;
+  border-top: 1px solid var(--dt-line);
+  background: var(--dt-bar);
+  color: var(--dt-dim);
+  font-family: var(--font);
+  font-size: 11.5px;
+}
+.dt-net {
+  width: 100%;
+  border-collapse: collapse;
+  align-self: start;
+}
+.dt-net th {
+  padding: 5px 10px;
+  border-bottom: 1px solid var(--dt-line);
+  background: var(--dt-bar);
+  color: var(--dt-dim);
+  font-family: var(--font);
+  font-size: 11.5px;
+  font-weight: 500;
+  text-align: left;
+}
+.dt-net td {
+  padding: 5px 10px;
+  border-bottom: 1px solid #202024;
+  white-space: nowrap;
+}
+/* Opacity only: Chrome draws transformed table rows in the wrong place. */
+.dt-net tbody tr {
+  animation: dt-fade 0.3s ease backwards;
+}
+.dt-net tr.dt-picked td {
+  background: var(--dt-pick);
+}
+.dt-net tr.failed td {
+  color: var(--dt-fail);
+}
+@keyframes dt-row {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+@media (max-width: 639px) {
+  .dt-net-type {
+    display: none;
+  }
+}
+.dt-meter {
+  display: inline-block;
+  width: 160px;
+  max-width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--accent) 97%, #3a3a40 97%);
+}
+
+/* Console: the lines appear one by one, as if typed. */
+.dt-console {
+  padding: 6px 0;
+}
+.dt-console-line {
+  display: flex;
+  gap: 10px;
+  padding: 3px 12px;
+  border-bottom: 1px solid #1f1f23;
+  animation: dt-row 0.25s ease backwards;
+}
+.dt-console-line.out {
+  color: var(--dt-dim);
+}
+.dt-prompt {
+  color: var(--dt-tag);
+}
+.dt-console-line.out .dt-prompt {
+  color: var(--dt-dim);
+}
+.dt-caret {
+  display: inline-block;
+  width: 7px;
+  height: 14px;
+  margin-top: 2px;
+  background: var(--dt-text);
+  animation: caret-blink 1s steps(1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dt-body,
+  .dt-net tbody tr,
+  .dt-console-line,
+  .dt-page-widget,
+  .dt-caret {
+    animation: none;
+  }
+}

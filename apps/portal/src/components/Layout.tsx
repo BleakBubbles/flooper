@@ -36,9 +36,9 @@ export function Layout() {
 
 /** Logo / site switcher on the left; site settings and account on the right. */
 function Header({ user }: { user: User }) {
-  const match = useMatch("/projects/:projectId/*");
+  const match = useMatch("/app/projects/:projectId/*");
   const projectId = match?.params.projectId;
-  const onSettings = useMatch("/projects/:projectId/settings") !== null;
+  const onSettings = useMatch("/app/projects/:projectId/settings") !== null;
   const projects = useQuery({ queryKey: keys.projects, queryFn: api.listProjects });
   const current = projects.data?.data.find((p) => p.id === projectId);
 
@@ -46,7 +46,7 @@ function Header({ user }: { user: User }) {
     <header className="header">
       <div className="header-inner">
         <div className="header-left">
-          <Link to="/" className="brand">
+          <Link to="/app" className="brand">
             <img src="/logo.svg" alt="" width={30} height={30} />
             Flooper
           </Link>
@@ -62,7 +62,7 @@ function Header({ user }: { user: User }) {
         <div className="header-right">
           {projectId && (
             <Link
-              to={`/projects/${projectId}/settings`}
+              to={`/app/projects/${projectId}/settings`}
               className="header-link"
               aria-current={onSettings ? "page" : undefined}
             >
@@ -84,15 +84,15 @@ function SiteSwitcher({ current, projects }: { current?: Project; projects: Proj
       {projects.map((p) => (
         <Link
           key={p.id}
-          to={`/projects/${p.id}`}
+          to={`/app/projects/${p.id}`}
           aria-current={p.id === current?.id ? "page" : undefined}
         >
           {p.name}
         </Link>
       ))}
       <hr />
-      <Link to="/">All sites</Link>
-      <Link to="/?new=1">Add a site</Link>
+      <Link to="/app">All sites</Link>
+      <Link to="/app?new=1">Add a site</Link>
     </Menu>
   );
 }
