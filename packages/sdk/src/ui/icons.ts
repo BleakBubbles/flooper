@@ -1,6 +1,13 @@
 // Interface icons from Lucide (https://lucide.dev, ISC license), as SVG strings.
 // Each icon is imported by name, so the bundler keeps only the ones used here.
-import { ArrowRight, CodeXml, Heart, SquareDashedMousePointer, X } from "lucide-static";
+import {
+  ArrowRight,
+  CodeXml,
+  Heart,
+  SendHorizontal,
+  SquareDashedMousePointer,
+  X,
+} from "lucide-static";
 
 // Decorative: the buttons that use them carry their own accessible names.
 const decorative = (svg: string) =>
@@ -15,4 +22,6 @@ export const ICONS = {
   /** The key that accepts the example message. */
   arrowRight: decorative(ArrowRight),
   heart: decorative(Heart),
+  /** The Send button: a paper plane, flying flat. */
+  send: decorative(SendHorizontal),
 };
