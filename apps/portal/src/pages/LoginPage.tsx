@@ -18,7 +18,7 @@ export function LoginPage() {
         Continue with GitHub
       </a>
       {import.meta.env.DEV && (
-        <button type="button" className="btn ghost" onClick={() => devLogin.mutate()}>
+        <button type="button" className="btn" onClick={() => devLogin.mutate()}>
           Continue as dev user
         </button>
       )}

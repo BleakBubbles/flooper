@@ -7,9 +7,16 @@ import {
   updateProjectSchema,
 } from "@flooper/shared/schemas";
 import { Hono } from "hono";
-import { listFeedback, toFeedback, updateFeedbackStatus } from "../db/feedback";
+import {
+  countFeedback,
+  getFeedbackForOwner,
+  listFeedback,
+  toFeedback,
+  updateFeedbackStatus,
+} from "../db/feedback";
 import {
   createProject,
+  deleteProject,
   getProjectForOwner,
   listProjects,
   toProject,
@@ -57,6 +64,12 @@ portal.patch("/projects/:id", async (c) => {
   return c.json(toProject(row));
 });
 
+portal.delete("/projects/:id", async (c) => {
+  const deleted = await deleteProject(c.env.DB, c.req.param("id"), c.get("user").id);
+  if (!deleted) throw notFound("Project");
+  return c.body(null, 204);
+});
+
 portal.get("/projects/:id/feedback", async (c) => {
   const project = await getProjectForOwner(c.env.DB, c.req.param("id"), c.get("user").id);
   if (!project) throw notFound("Project");
@@ -73,6 +86,18 @@ portal.get("/projects/:id/feedback", async (c) => {
     nextCursor: hasMore && last ? encodeCursor({ createdAt: last.created_at, id: last.id }) : null,
   };
   return c.json(body);
+});
+
+portal.get("/projects/:id/feedback/counts", async (c) => {
+  const project = await getProjectForOwner(c.env.DB, c.req.param("id"), c.get("user").id);
+  if (!project) throw notFound("Project");
+  return c.json(await countFeedback(c.env.DB, project.id));
+});
+
+portal.get("/feedback/:id", async (c) => {
+  const row = await getFeedbackForOwner(c.env.DB, c.req.param("id"), c.get("user").id);
+  if (!row) throw notFound("Feedback");
+  return c.json(toFeedback(row));
 });
 
 portal.patch("/feedback/:id", async (c) => {

@@ -24,6 +24,15 @@ export const REACTION_EMOJI: Record<Reaction, string> = {
 export const FEEDBACK_STATUSES = ["new", "seen", "done", "archived"] as const;
 export type FeedbackStatus = (typeof FEEDBACK_STATUSES)[number];
 
+/**
+ * How many notes a project has in each status, plus the total, and when and
+ * where the most recent one was left (null before the first note).
+ */
+export type FeedbackCounts = Record<FeedbackStatus, number> & {
+  total: number;
+  latest: { createdAt: string; pageUrl: string } | null;
+};
+
 export const LIMITS = {
   messageMaxLength: 2000,
   /** Hard cap on the request body the ingest endpoint will read, in bytes. */

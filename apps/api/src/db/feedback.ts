@@ -1,4 +1,4 @@
-import type { FeedbackStatus } from "@flooper/shared";
+import type { FeedbackCounts, FeedbackStatus } from "@flooper/shared";
 import type { Feedback, FeedbackSubmission } from "@flooper/shared/schemas";
 import type { Cursor } from "../lib/cursor";
 import { newId } from "../lib/ids";
@@ -61,6 +61,35 @@ export async function insertFeedback(
   return { id: existing.id, duplicate: true };
 }
 
+/** How many notes the project has in each status. One grouped query, not four. */
+export async function countFeedback(db: D1Database, projectId: string): Promise<FeedbackCounts> {
+  const { results } = await db
+    .prepare("SELECT status, COUNT(*) AS n FROM feedback WHERE project_id = ? GROUP BY status")
+    .bind(projectId)
+    .all<{ status: FeedbackStatus; n: number }>();
+  const counts: FeedbackCounts = { new: 0, seen: 0, done: 0, archived: 0, total: 0, latest: null };
+  for (const { status, n } of results) {
+    counts[status] = n;
+    counts.total += n;
+  }
+  if (counts.total > 0) {
+    // Served by the (project_id, created_at) index, so this is one row read.
+    const latest = await db
+      .prepare(
+        "SELECT created_at, page_url FROM feedback WHERE project_id = ? ORDER BY created_at DESC LIMIT 1",
+      )
+      .bind(projectId)
+      .first<{ created_at: number; page_url: string }>();
+    if (latest) {
+      counts.latest = {
+        createdAt: new Date(latest.created_at).toISOString(),
+        pageUrl: latest.page_url,
+      };
+    }
+  }
+  return counts;
+}
+
 /** Newest first. Fetches one extra row to learn whether there's a next page. */
 export async function listFeedback(
   db: D1Database,
@@ -86,6 +115,21 @@ export async function listFeedback(
     .bind(...params, opts.limit + 1)
     .all<FeedbackRow>();
   return { rows: results.slice(0, opts.limit), hasMore: results.length > opts.limit };
+}
+
+/** One note, but only if it belongs to one of the owner's projects. */
+export function getFeedbackForOwner(
+  db: D1Database,
+  id: string,
+  ownerId: string,
+): Promise<FeedbackRow | null> {
+  return db
+    .prepare(
+      `SELECT * FROM feedback
+       WHERE id = ? AND project_id IN (SELECT id FROM projects WHERE owner_id = ?)`,
+    )
+    .bind(id, ownerId)
+    .first<FeedbackRow>();
 }
 
 /** Update a feedback item's status, but only if it belongs to one of the owner's projects. */
