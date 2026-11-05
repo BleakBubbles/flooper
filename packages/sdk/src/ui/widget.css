@@ -7,45 +7,63 @@
    production builds ship it minified. */
 :host {
   all: initial;
-  --bg: #ffffff;
-  --fg: #18181b;
-  --muted: #71717a;
-  --border: #e4e4e7;
-  --soft: #f4f4f5;
+  /* The portal's design tokens (apps/portal/src/styles.css), so the widget and
+     the inbox read as one product. Keep the two in step. */
+  --bg: #f4f4f1;
+  --surface: #ffffff;
+  --surface-raised: #fafaf8;
+  --border: #e3e3de;
+  --border-strong: #dcdcd6;
+  --segment: #efefea;
+  --fg: #1a1a1a;
+  --fg-2: #3d3d39;
+  --muted: #6b6b66;
+  --accent: #be185d;
+  --accent-fg: #ffffff;
+  --danger: #b91c1c;
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.06);
   /* The launcher is always the logo's white-on-black, in every theme. */
   --launcher-bg: #000000;
   --launcher-fg: #ffffff;
   --launcher-shadow: var(--shadow);
-  --accent: #18181b;
-  --accent-fg: #ffffff;
-  --danger: #dc2626;
-  --shadow: 0 10px 30px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.06);
+  /* The portal's typeface, used only if the host page already loads it: the
+     widget never fetches fonts onto someone else's site. */
+  --font: "Instrument Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 @media (prefers-color-scheme: dark) {
   :host(:not([data-theme="light"])) {
-    --bg: #1c1c1f;
-    --fg: #f4f4f5;
-    --muted: #a1a1aa;
-    --border: #333338;
-    --soft: #27272a;
-    --launcher-shadow: 0 0 0 1px rgba(255, 255, 255, 0.22), 0 0 18px rgba(255, 255, 255, 0.08);
-    --accent: #f4f4f5;
-    --accent-fg: #18181b;
+    --bg: #0b0b0c;
+    --surface: #141416;
+    --surface-raised: #111113;
+    --border: #26262a;
+    --border-strong: #2f2f34;
+    --segment: #1f1f23;
+    --fg: #ededed;
+    --fg-2: #c4c4ca;
+    --muted: #8b8b93;
+    --accent: #f472b6;
+    --accent-fg: #0b0b0c;
     --danger: #f87171;
     --shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    --launcher-shadow: 0 0 0 1px rgba(255, 255, 255, 0.22), 0 0 18px rgba(255, 255, 255, 0.08);
   }
 }
 :host([data-theme="dark"]) {
-  --bg: #1c1c1f;
-  --fg: #f4f4f5;
-  --muted: #a1a1aa;
-  --border: #333338;
-  --soft: #27272a;
-  --launcher-shadow: 0 0 0 1px rgba(255, 255, 255, 0.22), 0 0 18px rgba(255, 255, 255, 0.08);
-  --accent: #f4f4f5;
-  --accent-fg: #18181b;
+  --bg: #0b0b0c;
+  --surface: #141416;
+  --surface-raised: #111113;
+  --border: #26262a;
+  --border-strong: #2f2f34;
+  --segment: #1f1f23;
+  --fg: #ededed;
+  --fg-2: #c4c4ca;
+  --muted: #8b8b93;
+  --accent: #f472b6;
+  --accent-fg: #0b0b0c;
   --danger: #f87171;
   --shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  --launcher-shadow: 0 0 0 1px rgba(255, 255, 255, 0.22), 0 0 18px rgba(255, 255, 255, 0.08);
 }
 
 * {
@@ -73,12 +91,7 @@ svg.lucide {
   flex-direction: column;
   align-items: flex-end;
   gap: 12px;
-  font:
-    14px / 1.45 system-ui,
-    -apple-system,
-    "Segoe UI",
-    Roboto,
-    sans-serif;
+  font: 14px / 1.5 var(--font);
   color: var(--fg);
 }
 .flooper[data-position="bottom-left"] {
@@ -123,13 +136,14 @@ svg.lucide {
   stroke: currentColor;
 }
 
+/* Like the portal's panels and menus: a white card with a hairline border. */
 .panel {
   width: 300px;
   max-width: calc(100vw - 32px);
   padding: 16px;
   border: 1px solid var(--border);
-  border-radius: 16px;
-  background: var(--bg);
+  border-radius: 14px;
+  background: var(--surface);
   box-shadow: var(--shadow);
   transform-origin: bottom right;
   animation: pop 160ms ease-out;
@@ -146,44 +160,46 @@ svg.lucide {
 
 .title {
   margin: 0 0 12px;
-  font-weight: 600;
   font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
+/* The reactions are a segmented control, like the inbox's filters. */
 .reactions {
   display: flex;
-  gap: 8px;
+  gap: 2px;
   margin-bottom: 10px;
+  padding: 3px;
+  border-radius: 9px;
+  background: var(--segment);
 }
 .reaction {
   flex: 1;
-  height: 40px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--soft);
+  height: 34px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
   font-size: 18px;
   cursor: pointer;
-  transition:
-    transform 120ms ease,
-    border-color 120ms ease;
+  transition: background 120ms ease;
 }
 .reaction:hover {
-  transform: translateY(-1px);
+  background: color-mix(in srgb, var(--surface) 55%, transparent);
 }
 .reaction[aria-pressed="true"] {
-  border-color: var(--fg);
-  background: var(--bg);
-  transform: scale(1.05);
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
 textarea {
   display: block;
   width: 100%;
   min-height: 76px;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--bg);
+  padding: 8px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface);
   color: var(--fg);
   font: inherit;
   resize: vertical;
@@ -199,9 +215,9 @@ textarea::placeholder {
 }
 .ghost {
   position: absolute;
-  top: 11px;
-  left: 13px;
-  right: 13px; /* the textarea's border + padding */
+  top: 9px;
+  left: 11px;
+  right: 11px; /* the textarea's border + padding */
   display: none;
   align-items: center;
   gap: 6px;
@@ -224,10 +240,10 @@ textarea:placeholder-shown + .ghost {
   flex: none;
   width: 20px;
   height: 18px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   border-bottom-width: 2px;
   border-radius: 5px;
-  background: var(--soft);
+  background: var(--surface-raised);
   opacity: 0;
   transition: opacity 120ms ease;
 }
@@ -266,61 +282,126 @@ textarea:focus + .ghost .autofill-hint {
 .status[data-tone="error"] {
   color: var(--danger);
 }
-.send {
-  padding: 8px 16px;
-  border: 0;
-  border-radius: 999px;
-  background: var(--accent);
-  color: var(--accent-fg);
+
+/* Buttons, as in the portal. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--fg);
   font: inherit;
   font-weight: 600;
   cursor: pointer;
 }
-.send:disabled {
-  opacity: 0.4;
+.btn:hover {
+  border-color: var(--fg-2);
+}
+.btn:disabled {
+  opacity: 0.5;
   cursor: default;
 }
+.btn.primary {
+  border-color: var(--fg);
+  background: var(--fg);
+  color: var(--bg);
+}
+.btn svg.lucide {
+  width: 16px;
+  height: 16px;
+}
+.btn.small {
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 500;
+}
 
-/* The pick button: an icon with no label, so curiosity does the explaining. */
+/* The pick button: a borderless icon, like the inbox's actions. */
 .point {
   display: grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   padding: 0;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--soft);
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
   color: var(--muted);
   cursor: pointer;
-  transition:
-    color 120ms ease,
-    border-color 120ms ease,
-    transform 120ms ease;
 }
-.point:hover {
-  color: var(--fg);
-  border-color: var(--fg);
-  transform: translateY(-1px);
-}
+.point:hover,
 .point[aria-pressed="true"] {
+  background: var(--segment);
   color: var(--fg);
-  border-color: var(--fg);
-  background: var(--bg);
 }
 
-/* Shown only once something is picked, so it costs no space otherwise. */
+/* Tooltips: the control's own label, shown above it on hover or keyboard
+   focus. Same look as the portal's (the native `title` can't be styled). */
+[data-tooltip] {
+  position: relative;
+}
+[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translate(-50%, 2px);
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--fg);
+  color: var(--bg);
+  font: 500 12px / 1.4 var(--font);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease;
+  z-index: 5;
+}
+[data-tooltip]:hover::after,
+[data-tooltip]:focus-visible::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  transition-delay: 300ms;
+}
+[data-tooltip]:focus-visible::after {
+  transition-delay: 0ms;
+}
+/* Controls at the panel's edges line their tooltip up with that edge, so it
+   stays on screen when the widget sits in a corner. */
+.point::after {
+  left: 0;
+  transform: translateY(2px);
+}
+.reaction:last-child::after {
+  left: auto;
+  right: 0;
+  transform: translateY(2px);
+}
+.point:is(:hover, :focus-visible)::after,
+.reaction:last-child:is(:hover, :focus-visible)::after {
+  transform: none;
+}
+
+/* Shown only once something is picked, so it costs no space otherwise.
+   Monospace in a hairline box, like the element chip in the inbox. */
 .target-chip {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   max-width: 100%;
-  margin-top: 8px;
-  padding: 3px;
-  border-radius: 999px;
-  background: var(--soft);
-  font-size: 12px;
   width: fit-content;
+  margin-top: 8px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: 12px / 1.5 var(--mono);
+  color: var(--fg-2);
 }
 .target-chip svg.lucide {
   width: 14px;
@@ -333,13 +414,16 @@ textarea:focus + .ghost .autofill-hint {
   align-items: center;
   gap: 6px;
   min-width: 0;
-  padding: 0 2px 0 5px;
+  padding: 1px 4px 1px 5px;
   border: 0;
-  border-radius: 999px;
+  border-radius: 4px;
   background: none;
   color: inherit;
   font: inherit;
   cursor: pointer;
+}
+.target-text:hover {
+  background: var(--segment);
 }
 .target-label {
   overflow: hidden;
@@ -351,14 +435,14 @@ textarea:focus + .ghost .autofill-hint {
   place-items: center;
   padding: 3px;
   border: 0;
-  border-radius: 50%;
+  border-radius: 4px;
   background: none;
   color: var(--muted);
   cursor: pointer;
 }
 .target-clear:hover {
   color: var(--fg);
-  background: var(--bg);
+  background: var(--segment);
 }
 .target-clear svg.lucide {
   width: 14px;
@@ -372,14 +456,15 @@ textarea:focus + .ghost .autofill-hint {
   z-index: 2147483001;
   cursor: crosshair;
 }
+/* The highlight is the brand accent, the same pink as the inbox's "new" badge. */
 .highlight {
   position: fixed;
   /* Above the page, below the widget's own panel and pick-mode layer. */
   z-index: 2147482999;
   pointer-events: none;
-  border: 2px solid #6366f1;
+  border: 2px solid var(--accent);
   border-radius: 6px;
-  background: rgba(99, 102, 241, 0.12);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
   box-shadow: 0 0 0 4000px rgba(0, 0, 0, 0.08);
   transition: all 80ms ease-out;
 }
@@ -390,14 +475,9 @@ textarea:focus + .ghost .autofill-hint {
   max-width: 260px;
   padding: 3px 8px;
   border-radius: 6px;
-  background: #6366f1;
-  color: #fff;
-  font:
-    12px / 1.4 system-ui,
-    -apple-system,
-    "Segoe UI",
-    Roboto,
-    sans-serif;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font: 12px / 1.4 var(--mono);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -406,7 +486,8 @@ textarea:focus + .ghost .autofill-hint {
   bottom: auto;
   top: calc(100% + 6px);
 }
-/* The pick-mode bar, and short notices, sit at the top center of the page. */
+/* The pick-mode bar, and short notices, sit at the top center of the page,
+   styled like the portal's menus. */
 .pick-bar,
 .notice {
   position: fixed;
@@ -416,32 +497,19 @@ textarea:focus + .ghost .autofill-hint {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 8px 8px 8px 16px;
-  border-radius: 999px;
-  background: var(--bg);
+  padding: 6px 6px 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
   color: var(--fg);
   box-shadow: var(--shadow);
-  font:
-    14px / 1.4 system-ui,
-    -apple-system,
-    "Segoe UI",
-    Roboto,
-    sans-serif;
+  font: 14px / 1.4 var(--font);
   white-space: nowrap;
   cursor: default;
 }
 .notice {
   z-index: 2147483001;
-  padding: 10px 16px;
-}
-.pick-cancel {
-  padding: 6px 12px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--bg);
-  color: var(--fg);
-  font: inherit;
-  cursor: pointer;
+  padding: 10px 14px;
 }
 
 .thanks {
@@ -454,18 +522,39 @@ textarea:focus + .ghost .autofill-hint {
   justify-content: center;
   gap: 6px;
   font-size: 16px;
+  font-weight: 700;
   margin-bottom: 4px;
 }
 .thanks svg.lucide {
-  color: #ec4899;
+  color: var(--accent);
   fill: currentColor;
 }
 .thanks span {
   color: var(--muted);
 }
 
+/* A quiet credit under everything, so curious visitors can find Flooper. */
+.powered {
+  display: block;
+  width: fit-content;
+  margin: 12px auto -4px;
+  font-size: 11px;
+  color: var(--muted);
+  text-decoration: none;
+  opacity: 0.75;
+  transition: opacity 120ms ease;
+}
+.powered strong {
+  font-weight: 600;
+}
+.powered[href]:hover {
+  opacity: 1;
+  color: var(--fg);
+}
+
 button:focus-visible,
-textarea:focus-visible {
+textarea:focus-visible,
+a:focus-visible {
   outline: 2px solid var(--fg);
   outline-offset: 2px;
 }
