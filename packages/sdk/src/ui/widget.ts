@@ -20,6 +20,8 @@ export interface WidgetOptions {
   position: "bottom-right" | "bottom-left";
   theme: "auto" | "light" | "dark";
   title: string;
+  /** The Flooper instance's home page, for the "Powered by" link. */
+  homeUrl: string;
 }
 
 export interface WidgetInput {
@@ -48,6 +50,7 @@ export class Widget {
     message: HTMLTextAreaElement;
     hp: HTMLInputElement;
     send: HTMLButtonElement;
+    sendLabel: HTMLElement;
     status: HTMLElement;
     reactions: HTMLButtonElement[];
     notice: HTMLElement;
@@ -84,6 +87,7 @@ export class Widget {
       message: $("textarea"),
       hp: $(".hp"),
       send: $(".send"),
+      sendLabel: $(".send-label"),
       status: $(".status"),
       reactions: [...this.root.querySelectorAll<HTMLButtonElement>(".reaction")],
       notice: $(".notice"),
@@ -98,6 +102,10 @@ export class Widget {
     // textContent, not innerHTML: the title comes from site config and must
     // never be interpreted as markup.
     $<HTMLElement>(".title").textContent = options.title;
+    // Only ever a web page: the URL comes from config, so no javascript: links.
+    const home = $<HTMLAnchorElement>(".powered");
+    if (/^https?:\/\//.test(options.homeUrl)) home.href = options.homeUrl;
+    else home.removeAttribute("href");
 
     this.el.launcher.addEventListener("click", () => this.toggle());
     for (const button of this.el.reactions) {
@@ -263,7 +271,7 @@ export class Widget {
     }
     const hasContent = this.reaction !== undefined || this.el.message.value.trim().length > 0;
     this.el.send.disabled = this.sending || !hasContent;
-    this.el.send.textContent = this.sending ? "Sending…" : "Send";
+    this.el.sendLabel.textContent = this.sending ? "Sending…" : "Send";
     this.el.point.setAttribute("aria-pressed", String(this.target !== undefined));
     this.el.chip.hidden = this.target === undefined;
     if (this.target) {
@@ -325,7 +333,7 @@ function template(position: WidgetOptions["position"]): string {
   const reactions = REACTIONS.map(
     (r) =>
       `<button type="button" class="reaction" data-reaction="${r}" aria-pressed="false" ` +
-      `aria-label="${REACTION_LABELS[r]}" title="${REACTION_LABELS[r]}">${REACTION_EMOJI[r]}</button>`,
+      `aria-label="${REACTION_LABELS[r]}" data-tooltip="${REACTION_LABELS[r]}">${REACTION_EMOJI[r]}</button>`,
   ).join("");
 
   return `<style>${STYLES}</style>
@@ -345,24 +353,25 @@ function template(position: WidgetOptions["position"]): string {
       </div>
       <span class="sr-only" id="flooper-autofill">Press the right arrow key to use the example message.</span>
       <div class="target-chip" hidden>
-        <button type="button" class="target-text" title="Show it on the page">
+        <button type="button" class="target-text">
           ${ICONS.element}<span class="target-label"></span>
         </button>
         <button type="button" class="target-clear" aria-label="Remove the picked element"
-          title="Remove">${ICONS.close}</button>
+          data-tooltip="Remove">${ICONS.close}</button>
       </div>
       <input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
       <div class="footer">
         <button type="button" class="point" aria-pressed="false"
-          aria-label="Point at something on the page" title="Point at something on the page">${ICONS.pick}</button>
+          aria-label="Point at something on the page" data-tooltip="Point at something">${ICONS.pick}</button>
         <span class="status" role="status" aria-live="polite"></span>
-        <button type="submit" class="send">Send</button>
+        <button type="submit" class="btn primary send">${ICONS.send}<span class="send-label">Send</span></button>
       </div>
     </form>
     <div class="thanks" role="status" hidden>
       <strong>${ICONS.heart} Thanks!</strong>
       <span>The dev will see this soon.</span>
     </div>
+    <a class="powered" target="_blank" rel="noopener">Powered by <strong>Flooper</strong></a>
   </div>
   <button type="button" class="launcher" aria-label="Leave feedback" aria-expanded="false"
     aria-controls="flooper-panel">${LOGO_SVG}</button>
@@ -371,7 +380,7 @@ function template(position: WidgetOptions["position"]): string {
 <div class="notice" role="status" hidden></div>
 <div class="pick-layer" hidden>
   <div class="pick-bar" role="status">Selecting an element
-    <button type="button" class="pick-cancel">Cancel</button>
+    <button type="button" class="btn small pick-cancel">Cancel</button>
   </div>
 </div>`;
 }

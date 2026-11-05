@@ -35,6 +35,8 @@ export function init(options: FlooperOptions): FlooperInstance {
       position: options.position ?? "bottom-right",
       theme: options.theme ?? "auto",
       title: options.title ?? "Leave a note for the dev!",
+      // The API and the portal are one Worker, so its root is Flooper's home page.
+      homeUrl: `${apiUrl}/`,
     },
     async (input) => {
       const payload: FeedbackSubmission = {
