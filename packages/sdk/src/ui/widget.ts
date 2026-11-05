@@ -379,7 +379,7 @@ function template(position: WidgetOptions["position"]): string {
         <button type="button" class="point" aria-pressed="false"
           aria-label="Point at something on the page" data-tooltip="Point at something">${ICONS.pick}</button>
         <span class="status" role="status" aria-live="polite"></span>
-        <button type="submit" class="btn primary send">${ICONS.send}<span class="send-label">Send</span></button>
+        <button type="submit" class="btn primary send"><span class="send-label">Send</span>${ICONS.send}</button>
       </div>
     </form>
     <div class="thanks" role="status" hidden>
