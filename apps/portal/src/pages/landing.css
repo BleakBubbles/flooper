@@ -1,0 +1,529 @@
+/* The landing page at /. Uses the portal's tokens, so it follows light and dark
+   mode like the app does. */
+/* Always dark, on pure black, whatever the system theme. */
+.landing {
+  --bg: #000000;
+  --surface: #0e0e10;
+  --surface-raised: #0b0b0c;
+  --border: #232327;
+  --border-strong: #2f2f34;
+  --divider: #1a1a1d;
+  --fg: #ededed;
+  --fg-2: #c4c4ca;
+  --muted: #8b8b93;
+  --faint: #3a3a40;
+  --accent: #f472b6;
+  --accent-fg: #0b0b0c;
+  --track: rgba(255, 255, 255, 0.08);
+  --note-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--fg);
+  color-scheme: dark;
+  font-size: 15px;
+  line-height: 1.55;
+}
+body:has(.landing) {
+  background: #000000;
+}
+.landing .mono {
+  font-family: var(--mono);
+  font-size: 12px;
+}
+.landing .hot {
+  color: var(--accent);
+}
+.landing .dim {
+  color: var(--muted);
+}
+.btn.big {
+  padding: 11px 18px;
+  border-radius: 9px;
+  font-size: 15px;
+  gap: 8px;
+}
+.btn.borderless {
+  border-color: transparent;
+  background: transparent;
+}
+/* Hover: the light buttons dim a touch, the quiet one gets a faint fill. */
+.landing .btn {
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+.landing .btn.primary:hover {
+  border-color: #c9c9c3;
+  background: #c9c9c3;
+}
+.landing .btn.borderless:hover {
+  border-color: transparent;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--fg);
+}
+
+.landing-header,
+.landing-section,
+.landing-cta,
+.landing-footer {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding-left: clamp(16px, 4vw, 40px);
+  padding-right: clamp(16px, 4vw, 40px);
+}
+/* Full width, pinned to the window's edges like a title bar, rather than
+   in the content column: the ring hero has no edges for it to line up with. */
+.landing-header {
+  max-width: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 28px;
+  padding-bottom: 28px;
+}
+.landing-header .brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.landing-header nav {
+  display: flex;
+  gap: 6px;
+}
+
+/* The hero: notes on a turning ring around the headline (see NoteRing.tsx). */
+.ring {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 clamp(16px, 4vw, 40px);
+}
+.ring-stage {
+  position: relative;
+}
+.ring-track {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+}
+.ring-track path {
+  fill: none;
+  stroke: var(--track);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+.ring.compact .ring-track path {
+  stroke-width: 44;
+}
+/* Where new notes come out. Pulses each time one does. */
+.ring-mouth {
+  fill: var(--accent);
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: mouth-pulse 0.9s ease-out;
+}
+@keyframes mouth-pulse {
+  from {
+    transform: scale(2.4);
+    opacity: 0.4;
+  }
+}
+.ring-notes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.ring-slot {
+  position: absolute;
+  left: 0;
+  top: 0;
+  will-change: transform, opacity;
+}
+.ring-slot:hover {
+  z-index: 2;
+}
+/* White, like the logo's ring, so the ring reads as one bright shape. The
+   writing on them stays quiet gray so they don't compete with the headline;
+   hovering one makes it readable. */
+.ring {
+  --note-white: #f4f4f1;
+  --note-ink: #8b8b85;
+  --note-ink-strong: #1a1a1a;
+}
+.ring-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 190px;
+  padding: 11px 14px;
+  border-radius: 12px;
+  background: var(--note-white);
+  /* Only shows where a card overlaps another: black on black is invisible. */
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.35),
+    0 10px 24px rgba(0, 0, 0, 0.55);
+  color: var(--note-ink);
+  font-size: 13px;
+  line-height: 1.4;
+  transition:
+    color 0.25s ease,
+    scale 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.ring-slot:hover .ring-card {
+  scale: 1.08;
+  color: var(--note-ink-strong);
+}
+.ring-card-meta {
+  margin-bottom: 4px;
+  color: #a8a8a2;
+  font-size: 11.5px;
+}
+.ring-bubble {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--note-white);
+  font-size: 18px;
+}
+.ring-center {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+}
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  text-align: center;
+}
+.ring.compact .hero {
+  padding: 40px 0 32px;
+}
+.pill {
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.hero h1 {
+  text-wrap: balance;
+  font-size: clamp(38px, 5vw, 58px);
+  line-height: 1.03;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+}
+.lede {
+  font-size: 18px;
+  color: var(--fg-2);
+}
+.fine {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+}
+.wall-note-chip {
+  margin-top: 8px;
+  padding: 1px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--fg-2);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+.ring-card .wall-note-chip {
+  border-color: #dcdcd6;
+  color: inherit;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ring-mouth {
+    animation: none;
+  }
+}
+
+/* Steps and proofs: a title over a picture of the real thing. */
+.landing-section {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding-top: 40px;
+  padding-bottom: 56px;
+}
+.landing-section h2 {
+  font-size: 26px;
+  letter-spacing: -0.025em;
+}
+.steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+}
+/* Three across once the snippet's src line fits a third; never 2 + 1. */
+@media (min-width: 1140px) {
+  .steps {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+.panel {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  overflow: hidden;
+}
+.panel h3 {
+  margin: 0;
+  padding: 16px 16px 0;
+  font-size: 16px;
+  letter-spacing: -0.01em;
+}
+/* Its own gap: a plain space is narrow in this font, and the 1 has almost no side bearing. */
+.step-n {
+  margin-right: 8px;
+}
+.step-art {
+  flex: 1;
+  margin: 14px 16px 16px;
+  border-radius: 10px;
+  background: var(--bg);
+}
+/* Sized so the src line fits a third of the page without scrolling. */
+.snippet {
+  padding: 14px 10px;
+  overflow-x: auto;
+  font-size: clamp(11px, 0.85vw, 13px);
+  line-height: 1.7;
+}
+.received {
+  display: grid;
+  grid-template-columns: 70px 1fr;
+  align-content: start;
+  gap: 6px 12px;
+  padding: 14px 16px;
+  font-size: 13px;
+}
+.received dt {
+  color: var(--muted);
+}
+.received dd {
+  margin: 0;
+}
+.received dd.hot {
+  font-weight: 600;
+}
+
+/* The sketch in step 2: a page, the picked button, the widget open beside it. */
+.sketch {
+  position: relative;
+  min-height: 200px;
+  overflow: hidden;
+}
+.sketch .bar {
+  display: block;
+  height: 8px;
+  margin: 16px 0 0 16px;
+  border-radius: 4px;
+  background: var(--border-strong);
+}
+.sketch .bar.heading {
+  height: 14px;
+  margin-top: 12px;
+  background: var(--faint);
+}
+.picked {
+  position: absolute;
+  left: 16px;
+  top: 112px;
+}
+.picked-label {
+  position: absolute;
+  left: -2px;
+  top: -24px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-family: var(--mono);
+  font-size: 10px;
+  white-space: nowrap;
+}
+.pay {
+  display: inline-block;
+  padding: 7px 18px;
+  border-radius: 7px;
+  background: var(--fg);
+  color: var(--bg);
+  font-size: 12px;
+  font-weight: 600;
+  outline: 2px dashed var(--accent);
+  outline-offset: 3px;
+}
+/* The widget mid-note, in its light theme, so it stands out like the notes. */
+.mini-widget {
+  --w-surface: #ffffff;
+  --w-segment: #efefea;
+  --w-border: #e3e3de;
+  --w-fg: #1a1a1a;
+  --w-fg-2: #3d3d39;
+  --w-muted: #8b8b85;
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  bottom: 10px;
+  width: 172px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border-radius: 10px;
+  background: var(--w-surface);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.5);
+  color: var(--w-fg);
+  font-size: 10.5px;
+  line-height: 1.35;
+}
+.mini-title {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.mini-reactions {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 7px;
+  background: var(--w-segment);
+}
+.mini-reactions span {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  height: 20px;
+  border-radius: 5px;
+  font-size: 11px;
+}
+.mini-reactions .on {
+  background: var(--w-surface);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+.mini-message {
+  flex: 1;
+  padding: 6px 7px;
+  border: 1px solid var(--w-fg);
+  border-radius: 6px;
+  color: var(--w-fg-2);
+}
+/* Mid-sentence: the cursor blinks where they're typing. */
+.caret {
+  display: inline-block;
+  width: 1px;
+  height: 11px;
+  margin-left: 1px;
+  vertical-align: -2px;
+  background: var(--w-fg);
+  animation: caret-blink 1s steps(1) infinite;
+}
+@keyframes caret-blink {
+  50% {
+    opacity: 0;
+  }
+}
+.mini-chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  align-self: flex-start;
+  padding: 2px 5px;
+  border: 1px solid var(--w-border);
+  border-radius: 5px;
+  color: var(--w-fg-2);
+  font-family: var(--mono);
+  font-size: 9.5px;
+}
+.mini-chip svg:last-child {
+  color: var(--w-muted);
+}
+.mini-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+/* On, because something's picked: firm outline, like the real pick button. */
+.mini-point {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--w-fg);
+  border-radius: 6px;
+  background: var(--w-segment);
+}
+.mini-send {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 9px;
+  border-radius: 6px;
+  background: var(--w-fg);
+  color: var(--w-surface);
+  font-weight: 600;
+}
+@media (prefers-reduced-motion: reduce) {
+  .caret {
+    animation: none;
+  }
+}
+
+.landing-cta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding-top: 72px;
+  padding-bottom: 72px;
+  border-top: 1px solid var(--border);
+}
+.landing-cta h2 {
+  font-size: 32px;
+  letter-spacing: -0.03em;
+}
+.landing-cta p {
+  margin-top: 6px;
+  color: var(--fg-2);
+}
+.landing-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 22px;
+  padding-bottom: 22px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 13px;
+}
+.landing-footer-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.landing-footer a:hover {
+  color: var(--fg);
+}

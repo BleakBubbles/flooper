@@ -74,7 +74,7 @@ function ConnectionStatus({ project, counts }: { project: Project; counts: Feedb
         <strong>No notes yet</strong>
         <span>
           Finish connecting it in{" "}
-          <Link to={`/projects/${project.id}`} className="link">
+          <Link to={`/app/projects/${project.id}`} className="link">
             Setup
           </Link>
           .
@@ -170,7 +170,7 @@ function DangerZone({ project }: { project: Project }) {
       queryClient.removeQueries({ queryKey: keys.project(project.id) });
       queryClient.removeQueries({ queryKey: ["feedback", project.id] });
       queryClient.invalidateQueries({ queryKey: keys.projects });
-      navigate("/");
+      navigate("/app");
     },
   });
 

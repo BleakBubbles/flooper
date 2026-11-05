@@ -88,6 +88,13 @@ code splitting, aggregation queries, and designing for data that drifts.
   link to the page with `?flooper-highlight=<selector>`; the widget there
   scrolls to the element and outlines it. Links only go to the project's own
   allowed origins, and ingest now rejects page URLs from other origins.
+- **Landing page, 2026-11-05.** https://flooper.app now opens on black, with
+  example notes turning on a ring around the headline. Like the logo, the ring
+  has a gap at the top right: notes slip into it and new ones come out the
+  other side, ticking up a "new notes" counter. Then the three steps as pictures, and
+  the technical claims shown in a mock browser's DevTools, each in the tab
+  where you'd check it yourself. The app moved to `/app`; old `/projects/...`
+  links redirect there. Mockup: "Landing B v2" on the directions canvas.
 - **Own domain, 2026-11-05.** Moved to https://flooper.app (registered with
   Cloudflare). The workers.dev address still accepts notes from old snippets.
 - **First deploy, 2026-11-04.** Live at https://flooper.macks0554.workers.dev
