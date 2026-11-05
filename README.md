@@ -82,7 +82,7 @@ GitHub login is optional locally. To try it, copy `apps/api/.dev.vars.example` t
 
 ## Deploying (Cloudflare)
 
-The live instance runs at https://flooper.macks0554.workers.dev.
+The live instance runs at https://flooper.app.
 
 **Deploys are automatic.** Every push to `main` that passes CI applies any new
 database migrations and deploys (see `.github/workflows/ci.yml`). Migrations run
@@ -111,14 +111,19 @@ Later database changes: add a migration, run step 3, then step 4.
 
 ### Moving to a custom domain
 
-1. Add the domain to Cloudflare, then add a `"routes": [{ "pattern": "your.domain",
-   "custom_domain": true }]` entry under `env.production` in `wrangler.jsonc`.
-2. Add `https://your.domain/api/auth/github/callback` as a second redirect URI in
-   the GitHub OAuth app (the old one can stay during the switch), and update its
-   homepage URL.
-3. Change the `og:image` URL in `apps/portal/index.html`, then deploy.
+1. Add the domain to the same Cloudflare account, then add a `"routes": [{
+   "pattern": "your.domain", "custom_domain": true }]` entry under
+   `env.production` in `wrangler.jsonc`. The deploy token needs permission to
+   manage Workers routes on that zone.
+2. Change the `og:image` URL in `apps/portal/index.html`, the addresses in
+   `.github/workflows/ci.yml`, then deploy.
+3. In the GitHub OAuth app, change the callback URL to
+   `https://your.domain/api/auth/github/callback` and the homepage URL to match.
+   An OAuth app has exactly **one** callback URL, so from this moment login
+   works on the new domain only.
 4. Sessions don't carry over between domains, so everyone signs in once more.
-   Widgets already embedded with the workers.dev URL keep working.
+   Widgets already embedded with the workers.dev URL keep working: the Worker
+   still answers there.
 
 ## License
 
