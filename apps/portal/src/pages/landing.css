@@ -192,6 +192,39 @@ body:has(.landing) {
   background: var(--note-white);
   font-size: 18px;
 }
+/* Play/pause, quiet in the stage's bottom-right corner. */
+.ring-toggle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+.ring-toggle:hover {
+  border-color: var(--fg-2);
+  color: var(--fg);
+}
+/* A note that just arrived while the ring is still: a fade, no movement. */
+.ring-fresh {
+  animation: ring-fresh 0.9s ease;
+}
+@keyframes ring-fresh {
+  from {
+    opacity: 0;
+  }
+}
 .ring-center {
   position: absolute;
   left: 50%;
