@@ -320,21 +320,27 @@ textarea:focus + .ghost .autofill-hint {
   font-weight: 500;
 }
 
-/* The pick button: a borderless icon, like the inbox's actions. */
+/* The pick button: an outline icon button, square and as tall as Send, so the
+   footer reads as a pair of actions. */
 .point {
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   padding: 0;
-  border: 0;
+  border: 1px solid var(--border-strong);
   border-radius: 8px;
-  background: transparent;
-  color: var(--muted);
+  background: var(--surface);
+  color: var(--fg-2);
   cursor: pointer;
 }
-.point:hover,
+.point:hover {
+  border-color: var(--fg-2);
+  color: var(--fg);
+}
+/* Something's picked: the outline firms up, like a toggle that's on. */
 .point[aria-pressed="true"] {
+  border-color: var(--fg);
   background: var(--segment);
   color: var(--fg);
 }
