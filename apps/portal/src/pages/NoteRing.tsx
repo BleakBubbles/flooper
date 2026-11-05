@@ -1,0 +1,258 @@
+import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
+
+type RingNote = { emoji: string; path: string; text: string; selector?: string };
+
+// Made-up notes, but the kind real visitors leave. More than fit on the ring at
+// once, so the ones coming out of the tunnel are new.
+const NOTES: RingNote[] = [
+  {
+    emoji: "🐛",
+    path: "/checkout",
+    text: "Nothing happens when I tap Pay",
+    selector: "button#pay",
+  },
+  { emoji: "❤️", path: "/", text: "Love the colors on the homepage!" },
+  { emoji: "💡", path: "/blog", text: "An RSS feed would be lovely." },
+  { emoji: "🐛", path: "/download", text: "This 404s on Safari", selector: "a.download" },
+  { emoji: "🤔", path: "/pricing", text: "Is this per month or per year?" },
+  { emoji: "❤️", path: "/projects", text: "The plant bot is genius" },
+  { emoji: "🐛", path: "/contact", text: "Form won’t submit on my phone" },
+  { emoji: "💡", path: "/docs", text: "Dark mode pls 🙏" },
+  {
+    emoji: "🐛",
+    path: "/settings",
+    text: "Says my email is invalid. It isn't.",
+    selector: "input[type=email]",
+  },
+  { emoji: "❤️", path: "/now", text: "Bookmarked. Instant follow." },
+  { emoji: "🤔", path: "/about", text: "Who made this? It's great" },
+  { emoji: "💡", path: "/search", text: "Search could include tags too" },
+  { emoji: "🐛", path: "/gallery", text: "Images overlap the caption", selector: "figure > img" },
+  { emoji: "❤️", path: "/changelog", text: "Shipping fast, love it" },
+  { emoji: "🤔", path: "/signup", text: "Do I need a card to try it?" },
+  { emoji: "🐛", path: "/", text: "Menu won't close on iPad", selector: "nav .burger" },
+  { emoji: "💡", path: "/recipes", text: "Metric units, please!" },
+  { emoji: "❤️", path: "/uses", text: "Stole half your setup, thanks" },
+  { emoji: "🐛", path: "/blog/rust", text: "Code block runs off the screen", selector: "pre" },
+  { emoji: "🤔", path: "/faq", text: "Is there an API?" },
+  { emoji: "💡", path: "/shop", text: "Wishlist button?" },
+  { emoji: "❤️", path: "/talks", text: "Great talk, slides were gold" },
+  { emoji: "🐛", path: "/login", text: "Password field eats my paste", selector: "#password" },
+  { emoji: "💡", path: "/", text: "A newsletter would be nice" },
+];
+
+// Angles in degrees, clockwise from 12 o'clock. Like the logo, the ring has a
+// gap at the top right: notes go in just before 12 and come out at about 2.
+const TUNNEL_IN = 350;
+const TUNNEL_OUT = 62;
+/** The visible part of the ring, measured from where notes come out. */
+const VISIBLE = (TUNNEL_IN - TUNNEL_OUT + 360) % 360;
+/** How far either side of the tunnel notes take to shrink away or grow back. */
+const FADE = 26;
+const DEGREES_PER_SECOND = 360 / 75;
+
+type Layout = {
+  compact: boolean;
+  width: number;
+  height: number;
+  radius: number;
+  slots: number;
+};
+
+function layoutFor(width: number): Layout {
+  // Narrow screens: the text goes above, and the ring is emoji on a thick track.
+  if (width < 900) {
+    const radius = Math.min(150, width / 2 - 32);
+    return { compact: true, width, height: radius * 2 + 64, radius, slots: 12 };
+  }
+  const radius = Math.min(430, width / 2 - 105);
+  return { compact: false, width, height: radius * 2 + 130, radius, slots: 14 };
+}
+
+/** Where a slot is, and how far into the tunnel (0 inside, 1 clear of it). */
+function place(layout: Layout, angle: number) {
+  const rad = (angle * Math.PI) / 180;
+  const x = layout.width / 2 + layout.radius * Math.sin(rad);
+  const y = layout.height / 2 - layout.radius * Math.cos(rad);
+  const fromOut = (angle - TUNNEL_OUT + 360) % 360;
+  let clear = 1;
+  if (fromOut > VISIBLE) clear = 0;
+  else if (fromOut < FADE) clear = fromOut / FADE;
+  else if (fromOut > VISIBLE - FADE) clear = (VISIBLE - fromOut) / FADE;
+  return { x, y, fromOut, clear };
+}
+
+function arcPoint(layout: Layout, angle: number) {
+  const { x, y } = place(layout, angle);
+  return `${x.toFixed(1)} ${y.toFixed(1)}`;
+}
+
+/**
+ * The hero: notes on a slowly turning ring around the headline. Near the gap
+ * at the top right they shrink into a "tunnel" and a new note comes out the
+ * other side, so it looks like they never stop arriving. Hovering a note
+ * pauses the ring; with reduced motion it stays still.
+ */
+export function NoteRing({ hero }: { hero: ReactNode }) {
+  const stageRef = useRef<HTMLDivElement>(null);
+  const [layout, setLayout] = useState(() => layoutFor(Math.min(window.innerWidth, 1200)));
+  const slotRefs = useRef<(HTMLLIElement | null)[]>([]);
+  const turn = useRef(0);
+  const paused = useRef(false);
+  const nextNote = useRef(layout.slots);
+  const [slotNotes, setSlotNotes] = useState(() => [...Array(layout.slots).keys()]);
+  const [arrived, setArrived] = useState(12);
+
+  useLayoutEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    const observer = new ResizeObserver(() => {
+      const next = layoutFor(Math.round(stage.clientWidth));
+      setLayout((prev) =>
+        prev.width === next.width && prev.compact === next.compact ? prev : next,
+      );
+    });
+    observer.observe(stage);
+    return () => observer.disconnect();
+  }, []);
+
+  // Keep one note per slot when a resize changes how many slots there are.
+  useEffect(() => {
+    setSlotNotes((prev) =>
+      prev.length === layout.slots
+        ? prev
+        : [...Array(layout.slots).keys()].map((i) => prev[i] ?? nextNote.current++ % NOTES.length),
+    );
+  }, [layout.slots]);
+
+  useLayoutEffect(() => {
+    const step = 360 / layout.slots;
+    const draw = () => {
+      slotRefs.current.forEach((el, i) => {
+        if (!el) return;
+        const p = place(layout, (i * step + turn.current) % 360);
+        const scale = 0.55 + 0.45 * p.clear;
+        el.style.transform = `translate(${p.x}px, ${p.y}px) translate(-50%, -50%) scale(${scale})`;
+        el.style.opacity = String(p.clear);
+        el.style.filter = p.clear < 1 ? `blur(${(1 - p.clear) * 4}px)` : "";
+        el.style.visibility = p.clear === 0 ? "hidden" : "";
+      });
+    };
+    draw();
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    let frame = 0;
+    let last = performance.now();
+    const tick = (now: number) => {
+      // Clamp so a background tab doesn't jump the ring when it comes back.
+      const dt = Math.min(now - last, 100) / 1000;
+      last = now;
+      if (!paused.current) {
+        const before = turn.current;
+        turn.current = (before + dt * DEGREES_PER_SECOND) % 360;
+        const swaps: number[] = [];
+        let emerged = 0;
+        for (let i = 0; i < layout.slots; i++) {
+          const was = place(layout, (i * step + before) % 360).fromOut;
+          const after = place(layout, (i * step + turn.current) % 360).fromOut;
+          // Halfway through the tunnel, out of sight: becomes a new note.
+          const middle = VISIBLE + (360 - VISIBLE) / 2;
+          if (was < middle && after >= middle) swaps.push(i);
+          // Wrapped back to 0: it just came out.
+          if (after < was) emerged++;
+        }
+        if (swaps.length) {
+          setSlotNotes((prev) => {
+            const next = [...prev];
+            for (const i of swaps) next[i] = nextNote.current++ % NOTES.length;
+            return next;
+          });
+        }
+        if (emerged) setArrived((n) => n + emerged);
+        draw();
+      }
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [layout]);
+
+  const pill = (
+    <span className="pill" key={arrived}>
+      {arrived} new notes
+    </span>
+  );
+  const track = (
+    <svg className="ring-track" width={layout.width} height={layout.height} aria-hidden="true">
+      <path
+        d={`M ${arcPoint(layout, TUNNEL_OUT)} A ${layout.radius} ${layout.radius} 0 1 1 ${arcPoint(layout, TUNNEL_IN)}`}
+      />
+      <circle
+        className="ring-mouth"
+        key={arrived}
+        r="4"
+        cx={place(layout, TUNNEL_OUT).x}
+        cy={place(layout, TUNNEL_OUT).y}
+      />
+    </svg>
+  );
+
+  return (
+    <section className={layout.compact ? "ring compact" : "ring"}>
+      {layout.compact && <div className="hero">{hero}</div>}
+      <div ref={stageRef} className="ring-stage" style={{ height: layout.height }}>
+        {track}
+        <ul className="ring-notes" aria-label="Example notes">
+          {slotNotes.map((noteIndex, i) => {
+            const note = NOTES[noteIndex % NOTES.length] as RingNote;
+            return (
+              <li
+                // biome-ignore lint/suspicious/noArrayIndexKey: slots are fixed positions on the ring.
+                key={i}
+                ref={(el) => {
+                  slotRefs.current[i] = el;
+                }}
+                className="ring-slot"
+                onPointerEnter={() => {
+                  paused.current = true;
+                }}
+                onPointerLeave={() => {
+                  paused.current = false;
+                }}
+              >
+                {layout.compact ? (
+                  <span className="ring-bubble" title={note.text}>
+                    {note.emoji}
+                  </span>
+                ) : (
+                  <div className="ring-card">
+                    <span className="ring-card-meta">
+                      {note.emoji} {note.path}
+                    </span>
+                    {note.text}
+                    {note.selector && (
+                      <span className="wall-note-chip">{`</> ${note.selector}`}</span>
+                    )}
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+        <div
+          className="ring-center"
+          style={layout.compact ? undefined : { width: Math.min(540, layout.radius * 2 - 260) }}
+        >
+          {layout.compact ? (
+            pill
+          ) : (
+            <div className="hero">
+              {pill}
+              {hero}
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}

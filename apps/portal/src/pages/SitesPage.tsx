@@ -24,7 +24,7 @@ export function SitesPage() {
         <ul className="panel rows site-list">
           {sites.map((p) => (
             <li key={p.id}>
-              <Link to={`/projects/${p.id}`}>
+              <Link to={`/app/projects/${p.id}`}>
                 <span className="site-name">{p.name}</span>
                 <span className="mono small muted">
                   {p.allowedOrigins.map((o) => new URL(o).host).join(", ") || "Not set up yet"}
@@ -51,7 +51,7 @@ function NewSite({ autoFocus, first }: { autoFocus: boolean; first: boolean }) {
     // A new site has no notes yet, so its page opens on Setup.
     onSuccess: (project) => {
       queryClient.invalidateQueries({ queryKey: keys.projects });
-      navigate(`/projects/${project.id}`);
+      navigate(`/app/projects/${project.id}`);
     },
   });
 
