@@ -156,3 +156,24 @@ describe("portal API", () => {
     expect(me.status).toBe(401);
   });
 });
+
+describe("sessions", () => {
+  it("deletes expired sessions when someone logs in, and keeps live ones", async () => {
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO users (id, github_id, login, created_at) VALUES ('usr_s', 96, 's', 0)`,
+      ),
+      env.DB.prepare(
+        `INSERT INTO sessions (id_hash, user_id, created_at, expires_at)
+         VALUES ('expired', 'usr_s', 0, 1), ('live', 'usr_s', 0, ?)`,
+      ).bind(Date.now() + 60_000),
+    ]);
+
+    await loginAsDev();
+
+    const { results } = await env.DB.prepare(
+      "SELECT id_hash FROM sessions WHERE user_id = 'usr_s'",
+    ).all<{ id_hash: string }>();
+    expect(results.map((r) => r.id_hash)).toEqual(["live"]);
+  });
+});
