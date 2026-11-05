@@ -91,7 +91,8 @@ function arcPoint(layout: Layout, angle: number) {
  * The hero: notes on a slowly turning ring around the headline. Near the gap
  * at the top right they shrink into a "tunnel" and a new note comes out the
  * other side, so it looks like they never stop arriving. Hovering a note
- * pauses the ring; with reduced motion it stays still.
+ * pauses the ring, and a button stops or starts it; with reduced motion it
+ * starts still.
  */
 export function NoteRing({ hero }: { hero: ReactNode }) {
   const stageRef = useRef<HTMLDivElement>(null);
@@ -102,6 +103,13 @@ export function NoteRing({ hero }: { hero: ReactNode }) {
   const nextNote = useRef(layout.slots);
   const [slotNotes, setSlotNotes] = useState(() => [...Array(layout.slots).keys()]);
   const [arrived, setArrived] = useState(12);
+  // Turning by default; still for people who asked for less motion, who can
+  // still press play. Either way there's a button to stop it (WCAG 2.2.2).
+  const [playing, setPlaying] = useState(
+    () => !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+  );
+  // The slot whose note just changed while the ring is still, so it fades in.
+  const [fresh, setFresh] = useState(-1);
 
   useLayoutEffect(() => {
     const stage = stageRef.current;
@@ -139,7 +147,7 @@ export function NoteRing({ hero }: { hero: ReactNode }) {
       });
     };
     draw();
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (!playing) return;
 
     let frame = 0;
     let last = performance.now();
@@ -175,7 +183,35 @@ export function NoteRing({ hero }: { hero: ReactNode }) {
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [layout]);
+  }, [layout, playing]);
+
+  // While the ring is still, notes keep arriving without anything moving:
+  // every few seconds the note just past the tunnel's exit fades into a new one.
+  useEffect(() => {
+    if (playing) return;
+    const step = 360 / layout.slots;
+    const timer = setInterval(() => {
+      if (paused.current) return;
+      let newest = -1;
+      let nearest = 360;
+      for (let i = 0; i < layout.slots; i++) {
+        const p = place(layout, (i * step + turn.current) % 360);
+        if (p.clear === 1 && p.fromOut < nearest) {
+          nearest = p.fromOut;
+          newest = i;
+        }
+      }
+      if (newest === -1) return;
+      setSlotNotes((prev) => {
+        const next = [...prev];
+        next[newest] = nextNote.current++ % NOTES.length;
+        return next;
+      });
+      setFresh(newest);
+      setArrived((n) => n + 1);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [layout, playing]);
 
   const pill = (
     <span className="pill" key={arrived}>
@@ -221,11 +257,18 @@ export function NoteRing({ hero }: { hero: ReactNode }) {
                 }}
               >
                 {layout.compact ? (
-                  <span className="ring-bubble" title={note.text}>
+                  <span
+                    key={noteIndex}
+                    className={i === fresh ? "ring-bubble ring-fresh" : "ring-bubble"}
+                    title={note.text}
+                  >
                     {note.emoji}
                   </span>
                 ) : (
-                  <div className="ring-card">
+                  <div
+                    key={noteIndex}
+                    className={i === fresh ? "ring-card ring-fresh" : "ring-card"}
+                  >
                     <span className="ring-card-meta">
                       {note.emoji} {note.path}
                     </span>
@@ -239,6 +282,33 @@ export function NoteRing({ hero }: { hero: ReactNode }) {
             );
           })}
         </ul>
+        <button
+          type="button"
+          className="ring-toggle"
+          aria-label={playing ? "Pause the notes" : "Play the notes"}
+          title={playing ? "Pause" : "Play"}
+          onClick={() => setPlaying((p) => !p)}
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            {playing ? (
+              <>
+                <rect x="14" y="3" width="5" height="18" rx="1" />
+                <rect x="5" y="3" width="5" height="18" rx="1" />
+              </>
+            ) : (
+              <path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z" />
+            )}
+          </svg>
+        </button>
         <div
           className="ring-center"
           style={layout.compact ? undefined : { width: Math.min(540, layout.radius * 2 - 260) }}
