@@ -1,4 +1,5 @@
 import { LIMITS, REACTION_EMOJI, REACTIONS, type Reaction } from "@flooper/shared";
+import type { SubmitErrorCode, SubmitResult } from "../api";
 import { Highlighter } from "../picker/highlight";
 import { type PickedTarget, Picker } from "../picker/picker";
 import { takeHighlightParam, waitForElement } from "../picker/show-me";
@@ -31,8 +32,22 @@ export interface WidgetInput {
   hp?: string;
 }
 
-/** Resolves true if the submission was accepted. */
-export type SubmitHandler = (input: WidgetInput) => Promise<boolean>;
+export type SubmitHandler = (input: WidgetInput) => Promise<SubmitResult>;
+
+/**
+ * What the visitor sees when a note can't be sent. Written for the visitor,
+ * not the site's developer: they can't fix the site's setup, but they can
+ * wait, check their connection, or try again. (The developer gets the exact
+ * server message in the console.)
+ */
+const FAILURE_MESSAGES: Partial<Record<SubmitErrorCode, string>> = {
+  network_error: "Couldn't connect. Check your connection and try again.",
+  rate_limited: "That's a lot of notes! Try again in a minute.",
+  origin_not_allowed: "Notes aren't switched on for this site yet.",
+  not_found: "Notes aren't switched on for this site yet.",
+  internal_error: "Something went wrong on our end. Try again?",
+};
+const DEFAULT_FAILURE = "Couldn't send that note. Try again?";
 
 /**
  * The widget's UI and nothing else. It knows how to draw itself and collect
@@ -290,7 +305,7 @@ export class Widget {
     this.setStatus("");
     this.refresh();
 
-    const ok = await this.onSubmit({
+    const result = await this.onSubmit({
       reaction: this.reaction,
       message: this.el.message.value.trim() || undefined,
       target: this.target,
@@ -298,7 +313,7 @@ export class Widget {
     });
 
     this.sending = false;
-    if (ok) {
+    if (result.ok) {
       this.el.form.hidden = true;
       this.el.thanks.hidden = false;
       this.resetTimer = setTimeout(() => {
@@ -306,7 +321,7 @@ export class Widget {
         this.reset();
       }, 2500);
     } else {
-      this.setStatus("Couldn't send that. Try again?", "error");
+      this.setStatus(FAILURE_MESSAGES[result.code] ?? DEFAULT_FAILURE, "error");
     }
     this.refresh();
   }

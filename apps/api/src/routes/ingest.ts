@@ -15,16 +15,30 @@ import { parseJsonBody } from "../lib/validate";
  * The public endpoint the SDK posts to from visitors' browsers, on *other
  * people's* websites. Everything here assumes hostile input.
  *
- * The project's public key is in the URL (not a header) on purpose: CORS
- * preflight requests don't carry custom headers' values, but they do carry the
- * URL, so the preflight can already check this project's origin allowlist.
+ * CORS here is deliberately permissive: every response, errors included, can
+ * be read by the calling page, and preflights always pass. The real gate is
+ * the origin allowlist, checked on the POST itself. If the preflight refused
+ * instead, the browser would hide our error from the SDK, and a site missing
+ * from the allowlist would look exactly like a network failure. Being
+ * readable is safe: requests carry no cookies, and an error only says why a
+ * note was refused.
  */
 export const ingest = new Hono<AppEnv>();
 
 const RATE_LIMIT = { limit: 10, windowMs: 60_000 };
 
-ingest.options("/:publicKey/feedback", async (c) => {
-  await authorizeOrigin(c);
+ingest.use("*", async (c, next) => {
+  const origin = c.req.header("Origin");
+  if (origin) c.header("Access-Control-Allow-Origin", origin);
+  // Cross-origin JS can only read "safelisted" response headers unless we
+  // expose others explicitly. The SDK needs Retry-After to back off politely.
+  c.header("Access-Control-Expose-Headers", "Retry-After, X-Request-Id");
+  // The response depends on Origin, so caches must not share it across origins.
+  c.header("Vary", "Origin");
+  await next();
+});
+
+ingest.options("/:publicKey/feedback", (c) => {
   c.header("Access-Control-Allow-Methods", "POST");
   c.header("Access-Control-Allow-Headers", "Content-Type");
   // Let the browser cache this preflight for a day instead of repeating it.
@@ -70,7 +84,6 @@ ingest.post("/:publicKey/feedback", async (c) => {
 
 /**
  * Look up the project and check the request's Origin against its allowlist.
- * On success, sets the CORS headers that let the browser read the response.
  *
  * Note what this does and doesn't protect against. It stops *other websites*
  * from embedding your key in their pages. It does not stop someone with curl,
@@ -90,13 +103,6 @@ async function authorizeOrigin(c: Context<AppEnv>): Promise<ProjectRow> {
       `${origin ?? "This origin"} isn't in this project's allowed origins`,
     );
   }
-
-  c.header("Access-Control-Allow-Origin", origin);
-  // Cross-origin JS can only read "safelisted" response headers unless we
-  // expose others explicitly. The SDK needs Retry-After to back off politely.
-  c.header("Access-Control-Expose-Headers", "Retry-After, X-Request-Id");
-  // The response depends on Origin, so caches must not share it across origins.
-  c.header("Vary", "Origin");
   return project;
 }
 

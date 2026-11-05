@@ -26,29 +26,46 @@ describe("POST /api/v1/ingest/:publicKey/feedback", () => {
     expect(body.data[0]).toMatchObject({ id, message: "cool site!" });
   });
 
-  it("rejects origins that aren't on the allowlist", async () => {
-    const { path } = await setup();
-    const res = await json("POST", path, submission(), { Origin: "https://evil.example" });
+  it("rejects origins that aren't on the allowlist, readably", async () => {
+    const { project, path } = await setup();
+    const evil = "https://evil.example";
+    const res = await json(
+      "POST",
+      path,
+      submission({ context: { ...submission().context, url: `${evil}/` } }),
+      { Origin: evil },
+    );
     expect(res.status).toBe(403);
-    expect(res.headers.get("Access-Control-Allow-Origin")).toBeNull();
+    // Readable by the page, so the SDK can say why instead of "network error".
+    expect(res.headers.get("Access-Control-Allow-Origin")).toBe(evil);
     expect(await res.json()).toMatchObject({ error: { code: "origin_not_allowed" } });
-  });
 
-  it("answers CORS preflights for allowed origins", async () => {
-    const { path } = await setup();
-    const res = await request(path, {
-      method: "OPTIONS",
-      headers: { Origin: SITE, "Access-Control-Request-Method": "POST" },
+    // ...and nothing was stored.
+    const cookie = await loginAsDev();
+    const inbox = await request(`/api/v1/projects/${project.id}/feedback?status=new`, {
+      headers: { Cookie: cookie },
     });
-    expect(res.status).toBe(204);
-    expect(res.headers.get("Access-Control-Allow-Origin")).toBe(SITE);
+    expect(((await inbox.json()) as { data: unknown[] }).data).toHaveLength(0);
   });
 
-  it("returns 404 for unknown project keys", async () => {
+  it("answers every CORS preflight, so errors on the POST are readable", async () => {
+    const { path } = await setup();
+    for (const origin of [SITE, "https://not-allowed.example"]) {
+      const res = await request(path, {
+        method: "OPTIONS",
+        headers: { Origin: origin, "Access-Control-Request-Method": "POST" },
+      });
+      expect(res.status).toBe(204);
+      expect(res.headers.get("Access-Control-Allow-Origin")).toBe(origin);
+    }
+  });
+
+  it("returns a readable 404 for unknown project keys", async () => {
     const res = await json("POST", "/api/v1/ingest/pk_nope/feedback", submission(), {
       Origin: SITE,
     });
     expect(res.status).toBe(404);
+    expect(res.headers.get("Access-Control-Allow-Origin")).toBe(SITE);
   });
 
   it("deduplicates retries with the same idempotency key", async () => {
@@ -83,18 +100,22 @@ describe("POST /api/v1/ingest/:publicKey/feedback", () => {
     expect(((await inbox.json()) as { data: unknown[] }).data).toHaveLength(0);
   });
 
-  it("rate limits a single visitor", async () => {
+  it("rate limits a single visitor, readably", async () => {
     const { path } = await setup();
     const statuses: number[] = [];
+    let last: Response | undefined;
     for (let i = 0; i < 12; i++) {
-      const res = await json("POST", path, submission(), {
+      last = await json("POST", path, submission(), {
         Origin: SITE,
         "CF-Connecting-IP": "203.0.113.7",
       });
-      statuses.push(res.status);
+      statuses.push(last.status);
     }
     expect(statuses.slice(0, 10).every((s) => s === 202)).toBe(true);
     expect(statuses.at(-1)).toBe(429);
+    // The SDK can read the error and Retry-After, so it can back off.
+    expect(last?.headers.get("Access-Control-Allow-Origin")).toBe(SITE);
+    expect(last?.headers.get("Retry-After")).toMatch(/^\d+$/);
   });
 
   it("rejects a page URL that isn't on the sending site", async () => {
