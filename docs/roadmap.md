@@ -88,6 +88,8 @@ code splitting, aggregation queries, and designing for data that drifts.
   link to the page with `?flooper-highlight=<selector>`; the widget there
   scrolls to the element and outlines it. Links only go to the project's own
   allowed origins, and ingest now rejects page URLs from other origins.
+- **Own domain, 2026-11-05.** Moved to https://flooper.app (registered with
+  Cloudflare). The workers.dev address still accepts notes from old snippets.
 - **First deploy, 2026-11-04.** Live at https://flooper.macks0554.workers.dev
   (Workers + D1, GitHub login). Verified end to end, including a picked element.
 - **Point at a thing (element picker), 2026-11-04.** Visitors pick an element;
