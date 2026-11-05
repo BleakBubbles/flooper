@@ -41,7 +41,7 @@ jobs:
     # token lives (as an environment secret).
     environment:
       name: production
-      url: https://flooper.macks0554.workers.dev
+      url: https://flooper.app
     # Never cancel a deploy halfway (e.g. between migrating and deploying);
     # a newer one waits its turn instead.
     concurrency:
@@ -65,5 +65,11 @@ jobs:
         run: pnpm --filter @flooper/api db:migrate:remote
       - name: Build and deploy
         run: pnpm --filter @flooper/api run deploy
+        env:
+          # The SDK's default API address, for apps that call init() without apiUrl.
+          FLOOPER_API_URL: https://flooper.app
+      # Retries cover a new domain's DNS and certificate still settling in.
       - name: Smoke test
-        run: curl --fail --silent --show-error https://flooper.macks0554.workers.dev/api/health
+        run: >-
+          curl --fail --silent --show-error --retry 10 --retry-delay 15 --retry-all-errors
+          https://flooper.app/api/health
