@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "react-router";
 import { api, keys } from "../api";
+import { ErrorState } from "../components/ErrorState";
 import { usePageTitle } from "../usePageTitle";
 import { InboxPage } from "./InboxPage";
 import { SetupPage } from "./SetupPage";
@@ -25,8 +26,23 @@ export function SitePage() {
   usePageTitle(isSetup ? "Setup" : "Inbox", project.data?.name);
 
   if (project.isPending || counts.isPending) return <main className="page muted">Loading…</main>;
-  if (project.isError) return <main className="page error">{project.error.message}</main>;
-  if (counts.isError) return <main className="page error">{counts.error.message}</main>;
+  if (project.isError || counts.isError) {
+    const error = project.error ?? counts.error;
+    return (
+      <main className="page">
+        {error && (
+          <ErrorState
+            error={error}
+            // Both can fail at once (e.g. offline), so retry whichever did.
+            onRetry={() => {
+              if (project.isError) void project.refetch();
+              if (counts.isError) void counts.refetch();
+            }}
+          />
+        )}
+      </main>
+    );
+  }
 
   return isSetup ? (
     <SetupPage project={project.data} />

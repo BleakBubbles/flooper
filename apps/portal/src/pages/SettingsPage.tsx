@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, type ReactNode, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { api, keys } from "../api";
+import { ErrorState } from "../components/ErrorState";
 import { FieldErrors } from "../components/FieldErrors";
 import { OriginsForm, Snippet } from "../components/SiteSetup";
 import { timeAgo } from "../time";
@@ -23,7 +24,13 @@ export function SettingsPage() {
   usePageTitle("Site settings", project.data?.name);
 
   if (project.isPending) return <main className="page muted">Loading…</main>;
-  if (project.isError) return <main className="page error">{project.error.message}</main>;
+  if (project.isError) {
+    return (
+      <main className="page">
+        <ErrorState error={project.error} onRetry={() => project.refetch()} />
+      </main>
+    );
+  }
 
   return (
     <main className="page">

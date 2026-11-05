@@ -4,6 +4,7 @@ import { type ReactNode, useEffect, useRef } from "react";
 import { Link, Outlet, useLocation, useMatch } from "react-router";
 import { ApiRequestError, api, keys } from "../api";
 import { LoginPage } from "../pages/LoginPage";
+import { ErrorState } from "./ErrorState";
 
 /**
  * The app shell, and the auth gate: if /me says we're not logged in, show the
@@ -13,8 +14,17 @@ export function Layout() {
   const me = useQuery({ queryKey: keys.me, queryFn: api.me });
 
   if (me.isPending) return <div className="center muted">Loading…</div>;
-  if (me.error instanceof ApiRequestError && me.error.status === 401) return <LoginPage />;
-  if (me.isError) return <div className="center error">{me.error.message}</div>;
+  if (me.error instanceof ApiRequestError && me.error.status === 401) {
+    // Logged in a moment ago (there's user data) but not now: the session ran out.
+    return <LoginPage sessionExpired={me.data !== undefined} />;
+  }
+  if (me.isError) {
+    return (
+      <div className="center">
+        <ErrorState error={me.error} onRetry={() => me.refetch()} />
+      </div>
+    );
+  }
 
   return (
     <>
@@ -105,9 +115,14 @@ function AccountMenu({ user }: { user: User }) {
       alignRight
     >
       <span className="menu-label">Signed in as {user.login}</span>
-      <button type="button" onClick={() => logout.mutate()}>
-        Log out
+      <button type="button" onClick={() => logout.mutate()} disabled={logout.isPending}>
+        {logout.isPending ? "Logging out…" : "Log out"}
       </button>
+      {logout.isError && (
+        <p className="menu-error" role="alert">
+          Couldn't log out. Try again.
+        </p>
+      )}
     </Menu>
   );
 }

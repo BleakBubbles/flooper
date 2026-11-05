@@ -1,5 +1,5 @@
 import type { FeedbackSubmission } from "@flooper/shared/schemas";
-import { submitFeedback } from "./api";
+import { type SubmitErrorCode, submitFeedback } from "./api";
 import { collectContext, uuid } from "./context";
 import type { FlooperInstance, FlooperOptions, Metadata, Visitor } from "./types";
 import { Widget } from "./ui/widget";
@@ -53,8 +53,8 @@ export function init(options: FlooperOptions): FlooperInstance {
         projectKey: options.projectKey,
         payload,
       });
-      if (!result.ok) console.warn(`[flooper] ${result.message}`);
-      return result.ok;
+      if (!result.ok) console.warn(`[flooper] ${result.message}${setupHint(result.code)}`);
+      return result;
     },
   );
 
@@ -78,6 +78,15 @@ export function init(options: FlooperOptions): FlooperInstance {
     },
   };
   return current;
+}
+
+/** For the site's developer: how to fix a refusal that comes from setup. */
+function setupHint(code: SubmitErrorCode): string {
+  if (code === "origin_not_allowed") {
+    return `. Add ${location.origin} under Site settings in the Flooper portal.`;
+  }
+  if (code === "not_found") return ". Check the project key in your Flooper snippet.";
+  return "";
 }
 
 const noopInstance: FlooperInstance = {

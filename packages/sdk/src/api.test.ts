@@ -58,7 +58,7 @@ describe("submitFeedback", () => {
       respond(422, { error: { code: "validation_failed", message: "Nope" } }),
     );
     const { result } = run(fetchImpl);
-    expect(await result).toEqual({ ok: false, message: "Nope" });
+    expect(await result).toEqual({ ok: false, code: "validation_failed", message: "Nope" });
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
@@ -75,7 +75,30 @@ describe("submitFeedback", () => {
   it("gives up after the last attempt", async () => {
     const fetchImpl = vi.fn(async () => respond(500, {}));
     const { result } = run(fetchImpl);
-    expect((await result).ok).toBe(false);
+    expect(await result).toMatchObject({ ok: false, code: "internal_error" });
     expect(fetchImpl).toHaveBeenCalledTimes(3);
+  });
+
+  it("reports an unreachable server as a network error", async () => {
+    const fetchImpl = vi.fn(async () => {
+      throw new TypeError("Failed to fetch");
+    });
+    const { result } = run(fetchImpl);
+    expect(await result).toMatchObject({ ok: false, code: "network_error" });
+  });
+
+  it("passes on why the site was refused, without retrying", async () => {
+    const fetchImpl = vi.fn(async () =>
+      respond(403, {
+        error: { code: "origin_not_allowed", message: "https://x.example isn't allowed" },
+      }),
+    );
+    const { result } = run(fetchImpl);
+    expect(await result).toEqual({
+      ok: false,
+      code: "origin_not_allowed",
+      message: "https://x.example isn't allowed",
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 });
