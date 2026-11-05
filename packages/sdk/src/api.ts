@@ -1,7 +1,12 @@
-import type { ApiErrorBody } from "@flooper/shared";
+import type { ApiErrorBody, ApiErrorCode } from "@flooper/shared";
 import type { FeedbackSubmission } from "@flooper/shared/schemas";
 
-export type SubmitResult = { ok: true; id: string } | { ok: false; message: string };
+/** Why a submission failed: the server's error code, or that it was unreachable. */
+export type SubmitErrorCode = ApiErrorCode | "network_error";
+
+export type SubmitResult =
+  | { ok: true; id: string }
+  | { ok: false; code: SubmitErrorCode; message: string };
 
 export interface SubmitOptions {
   apiUrl: string;
@@ -29,6 +34,7 @@ export async function submitFeedback(options: SubmitOptions): Promise<SubmitResu
   const url = `${options.apiUrl}/api/v1/ingest/${encodeURIComponent(options.projectKey)}/feedback`;
   const body = JSON.stringify(options.payload);
 
+  let code: SubmitErrorCode = "network_error";
   let message = "Couldn't reach the server";
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     let retryAfterMs: number | undefined;
@@ -48,11 +54,13 @@ export async function submitFeedback(options: SubmitOptions): Promise<SubmitResu
       }
       // Proxies and CDNs can return errors that aren't ours, so don't assume the shape.
       const error = (await res.json().catch(() => null)) as Partial<ApiErrorBody> | null;
+      code = error?.error?.code ?? fallbackCode(res.status);
       message = error?.error?.message ?? `Request failed (${res.status})`;
-      if (res.status !== 429 && res.status < 500) return { ok: false, message };
+      if (res.status !== 429 && res.status < 500) return { ok: false, code, message };
       const retryAfter = Number(res.headers.get("Retry-After"));
       if (retryAfter > 0) retryAfterMs = retryAfter * 1000;
     } catch {
+      code = "network_error";
       message = "Couldn't reach the server";
     }
 
@@ -63,5 +71,10 @@ export async function submitFeedback(options: SubmitOptions): Promise<SubmitResu
     if (delay > MAX_BACKOFF_MS) break;
     await sleep(delay);
   }
-  return { ok: false, message };
+  return { ok: false, code, message };
+}
+
+function fallbackCode(status: number): ApiErrorCode {
+  if (status === 429) return "rate_limited";
+  return status >= 500 ? "internal_error" : "bad_request";
 }

@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { api, keys } from "../api";
+import { ErrorState } from "../components/ErrorState";
 import { FieldErrors } from "../components/FieldErrors";
 import { usePageTitle } from "../usePageTitle";
 
@@ -18,7 +19,7 @@ export function SitesPage() {
       </div>
 
       {projects.isPending && <p className="muted">Loading…</p>}
-      {projects.isError && <p className="error">{projects.error.message}</p>}
+      {projects.isError && <ErrorState error={projects.error} onRetry={() => projects.refetch()} />}
       {sites.length > 0 && (
         <ul className="panel rows site-list">
           {sites.map((p) => (

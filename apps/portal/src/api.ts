@@ -13,7 +13,7 @@ export class ApiRequestError extends Error {
   readonly code: string;
   readonly details?: Record<string, string[]>;
 
-  constructor(status: number, body: ApiErrorBody["error"]) {
+  constructor(status: number, body: Omit<ApiErrorBody["error"], "code"> & { code: string }) {
     super(body.message);
     this.status = status;
     this.code = body.code;
@@ -21,12 +21,22 @@ export class ApiRequestError extends Error {
   }
 }
 
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const res = await fetch(`/api${path}`, {
-    method,
-    headers: body === undefined ? undefined : { "Content-Type": "application/json" },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
+export async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(`/api${path}`, {
+      method,
+      headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  } catch {
+    // fetch only throws when there's no response at all: offline, DNS, etc.
+    // Status 0 means "never reached the server", so it's retried like a 5xx.
+    throw new ApiRequestError(0, {
+      code: "network_error",
+      message: "Couldn't reach Flooper. Check your connection and try again.",
+    });
+  }
   if (res.status === 204) return undefined as T;
   const data = await res.json().catch(() => null);
   if (!res.ok) {

@@ -12,11 +12,13 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 import { api, keys } from "../api";
+import { ErrorState } from "../components/ErrorState";
 import { FeedbackDetail } from "../components/FeedbackDetail";
 import { FeedbackRow } from "../components/FeedbackRow";
+import { CloseIcon } from "../components/icons";
 
 type Filter = FeedbackStatus | "all";
 const FILTERS: { value: Filter; label: string }[] = [
@@ -30,6 +32,14 @@ const EMPTY: Record<Filter, string> = {
   done: "Nothing done yet.",
   archived: "Nothing archived.",
   all: "No notes yet.",
+};
+
+/** For "Couldn't ___ that note": what each status change was trying to do. */
+const STATUS_ACTION: Record<FeedbackStatus, string> = {
+  new: "reopen",
+  seen: "mark",
+  done: "mark done",
+  archived: "archive",
 };
 
 /** Wide enough for the list and the selected note side by side. Matches the CSS. */
@@ -50,6 +60,8 @@ export function InboxPage({ project, counts }: { project: Project; counts: Feedb
   const status = filter === "all" ? undefined : filter;
   const noteId = params.get("note");
   const queryKey = keys.feedback(project.id, status);
+  /** Set when a status change fails, so the note popping back isn't a mystery. */
+  const [statusError, setStatusError] = useState<string | null>(null);
 
   // Infinite query + the API's cursors = "Load more" with no offset math.
   const feedback = useInfiniteQuery({
@@ -97,6 +109,7 @@ export function InboxPage({ project, counts }: { project: Project; counts: Feedb
     mutationFn: ({ id, status }: { id: string; status: FeedbackStatus }) =>
       api.updateFeedback(id, status),
     onMutate: async ({ id, status: next }) => {
+      setStatusError(null);
       await queryClient.cancelQueries({ queryKey });
       const previous = queryClient.getQueryData<FeedbackPages>(queryKey);
       queryClient.setQueryData<FeedbackPages>(
@@ -115,8 +128,9 @@ export function InboxPage({ project, counts }: { project: Project; counts: Feedb
       );
       return { previous };
     },
-    onError: (_err, _vars, context) => {
+    onError: (_err, { status: next }, context) => {
       if (context?.previous) queryClient.setQueryData(queryKey, context.previous);
+      setStatusError(`Couldn't ${STATUS_ACTION[next]} that note, so nothing changed. Try again?`);
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["feedback", project.id] }),
   });
@@ -163,8 +177,27 @@ export function InboxPage({ project, counts }: { project: Project; counts: Feedb
           </div>
         </div>
 
+        {statusError && (
+          <div className="alert" role="alert">
+            <span>{statusError}</span>
+            <button
+              type="button"
+              className="icon-button"
+              aria-label="Dismiss"
+              data-tooltip="Dismiss"
+              onClick={() => setStatusError(null)}
+            >
+              <CloseIcon />
+            </button>
+          </div>
+        )}
         {feedback.isPending && <p className="panel-empty muted">Loading…</p>}
-        {feedback.isError && <p className="panel-empty error">{feedback.error.message}</p>}
+        {/* Only when nothing loaded: a failed "Load more" is reported at the bottom. */}
+        {feedback.isError && !feedback.data && (
+          <div className="panel-empty">
+            <ErrorState error={feedback.error} onRetry={() => feedback.refetch()} />
+          </div>
+        )}
         {isEmpty && <p className="panel-empty muted">{EMPTY[filter]}</p>}
 
         {items.length > 0 && (
@@ -183,13 +216,22 @@ export function InboxPage({ project, counts }: { project: Project; counts: Feedb
               </ul>
               {feedback.hasNextPage && (
                 <div className="panel-footer">
+                  {feedback.isFetchNextPageError && !feedback.isFetchingNextPage && (
+                    <span className="error small" role="alert">
+                      Couldn't load more.
+                    </span>
+                  )}
                   <button
                     type="button"
                     className="btn"
                     onClick={() => feedback.fetchNextPage()}
                     disabled={feedback.isFetchingNextPage}
                   >
-                    {feedback.isFetchingNextPage ? "Loading…" : "Load more"}
+                    {feedback.isFetchingNextPage
+                      ? "Loading…"
+                      : feedback.isFetchNextPageError
+                        ? "Try again"
+                        : "Load more"}
                   </button>
                 </div>
               )}
