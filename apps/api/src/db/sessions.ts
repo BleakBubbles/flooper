@@ -6,14 +6,22 @@ export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 /**
  * Create a session and return the raw token for the cookie. Only its hash is
  * stored, so the token can't be recovered from the database.
+ *
+ * Housekeeping rides along: expired sessions are already refused at lookup,
+ * and logins are rare enough that each one can also delete them, so the table
+ * stays small without needing a cron job.
  */
 export async function createSession(db: D1Database, userId: string): Promise<string> {
   const token = randomToken();
   const now = Date.now();
-  await db
-    .prepare("INSERT INTO sessions (id_hash, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)")
-    .bind(await sha256Hex(token), userId, now, now + SESSION_TTL_MS)
-    .run();
+  await db.batch([
+    db.prepare("DELETE FROM sessions WHERE expires_at <= ?").bind(now),
+    db
+      .prepare(
+        "INSERT INTO sessions (id_hash, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)",
+      )
+      .bind(await sha256Hex(token), userId, now, now + SESSION_TTL_MS),
+  ]);
   return token;
 }
 
