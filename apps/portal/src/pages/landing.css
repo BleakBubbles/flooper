@@ -200,40 +200,47 @@ body:has(.landing) {
   background: var(--note-white);
   font-size: 18px;
 }
-/* Play/pause, quiet in the stage's bottom-right corner. Same tile as the
-   DevTools claims' icons. */
+/* Play/pause, inside the ring: under the fine print, or (phones) under the
+   counter. No border or tile, just the icon in a round hit area, so it belongs
+   to the showpiece rather than sitting beside it. */
 .ring-toggle {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  z-index: 3;
   display: grid;
   place-items: center;
   width: 36px;
   height: 36px;
   padding: 0;
-  border: 1px solid var(--border-strong);
-  border-radius: 10px;
-  background: var(--surface);
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
   color: var(--muted);
   cursor: pointer;
   transition:
     color 0.15s ease,
-    border-color 0.15s ease;
+    background 0.15s ease;
 }
 .ring-toggle:hover {
-  border-color: var(--fg-2);
+  background: rgba(255, 255, 255, 0.08);
   color: var(--fg);
 }
+.ring-toggle:focus-visible {
+  outline: 2px solid var(--fg-2);
+  outline-offset: 2px;
+}
 /* Still, it's the way in to the motion (and the only one for people with
-   reduced motion), so it stands out. Turning, it stays out of the way. */
+   reduced motion), so it shows a little more. Turning, it stays out of the way. */
 .ring-toggle.still {
-  border-color: var(--muted);
-  background: #18181b;
+  background: rgba(255, 255, 255, 0.07);
   color: var(--fg);
 }
 .ring-toggle.still:hover {
-  border-color: var(--fg);
+  background: rgba(255, 255, 255, 0.14);
+}
+/* Phones: centered just under the counter in the ring's middle. */
+.ring.compact .ring-toggle {
+  position: absolute;
+  left: 50%;
+  top: calc(50% + 30px);
+  translate: -50% 0;
 }
 /* A note that just arrived while the ring is still: a fade, no movement. */
 .ring-fresh {

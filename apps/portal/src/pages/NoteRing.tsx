@@ -306,6 +306,38 @@ export function NoteRing({ hero }: { hero: ReactNode }) {
       +1
     </span>
   );
+  // Play/pause, in the showpiece itself: under the fine print on wide screens,
+  // under the counter in the phone ring. Quiet while it turns, brighter while
+  // still (the way in to the motion, and the only one with reduce-motion).
+  const toggle = (
+    <button
+      type="button"
+      className={playing ? "ring-toggle" : "ring-toggle still"}
+      aria-label={playing ? "Pause the notes" : "Play the notes"}
+      title={playing ? "Pause" : "Play"}
+      onClick={() => setPlaying((p) => !p)}
+    >
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="currentColor"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        {playing ? (
+          <>
+            <rect x="14" y="3" width="5" height="18" rx="1" />
+            <rect x="5" y="3" width="5" height="18" rx="1" />
+          </>
+        ) : (
+          <path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z" />
+        )}
+      </svg>
+    </button>
+  );
   const track = (
     <svg className="ring-track" width={layout.width} height={layout.height} aria-hidden="true">
       <path
@@ -380,33 +412,6 @@ export function NoteRing({ hero }: { hero: ReactNode }) {
             );
           })}
         </ul>
-        <button
-          type="button"
-          className={playing ? "ring-toggle" : "ring-toggle still"}
-          aria-label={playing ? "Pause the notes" : "Play the notes"}
-          title={playing ? "Pause" : "Play"}
-          onClick={() => setPlaying((p) => !p)}
-        >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="currentColor"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            {playing ? (
-              <>
-                <rect x="14" y="3" width="5" height="18" rx="1" />
-                <rect x="5" y="3" width="5" height="18" rx="1" />
-              </>
-            ) : (
-              <path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z" />
-            )}
-          </svg>
-        </button>
         {/* The counter sits just above the tunnel's mouth, where the notes it
             counts come out (and the dot pulses as each one does), leaving the
             middle to the headline. On phones it stays in the ring's middle. */}
@@ -434,9 +439,13 @@ export function NoteRing({ hero }: { hero: ReactNode }) {
               {plusOne}
             </>
           ) : (
-            <div className="hero">{hero}</div>
+            <div className="hero">
+              {hero}
+              {toggle}
+            </div>
           )}
         </div>
+        {layout.compact && toggle}
       </div>
     </section>
   );
