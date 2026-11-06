@@ -23,12 +23,12 @@ export function LandingPage() {
     <div className="landing">
       <header className="landing-header">
         <Link to="/" className="brand">
-          <img src="/logo.svg" alt="" width={40} height={40} />
+          <img src="/logo.svg" alt="" width={36} height={36} />
           Flooper
         </Link>
         <nav>
           {loggedIn ? (
-            <Link className="btn primary big" to="/">
+            <Link className="btn primary" to="/">
               Open the app
               <MiniIcon size={16}>
                 <path d="M7 7h10v10" />
@@ -37,10 +37,10 @@ export function LandingPage() {
             </Link>
           ) : (
             <>
-              <Link className="btn quiet borderless big" to="/login">
+              <Link className="btn quiet borderless" to="/login">
                 Log in
               </Link>
-              <a className="btn primary big" href="/api/auth/github">
+              <a className="btn primary" href="/api/auth/github">
                 Get started
               </a>
             </>
