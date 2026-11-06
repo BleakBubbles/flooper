@@ -81,8 +81,9 @@ auth.get("/github/callback", async (c) => {
   return c.redirect(c.env.APP_URL);
 });
 
+/** Back to the login page, saying why. (The app's home, /, would be the landing page.) */
 function loginFailed(c: Context<AppEnv>, reason: LoginError) {
-  const url = new URL(c.env.APP_URL, c.req.url);
+  const url = new URL("/login", new URL(c.env.APP_URL, c.req.url));
   url.searchParams.set("login_error", reason);
   return c.redirect(url.toString());
 }

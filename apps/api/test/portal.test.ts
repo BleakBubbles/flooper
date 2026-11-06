@@ -377,6 +377,33 @@ describe("portal API", () => {
     const me = await request("/api/v1/me", { headers: { Cookie: cookie } });
     expect(me.status).toBe(401);
   });
+
+  it("sets a readable signed-in hint beside the session, and clears both on logout", async () => {
+    const login = await request("/api/auth/dev-login", {
+      method: "POST",
+      headers: { Origin: BASE },
+    });
+    const set = login.headers.getSetCookie();
+    const session = set.find((c) => c.startsWith("flooper_session="));
+    const hint = set.find((c) => c.startsWith("flooper_signed_in="));
+    expect(session).toMatch(/HttpOnly/i);
+    expect(hint).toMatch(/^flooper_signed_in=1;/);
+    expect(hint).not.toMatch(/HttpOnly/i);
+
+    // /me renews it, for anyone who logged in before the hint existed.
+    const me = await request("/api/v1/me", {
+      headers: { Cookie: (session ?? "").split(";")[0] ?? "" },
+    });
+    expect(me.headers.getSetCookie().some((c) => c.startsWith("flooper_signed_in=1;"))).toBe(true);
+
+    const out = await request("/api/auth/logout", {
+      method: "POST",
+      headers: { Cookie: (session ?? "").split(";")[0] ?? "", Origin: BASE },
+    });
+    const cleared = out.headers.getSetCookie();
+    expect(cleared.some((c) => /^flooper_session=;.*Max-Age=0/i.test(c))).toBe(true);
+    expect(cleared.some((c) => /^flooper_signed_in=;.*Max-Age=0/i.test(c))).toBe(true);
+  });
 });
 
 describe("sessions", () => {

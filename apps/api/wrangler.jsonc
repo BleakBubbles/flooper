@@ -29,7 +29,7 @@
   "vars": {
     "ENVIRONMENT": "development",
     // Where to send people after they log in.
-    "APP_URL": "http://localhost:5173/app",
+    "APP_URL": "http://localhost:5173/",
     // Extra origins allowed to make cookie-authenticated portal requests.
     // In production the portal is same-origin, so this can be empty.
     "TRUSTED_ORIGINS": "http://localhost:5173"
@@ -46,7 +46,7 @@
       "routes": [{ "pattern": "flooper.app", "custom_domain": true }],
       "vars": {
         "ENVIRONMENT": "production",
-        "APP_URL": "/app",
+        "APP_URL": "/",
         "TRUSTED_ORIGINS": ""
       },
       "d1_databases": [

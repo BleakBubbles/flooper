@@ -6,6 +6,14 @@ import type { AppEnv, AuthedEnv } from "../env";
 import { ApiError, unauthorized } from "../lib/errors";
 
 export const SESSION_COOKIE = "flooper_session";
+/**
+ * A hint, not a credential: "this browser has a session". The page can read
+ * it (the session cookie it can't), so flooper.app/ knows straight away
+ * whether to show the app or the landing page, with no flash of the wrong
+ * one. It grants nothing: every request is still checked against the
+ * session cookie, and a stale hint just means the login page.
+ */
+export const SIGNED_IN_COOKIE = "flooper_signed_in";
 
 /**
  * The session cookie is:
@@ -21,10 +29,22 @@ export function setSessionCookie(c: Context<AppEnv>, token: string): void {
     path: "/",
     maxAge: SESSION_TTL_MS / 1000,
   });
+  setSignedInHint(c);
+}
+
+/** (Re)sets the readable "signed in" hint. See SIGNED_IN_COOKIE. */
+export function setSignedInHint<E extends AppEnv>(c: Context<E>): void {
+  setCookie(c, SIGNED_IN_COOKIE, "1", {
+    secure: c.env.ENVIRONMENT === "production",
+    sameSite: "Lax",
+    path: "/",
+    maxAge: SESSION_TTL_MS / 1000,
+  });
 }
 
 export function clearSessionCookie(c: Context<AppEnv>): void {
   deleteCookie(c, SESSION_COOKIE, { path: "/" });
+  deleteCookie(c, SIGNED_IN_COOKIE, { path: "/" });
 }
 
 /** Reject the request with 401 unless it carries a valid session. */

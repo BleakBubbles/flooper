@@ -133,7 +133,7 @@ function AddressForm({ site }: { site: Project | null }) {
       queryClient.setQueryData(keys.project(project.id), project);
       // Wait for the sidebar's list to have it, then show its next step.
       await queryClient.invalidateQueries({ queryKey: keys.projects });
-      if (!site) navigate(`/app?site=${project.id}`);
+      if (!site) navigate(`/?site=${project.id}`);
     },
   });
 
@@ -239,7 +239,7 @@ function useFirstNote(site: ProjectWithSummary | null) {
   useEffect(() => {
     if (!noteId || !siteId) return;
     void queryClient.invalidateQueries({ queryKey: keys.projects });
-    navigate(`/app?site=${siteId}&note=${noteId}`, { replace: true });
+    navigate(`/?site=${siteId}&note=${noteId}`, { replace: true });
   }, [noteId, siteId, queryClient, navigate]);
 }
 

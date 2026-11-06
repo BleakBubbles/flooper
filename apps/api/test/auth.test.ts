@@ -14,6 +14,7 @@ async function callback(query: string, cookie?: string) {
 describe("GitHub login callback", () => {
   it("sends someone who clicked Cancel back to the login page with a reason", async () => {
     const to = await callback("error=access_denied&state=abc", "flooper_oauth_state=abc");
+    expect(to.pathname).toBe("/login");
     expect(to.searchParams.get("login_error")).toBe("cancelled");
   });
 

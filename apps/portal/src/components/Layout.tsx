@@ -4,7 +4,7 @@ import { Link, Outlet } from "react-router";
 import { ApiRequestError, api, keys } from "../api";
 import { LoginPage } from "../pages/LoginPage";
 import { ErrorState } from "./ErrorState";
-import { LogOutIcon } from "./icons";
+import { InfoIcon, LogOutIcon } from "./icons";
 import { Menu } from "./Menu";
 
 /**
@@ -40,7 +40,7 @@ function Header({ user }: { user: User }) {
   return (
     <header className="header">
       <div className="header-inner">
-        <Link to="/app" className="brand">
+        <Link to="/" className="brand">
           <img src="/logo.svg" alt="" width={30} height={30} />
           Flooper
         </Link>
@@ -55,7 +55,11 @@ function AccountMenu({ user }: { user: User }) {
   const queryClient = useQueryClient();
   const logout = useMutation({
     mutationFn: api.logout,
-    onSuccess: () => queryClient.clear(),
+    // A full load of /, which is the landing page once signed out.
+    onSuccess: () => {
+      queryClient.clear();
+      window.location.assign("/");
+    },
   });
   const name = user.name ?? user.login;
   const avatar = (
@@ -73,6 +77,13 @@ function AccountMenu({ user }: { user: User }) {
         </span>
       </div>
       <hr />
+      {/* Home is the app now, so the landing page lives here. */}
+      <Link to="/about">
+        <span className="with-icon">
+          <InfoIcon />
+          About Flooper
+        </span>
+      </Link>
       <button type="button" onClick={() => logout.mutate()} disabled={logout.isPending}>
         <span className="with-icon">
           <LogOutIcon />
