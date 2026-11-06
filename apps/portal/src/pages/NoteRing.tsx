@@ -179,8 +179,8 @@ export function NoteRing({ hero }: { hero: ReactNode }) {
   const [playing, setPlaying] = useState(
     () => !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
   );
-  // While the ring turns, the count lets go of a "+1" each time it goes up.
-  const rising = playing && !layout.compact;
+  // While the ring turns, the count lets go of a "+1" each time it goes up
+  // (wherever the counter is: by the tunnel's mouth, or mid-ring on phones).
   // The slot whose note just changed while the ring is still, so it fades in.
   const [fresh, setFresh] = useState(-1);
 
@@ -301,6 +301,11 @@ export function NoteRing({ hero }: { hero: ReactNode }) {
       {arrived} new notes
     </span>
   );
+  const plusOne = playing && arrived !== firstCount.current && (
+    <span key={`plus-${arrived}`} className="ring-plus" aria-hidden="true">
+      +1
+    </span>
+  );
   const track = (
     <svg className="ring-track" width={layout.width} height={layout.height} aria-hidden="true">
       <path
@@ -411,11 +416,7 @@ export function NoteRing({ hero }: { hero: ReactNode }) {
             style={{ left: place(layout, TUNNEL_OUT).x, top: place(layout, TUNNEL_OUT).y - 14 }}
           >
             {pill}
-            {rising && arrived !== firstCount.current && (
-              <span key={`plus-${arrived}`} className="ring-plus" aria-hidden="true">
-                +1
-              </span>
-            )}
+            {plusOne}
           </span>
         )}
         <div
@@ -427,7 +428,14 @@ export function NoteRing({ hero }: { hero: ReactNode }) {
               : { width: Math.min(540, layout.radius * 2 - 200 * layout.cardScale) }
           }
         >
-          {layout.compact ? pill : <div className="hero">{hero}</div>}
+          {layout.compact ? (
+            <>
+              {pill}
+              {plusOne}
+            </>
+          ) : (
+            <div className="hero">{hero}</div>
+          )}
         </div>
       </div>
     </section>
