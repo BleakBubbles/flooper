@@ -92,6 +92,27 @@ export const listFeedbackQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(LIMITS.pageSizeMax).default(LIMITS.pageSizeDefault),
 });
 
+/**
+ * The home screen's list of notes across every site the user owns. Archived
+ * notes are left out unless asked for with status=archived.
+ */
+/** What the home screen's list can be sorted by: one of its columns. */
+export const NOTE_SORTS = ["time", "site", "reaction", "page", "note"] as const;
+export type NoteSort = (typeof NOTE_SORTS)[number];
+
+export const listAllFeedbackQuerySchema = listFeedbackQuerySchema.extend({
+  /** Newest first unless asked otherwise. */
+  sort: z.enum(NOTE_SORTS).default("time"),
+  dir: z.enum(["asc", "desc"]).default("desc"),
+  /** Just this one of the user's sites. */
+  projectId: z.string().max(64).optional(),
+});
+
+/** "Mark all as read": every site's new notes, or just one site's. */
+export const markAllReadSchema = z.object({
+  projectId: z.string().max(64).optional(),
+});
+
 export type CreateProjectInput = z.input<typeof createProjectSchema>;
 export type UpdateProjectInput = z.input<typeof updateProjectSchema>;
 export type UpdateFeedbackInput = z.infer<typeof updateFeedbackSchema>;
@@ -112,6 +133,28 @@ export interface Project {
   publicKey: string;
   allowedOrigins: string[];
   createdAt: string;
+}
+
+/** At-a-glance numbers for a site, for its card on the home screen. */
+export interface ProjectSummary {
+  /** Notes still marked new. */
+  newCount: number;
+  /** New notes by reaction. Notes without a reaction aren't counted here. */
+  newByReaction: Partial<Record<(typeof REACTIONS)[number], number>>;
+  /** Every note, whatever its status. */
+  total: number;
+  /** Notes marked done. */
+  done: number;
+  /** Archived notes, which the home screen's list leaves out. */
+  archived: number;
+  lastNoteAt: string | null;
+  /** Notes per day for the last 14 days, oldest first. The last entry is the last 24 hours. */
+  activity: number[];
+}
+
+/** A site as the sites list returns it: the project plus its summary. */
+export interface ProjectWithSummary extends Project {
+  summary: ProjectSummary;
 }
 
 export interface Feedback {
