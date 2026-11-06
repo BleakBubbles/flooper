@@ -59,7 +59,7 @@ const SHOWS: {
  * sidebar. Unread notes stand out. Opening a note shows it in a reading pane
  * to the right on wide screens, or under its row otherwise.
  *
- * A note counts as read once it has stayed open a moment. Each row also has
+ * A note counts as read once you click off it (close it or open another). Each row also has
  * quick actions (read/unread, done, archive), and the title bar can mark
  * everything read, so working through notes never leaves the page.
  */
