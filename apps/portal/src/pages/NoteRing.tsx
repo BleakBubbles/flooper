@@ -1,4 +1,11 @@
-import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  type CSSProperties,
+  type ReactNode,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 
 type RingNote = { emoji: string; path: string; text: string; selector?: string };
 
@@ -57,16 +64,51 @@ type Layout = {
   height: number;
   radius: number;
   slots: number;
+  /** The cards' size, relative to full size. */
+  cardScale: number;
 };
 
-function layoutFor(width: number): Layout {
+/** The ring at its biggest, and the room its cards need above and below it. */
+const FULL_RADIUS = 430;
+const FULL_MARGIN = 130;
+/** Never smaller than this: below it the notes crowd the headline. */
+const MIN_RADIUS = 310;
+/** The page header's height (the app's too), and how far the ring tucks up
+    under it: its top is the tunnel, where notes fade out anyway. */
+const HEADER_HEIGHT = 73;
+const RING_TUCK = 40;
+/** Card text never goes below 12px (it's 13px at full size). */
+const MIN_CARD_SCALE = 12 / 13;
+
+/**
+ * The ring fits the window: as wide as the column allows, and short enough
+ * that the whole loop shows on the first screen (headline in the middle),
+ * down to a minimum. The cards shrink with it, so the picture stays the same.
+ */
+function layoutFor(width: number, viewportHeight: number): Layout {
   // Narrow screens: the text goes above, and the ring is emoji on a thick track.
   if (width < 900) {
     const radius = Math.min(150, width / 2 - 32);
-    return { compact: true, width, height: radius * 2 + 64, radius, slots: 12 };
+    return { compact: true, width, height: radius * 2 + 64, radius, slots: 12, cardScale: 1 };
   }
-  const radius = Math.min(430, width / 2 - 105);
-  return { compact: false, width, height: radius * 2 + 130, radius, slots: 14 };
+  const byWidth = width / 2 - 105;
+  // The stage is 2r plus a margin that shrinks with the cards (r / FULL_RADIUS).
+  // (A few pixels spare, so rounding never pushes the play button off the bottom.)
+  const room = viewportHeight - HEADER_HEIGHT + RING_TUCK - 4;
+  const byHeight = room / (2 + FULL_MARGIN / FULL_RADIUS);
+  const radius = Math.floor(
+    Math.max(Math.min(FULL_RADIUS, byWidth, byHeight), Math.min(MIN_RADIUS, byWidth)),
+  );
+  const scale = radius / FULL_RADIUS;
+  return {
+    compact: false,
+    width,
+    height: Math.ceil(radius * 2 + FULL_MARGIN * scale),
+    radius,
+    // Fewer, so smaller rings keep the same breathing room between cards.
+    slots: radius >= 400 ? 14 : 12,
+    cardScale: Math.max(scale, MIN_CARD_SCALE),
+  };
 }
 
 /** Where a slot is, and how far into the tunnel (0 inside, 1 clear of it). */
@@ -96,7 +138,9 @@ function arcPoint(layout: Layout, angle: number) {
  */
 export function NoteRing({ hero }: { hero: ReactNode }) {
   const stageRef = useRef<HTMLDivElement>(null);
-  const [layout, setLayout] = useState(() => layoutFor(Math.min(window.innerWidth, 1200)));
+  const [layout, setLayout] = useState(() =>
+    layoutFor(Math.min(window.innerWidth, 1440) - 48, window.innerHeight),
+  );
   const slotRefs = useRef<(HTMLLIElement | null)[]>([]);
   const turn = useRef(0);
   const paused = useRef(false);
@@ -114,14 +158,22 @@ export function NoteRing({ hero }: { hero: ReactNode }) {
   useLayoutEffect(() => {
     const stage = stageRef.current;
     if (!stage) return;
-    const observer = new ResizeObserver(() => {
-      const next = layoutFor(Math.round(stage.clientWidth));
+    // The stage's width, and the window's height (which the stage doesn't see).
+    const update = () => {
+      const next = layoutFor(Math.round(stage.clientWidth), window.innerHeight);
       setLayout((prev) =>
-        prev.width === next.width && prev.compact === next.compact ? prev : next,
+        prev.width === next.width && prev.radius === next.radius && prev.compact === next.compact
+          ? prev
+          : next,
       );
-    });
+    };
+    const observer = new ResizeObserver(update);
     observer.observe(stage);
-    return () => observer.disconnect();
+    window.addEventListener("resize", update);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", update);
+    };
   }, []);
 
   // Keep one note per slot when a resize changes how many slots there are.
@@ -236,7 +288,17 @@ export function NoteRing({ hero }: { hero: ReactNode }) {
   return (
     <section className={layout.compact ? "ring compact" : "ring"}>
       {layout.compact && <div className="hero">{hero}</div>}
-      <div ref={stageRef} className="ring-stage" style={{ height: layout.height }}>
+      <div
+        ref={stageRef}
+        className="ring-stage"
+        style={
+          {
+            height: layout.height,
+            marginTop: layout.compact ? undefined : -RING_TUCK,
+            "--card-scale": layout.cardScale,
+          } as CSSProperties
+        }
+      >
         {track}
         <ul className="ring-notes" aria-label="Example notes">
           {slotNotes.map((noteIndex, i) => {
@@ -311,7 +373,12 @@ export function NoteRing({ hero }: { hero: ReactNode }) {
         </button>
         <div
           className="ring-center"
-          style={layout.compact ? undefined : { width: Math.min(540, layout.radius * 2 - 260) }}
+          // As wide as the space between the side cards (which shrink with the ring).
+          style={
+            layout.compact
+              ? undefined
+              : { width: Math.min(540, layout.radius * 2 - 200 * layout.cardScale) }
+          }
         >
           {layout.compact ? (
             pill
