@@ -29,8 +29,8 @@ const router = createBrowserRouter([
     errorElement: <CrashPage />,
     children: [{ index: true, element: <SitesPage /> }],
   },
-  // The landing page stays reachable when you're signed in.
-  { path: "about", element: <LandingPage />, errorElement: <CrashPage /> },
+  // The landing page stays reachable when you're signed in (signed out, it's /).
+  { path: "about", element: <AboutRoute />, errorElement: <CrashPage /> },
   { path: "login", element: <LoginRoute />, errorElement: <CrashPage /> },
 
   // Old addresses. The app lived at /app (and before that at the root, with
@@ -51,6 +51,19 @@ const router = createBrowserRouter([
 function AppOrLanding() {
   const me = useQuery({ queryKey: keys.me, queryFn: api.me, enabled: !hasSignedInHint() });
   return hasSignedInHint() || me.isSuccess ? <Layout /> : <LandingPage />;
+}
+
+/**
+ * The landing page for signed-in people, whose / is the app. Signed out, / is
+ * the landing page, so /about sends you there: each person only ever sees the
+ * page at one address.
+ */
+function AboutRoute() {
+  const hinted = hasSignedInHint();
+  const me = useQuery({ queryKey: keys.me, queryFn: api.me, enabled: !hinted });
+  if (hinted || me.isSuccess) return <LandingPage />;
+  if (me.isPending) return null;
+  return <Navigate to="/" replace />;
 }
 
 /** The login page, or home if you're already signed in (or just signed in). */
