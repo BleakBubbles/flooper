@@ -56,7 +56,8 @@ const TUNNEL_OUT = 62;
 const VISIBLE = (TUNNEL_IN - TUNNEL_OUT + 360) % 360;
 /** How far either side of the tunnel notes take to shrink away or grow back. */
 const FADE = 26;
-const DEGREES_PER_SECOND = 360 / 75;
+/** One lap a minute. */
+const DEGREES_PER_SECOND = 360 / 60;
 
 type Layout = {
   compact: boolean;
@@ -85,10 +86,12 @@ const MIN_CARD_SCALE = 12 / 13;
  * that the whole loop shows on the first screen (headline in the middle),
  * down to a minimum. The cards shrink with it, so the picture stays the same.
  */
-function layoutFor(width: number, viewportHeight: number): Layout {
+function layoutFor(rawWidth: number, viewportHeight: number): Layout {
+  // A window with no size yet (a hidden tab, say) gets an empty ring, not a negative one.
+  const width = Math.max(0, rawWidth);
   // Narrow screens: the text goes above, and the ring is emoji on a thick track.
   if (width < 900) {
-    const radius = Math.min(150, width / 2 - 32);
+    const radius = Math.max(0, Math.min(150, width / 2 - 32));
     return { compact: true, width, height: radius * 2 + 64, radius, slots: 12, cardScale: 1 };
   }
   const byWidth = width / 2 - 105;
@@ -124,6 +127,29 @@ function place(layout: Layout, angle: number) {
   return { x, y, fromOut, clear };
 }
 
+/** Coming out: how many degrees past the dot a note takes to get solid. */
+const SOLID_WITHIN = 4;
+/** Coming out: how big a note is right at the dot, relative to full size. */
+const START_SCALE = 0.35;
+
+/**
+ * How a note looks at a point on the ring. The two ends of the tunnel differ:
+ * going in, a note shrinks and blurs away into it; coming out, it pops out of
+ * the dot crisp and small, solid at once, and grows to full size as it moves on.
+ */
+function look(p: ReturnType<typeof place>) {
+  if (p.clear < 1 && p.fromOut < FADE) {
+    const t = p.fromOut / FADE;
+    const eased = 1 - (1 - t) ** 2;
+    return {
+      scale: START_SCALE + (1 - START_SCALE) * eased,
+      opacity: Math.min(1, p.fromOut / SOLID_WITHIN),
+      blur: 0,
+    };
+  }
+  return { scale: 0.55 + 0.45 * p.clear, opacity: p.clear, blur: (1 - p.clear) * 4 };
+}
+
 function arcPoint(layout: Layout, angle: number) {
   const { x, y } = place(layout, angle);
   return `${x.toFixed(1)} ${y.toFixed(1)}`;
@@ -147,11 +173,14 @@ export function NoteRing({ hero }: { hero: ReactNode }) {
   const nextNote = useRef(layout.slots);
   const [slotNotes, setSlotNotes] = useState(() => [...Array(layout.slots).keys()]);
   const [arrived, setArrived] = useState(12);
+  const firstCount = useRef(arrived);
   // Turning by default; still for people who asked for less motion, who can
   // still press play. Either way there's a button to stop it (WCAG 2.2.2).
   const [playing, setPlaying] = useState(
     () => !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
   );
+  // While the ring turns, the count lets go of a "+1" each time it goes up.
+  const rising = playing && !layout.compact;
   // The slot whose note just changed while the ring is still, so it fades in.
   const [fresh, setFresh] = useState(-1);
 
@@ -191,11 +220,11 @@ export function NoteRing({ hero }: { hero: ReactNode }) {
       slotRefs.current.forEach((el, i) => {
         if (!el) return;
         const p = place(layout, (i * step + turn.current) % 360);
-        const scale = 0.55 + 0.45 * p.clear;
+        const { scale, opacity, blur } = look(p);
         el.style.transform = `translate(${p.x}px, ${p.y}px) translate(-50%, -50%) scale(${scale})`;
-        el.style.opacity = String(p.clear);
-        el.style.filter = p.clear < 1 ? `blur(${(1 - p.clear) * 4}px)` : "";
-        el.style.visibility = p.clear === 0 ? "hidden" : "";
+        el.style.opacity = String(opacity);
+        el.style.filter = blur > 0 ? `blur(${blur}px)` : "";
+        el.style.visibility = opacity === 0 ? "hidden" : "";
       });
     };
     draw();
@@ -204,8 +233,10 @@ export function NoteRing({ hero }: { hero: ReactNode }) {
     let frame = 0;
     let last = performance.now();
     const tick = (now: number) => {
-      // Clamp so a background tab doesn't jump the ring when it comes back.
-      const dt = Math.min(now - last, 100) / 1000;
+      // Clamp so a background tab doesn't jump the ring when it comes back,
+      // and never backwards: a frame's timestamp can come from just before
+      // this loop started, and a backward step would count every note as new.
+      const dt = Math.max(0, Math.min(now - last, 100)) / 1000;
       last = now;
       if (!paused.current) {
         const before = turn.current;
@@ -218,8 +249,8 @@ export function NoteRing({ hero }: { hero: ReactNode }) {
           // Halfway through the tunnel, out of sight: becomes a new note.
           const middle = VISIBLE + (360 - VISIBLE) / 2;
           if (was < middle && after >= middle) swaps.push(i);
-          // Wrapped back to 0: it just came out.
-          if (after < was) emerged++;
+          // Wrapped from the end of the circle back to 0: it just came out.
+          if (was - after > 180) emerged++;
         }
         if (swaps.length) {
           setSlotNotes((prev) => {
@@ -286,7 +317,7 @@ export function NoteRing({ hero }: { hero: ReactNode }) {
   );
 
   return (
-    <section className={layout.compact ? "ring compact" : "ring"}>
+    <section className={`ring${layout.compact ? " compact" : ""}${playing ? " playing" : ""}`}>
       {layout.compact && <div className="hero">{hero}</div>}
       <div
         ref={stageRef}
@@ -371,6 +402,22 @@ export function NoteRing({ hero }: { hero: ReactNode }) {
             )}
           </svg>
         </button>
+        {/* The counter sits just above the tunnel's mouth, where the notes it
+            counts come out (and the dot pulses as each one does), leaving the
+            middle to the headline. On phones it stays in the ring's middle. */}
+        {!layout.compact && (
+          <span
+            className="ring-counter"
+            style={{ left: place(layout, TUNNEL_OUT).x, top: place(layout, TUNNEL_OUT).y - 14 }}
+          >
+            {pill}
+            {rising && arrived !== firstCount.current && (
+              <span key={`plus-${arrived}`} className="ring-plus" aria-hidden="true">
+                +1
+              </span>
+            )}
+          </span>
+        )}
         <div
           className="ring-center"
           // As wide as the space between the side cards (which shrink with the ring).
@@ -380,14 +427,7 @@ export function NoteRing({ hero }: { hero: ReactNode }) {
               : { width: Math.min(540, layout.radius * 2 - 200 * layout.cardScale) }
           }
         >
-          {layout.compact ? (
-            pill
-          ) : (
-            <div className="hero">
-              {pill}
-              {hero}
-            </div>
-          )}
+          {layout.compact ? pill : <div className="hero">{hero}</div>}
         </div>
       </div>
     </section>
