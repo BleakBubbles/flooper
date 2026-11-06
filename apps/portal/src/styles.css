@@ -63,6 +63,7 @@ a {
 }
 h1,
 h2,
+h3,
 p {
   margin: 0;
 }
@@ -124,7 +125,7 @@ pre,
   font-weight: 600;
   cursor: pointer;
 }
-.btn:hover {
+.btn:not(:disabled):hover {
   border-color: var(--fg-2);
 }
 .btn:disabled {
@@ -143,6 +144,14 @@ pre,
   color: var(--muted);
 }
 .btn.ghost:disabled {
+  opacity: 1;
+}
+/* A primary button with nothing to do yet draws as ghost (quiet and crisp,
+   not a faded solid block); it fills in once it's ready. */
+.btn.primary:disabled {
+  border-color: var(--border);
+  background: transparent;
+  color: var(--muted);
   opacity: 1;
 }
 .btn.small {
@@ -172,6 +181,11 @@ pre,
   margin: 0 auto;
   padding-inline: clamp(16px, 4vw, 40px);
 }
+/* Edge to edge, like the home page, so the logo lines up with its sidebar. */
+.header-inner {
+  max-width: none;
+  padding-inline: 24px;
+}
 .header-inner {
   display: flex;
   flex-wrap: wrap;
@@ -179,12 +193,6 @@ pre,
   justify-content: space-between;
   gap: 12px;
   padding-block: 14px;
-}
-.header-left,
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
 }
 .brand {
   display: flex;
@@ -195,22 +203,6 @@ pre,
 }
 .brand img {
   border-radius: 7px;
-}
-.crumb-slash {
-  color: var(--faint);
-}
-.header-link {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 7px 10px;
-  border-radius: 8px;
-  color: var(--fg-2);
-}
-.header-link:hover,
-.header-link[aria-current="page"] {
-  background: var(--segment);
-  color: var(--fg);
 }
 
 /* Menus (site switcher, account) built on <details> */
@@ -224,16 +216,6 @@ pre,
 .menu > summary::-webkit-details-marker {
   display: none;
 }
-.menu-button {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
-  font-weight: 600;
-}
 .avatar {
   display: grid;
   place-items: center;
@@ -245,6 +227,31 @@ pre,
   color: var(--bg);
   font-size: 13px;
   font-weight: 600;
+}
+/* The avatar is a button: a faint ring on hover, a firmer one while its menu is open. */
+.avatar-button {
+  display: block;
+  border-radius: 50%;
+  transition: box-shadow 0.15s ease;
+}
+.avatar-button:hover {
+  box-shadow: 0 0 0 3px var(--border);
+}
+.menu[open] > .avatar-button {
+  box-shadow: 0 0 0 3px var(--border-strong);
+}
+/* The account menu's header: who you're signed in as. */
+.account-who {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px 4px;
+}
+.account-names {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.3;
 }
 .avatar img {
   width: 100%;
@@ -304,16 +311,6 @@ pre,
   flex-direction: column;
   gap: 16px;
 }
-.page-title {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.page-title h1 {
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-}
 .panel {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -321,32 +318,8 @@ pre,
   box-shadow: var(--shadow);
   overflow: hidden;
 }
-.panel-body {
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
 
-/* Inbox */
-.toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 14px 18px;
-  border-bottom: 1px solid var(--border);
-  background: var(--toolbar);
-}
-.toolbar h1 {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-}
+/* A pink count: "3 new", "2 unread". */
 .badge {
   white-space: nowrap;
   padding: 2px 9px;
@@ -357,163 +330,10 @@ pre,
   font-weight: 600;
   letter-spacing: 0;
 }
-.segmented {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px;
-  padding: 3px;
-  border-radius: 9px;
-  background: var(--segment);
-}
-.segmented button {
-  padding: 6px 12px;
-  border: 0;
-  border-radius: 7px;
-  background: transparent;
-  color: var(--fg-2);
-  font: inherit;
-  cursor: pointer;
-}
-.segmented button[aria-selected="true"] {
-  background: var(--surface);
-  color: var(--fg);
-  font-weight: 600;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
-}
-.segmented .count {
-  margin-left: 4px;
-  color: var(--muted);
-  font-weight: 400;
-}
-
-/* Split view: list on the left, the selected note on the right. */
-.page.wide {
-  max-width: 1240px;
-}
-.split {
-  display: grid;
-  grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
-}
-.split-list {
-  border-right: 1px solid var(--border);
-  max-height: calc(100vh - 190px);
-  min-height: 420px;
-  overflow-y: auto;
-}
-.split-detail {
-  max-height: calc(100vh - 190px);
-  min-height: 420px;
-  overflow-y: auto;
-}
-/* Narrow screens: one column at a time. */
-@media (max-width: 899px) {
-  .split {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .split-list,
-  .split-detail {
-    max-height: none;
-    min-height: 0;
-    border-right: 0;
-  }
-  .split.has-selection .split-list,
-  .split:not(.has-selection) .split-detail {
-    display: none;
-  }
-}
-
-/* List rows: always two lines, so every row is the same height. */
-.rows {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-.row {
-  position: relative;
-  border-bottom: 1px solid var(--divider);
-}
-.row-link {
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-  padding: 12px 16px;
-  min-width: 0;
-}
-.row-link:hover {
-  background: var(--surface-raised);
-}
-.row.selected .row-link {
-  background: var(--segment);
-}
-.row-reaction {
-  flex: none;
-  width: 22px;
-  font-size: 17px;
-  line-height: 22px;
-  text-align: center;
-}
-.row-text {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.row-line {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-}
-.row-primary,
-.row-secondary {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.row-primary {
-  flex: 1;
-  font-size: 14.5px;
-  line-height: 22px;
-}
-.row-secondary {
-  height: 18px;
-  font-size: 12px;
-  line-height: 18px;
-  color: var(--muted);
-}
-.row-time {
-  flex: none;
-  font-size: 12px;
-  color: var(--muted);
-}
-.mono-chip {
-  font-family: var(--mono);
-  font-size: 0.92em;
-}
+/* The row of status buttons (read, done, archive) on a note. */
 .row-actions {
   display: flex;
   gap: 2px;
-}
-/* Actions appear where the time is, on hover or keyboard focus. */
-.row .row-actions {
-  position: absolute;
-  top: 6px;
-  right: 10px;
-  display: flex;
-  gap: 2px;
-  padding-left: 8px;
-  opacity: 0;
-  pointer-events: none;
-}
-.row:hover .row-actions,
-.row:focus-within .row-actions {
-  opacity: 1;
-  pointer-events: auto;
-}
-.row:hover .row-time,
-.row:focus-within .row-time {
-  visibility: hidden;
 }
 .target-chip {
   max-width: 100%;
@@ -535,23 +355,16 @@ pre,
   flex-direction: column;
   gap: 18px;
 }
-.detail-back {
-  display: none;
-  align-items: center;
-  gap: 4px;
-  font-weight: 600;
-  color: var(--fg-2);
-}
-@media (max-width: 899px) {
-  .detail-back {
-    display: inline-flex;
-  }
-}
 .detail-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+.detail-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
 }
 .detail-title {
   display: flex;
@@ -649,25 +462,19 @@ pre,
 .icon-button:focus-visible::after {
   transition-delay: 0ms;
 }
+/* The note card scrolls on its own, which would clip a tooltip above its top
+   row, so the buttons up there show theirs underneath instead. */
+.detail-head .icon-button::after {
+  top: calc(100% + 6px);
+  bottom: auto;
+  transform: translate(-50%, -2px);
+}
 .status-pill {
   font-weight: 600;
   color: var(--fg-2);
 }
 .status-pill.done {
   color: var(--ok);
-}
-.panel-empty {
-  padding: 48px 18px;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.panel-footer {
-  display: flex;
-  justify-content: center;
-  padding: 12px;
-  border-top: 1px solid var(--divider);
 }
 
 /* Errors: something failed to load, with the one useful next step. */
@@ -700,29 +507,6 @@ pre,
   font-size: 12px;
 }
 
-/* Setup: a guided stepper */
-.page.narrow {
-  max-width: 760px;
-}
-.progress {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 6px;
-}
-.progress-track {
-  flex: 1;
-  height: 6px;
-  border-radius: 999px;
-  background: var(--segment);
-  overflow: hidden;
-}
-.progress-fill {
-  height: 100%;
-  border-radius: 999px;
-  background: var(--fg);
-  transition: width 300ms ease;
-}
 .stepper {
   list-style: none;
   margin: 0;
@@ -814,31 +598,11 @@ pre,
   line-height: 1.6;
 }
 
-/* Settings: status first, then rows of label + control */
-.status-box {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 10px;
-  align-self: flex-start;
-  margin-top: 6px;
-  padding: 10px 14px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--surface);
-  color: var(--fg-2);
-}
-.status-box strong {
-  color: var(--fg);
-}
 .status-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
   background: var(--faint);
-}
-.status-box.connected .status-dot {
-  background: var(--ok);
 }
 .setting-row {
   display: flex;
@@ -878,21 +642,6 @@ pre,
   width: auto;
 }
 .inline-form .error {
-  flex-basis: 100%;
-}
-.danger-zone {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px 40px;
-  padding: 18px 24px;
-  border-color: color-mix(in srgb, var(--danger) 30%, var(--border));
-}
-.danger-zone .inline-form {
-  flex: 2 1 420px;
-}
-.danger-zone .inline-form label {
   flex-basis: 100%;
 }
 .btn.danger {
@@ -955,66 +704,6 @@ pre,
   gap: 10px;
 }
 
-/* Home: a card per site, then the notes from all of them */
-.site-grid {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
-  gap: 16px;
-}
-.site-grid > li {
-  display: flex;
-  min-width: 0;
-}
-.site-card,
-.add-site {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding: 18px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  box-shadow: var(--shadow);
-  transition: border-color 0.15s ease;
-}
-.site-card:hover {
-  border-color: var(--border-strong);
-}
-.site-card-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-}
-.site-card-name {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-.site-card-name strong {
-  font-size: 16px;
-  letter-spacing: -0.01em;
-}
-.site-card-name .mono {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.site-status {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding-top: 2px;
-  color: var(--muted);
-  font-size: 12.5px;
-  white-space: nowrap;
-}
 /* "Waiting for the first note": a small dot that gently pulses. */
 .pulse-dot {
   width: 6px;
@@ -1031,70 +720,235 @@ pre,
     box-shadow: 0 0 0 6px transparent;
   }
 }
-.spark {
+/* Home, like a mail app. On a standard screen: the sites on the left and the
+   open note on the right at fixed widths, the notes list filling the space
+   between, with the same gap everywhere, so the three read as one connected
+   set. The note's column stays reserved while empty, so the list never
+   resizes. Narrower, the list fills the space beside the sidebar and notes
+   open in it; narrower still, the sidebar becomes a row of sites. */
+.page.home {
+  max-width: none;
+  padding-inline: 24px;
+}
+.home-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+@media (min-width: 900px) {
+  .home-layout {
+    grid-template-columns: 260px minmax(0, 1fr);
+  }
+  .sidebar {
+    position: sticky;
+    top: 16px;
+  }
+}
+.notes-area {
+  min-width: 0;
+}
+@media (min-width: 1360px) {
+  .home-layout {
+    grid-template-columns: 260px minmax(0, 1fr) 420px;
+  }
+  /* The list and the pane become columns of the page's grid. */
+  .notes-area {
+    display: contents;
+  }
+  .notes-panel {
+    grid-column: 2;
+  }
+  /* The open note stays in view while the list scrolls. */
+  .reading-pane {
+    grid-column: 3;
+    position: sticky;
+    top: 16px;
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+  }
+}
+.reading-pane {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.reading-pane .detail {
+  padding: 18px 20px 24px;
+}
+
+.sidebar {
   display: flex;
-  align-items: flex-end;
-  gap: 3px;
-  height: 34px;
+  flex-direction: column;
+  gap: 2px;
 }
-.spark i {
-  flex: 1;
-  height: 2px;
-  border-radius: 2px;
-  background: var(--border-strong);
-}
-.spark i.new {
-  background: var(--accent);
-}
-.site-card-foot {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
+.sidebar-label {
+  margin: 14px 10px 4px;
   color: var(--muted);
-  font-size: 12.5px;
+  font-size: 12px;
+  font-weight: 600;
 }
-.site-reactions {
+.sidebar-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: flex;
-  gap: 12px;
+  flex-direction: column;
+  gap: 2px;
+}
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
   color: var(--fg-2);
 }
-.site-card-foot > span,
-.site-reactions > span {
+.sidebar-item:hover {
+  background: var(--surface-raised);
+  color: var(--fg);
+}
+.sidebar-item[aria-current="page"] {
+  background: var(--segment);
+  color: var(--fg);
+  font-weight: 600;
+}
+/* A row's icon and name, together on the left. */
+.sidebar-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+/* Each site's mark: its favicon, or a tile with its first letter. Same size
+   for the "All sites" inbox icon, so names line up. */
+.site-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  object-fit: contain;
+  color: var(--fg-2);
+}
+/* An outline, so it stays visible on the picked row's highlight too. */
+.site-icon.letter {
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+.sidebar-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
-.add-site {
+/* A site: its link, and a gear for its settings that shows on hover, on
+   keyboard focus, and for the picked site. */
+.sidebar-row {
+  position: relative;
+  display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-height: 160px;
-  border-style: dashed;
-  background: transparent;
-  box-shadow: none;
+  border-radius: 8px;
+}
+.sidebar-row .sidebar-item {
+  flex: 1;
+  min-width: 0;
+  padding-right: 40px;
+}
+.sidebar-row > .menu {
+  position: absolute;
+  right: 4px;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.sidebar-row:hover > .menu,
+.sidebar-row:focus-within > .menu,
+.sidebar-row.current > .menu,
+.sidebar-row > .menu[open] {
+  opacity: 1;
+}
+/* The menu opens over the sidebar, not the notes beside it. */
+.sidebar-row .menu-list {
+  min-width: 200px;
+}
+.sidebar-add {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
   color: var(--muted);
   font: inherit;
+  text-align: left;
   cursor: pointer;
 }
-.add-site:hover {
-  border-color: var(--fg-2);
-  color: var(--fg-2);
+.sidebar-add:hover {
+  background: var(--surface-raised);
+  color: var(--fg);
 }
-.add-site-plus {
-  font-size: 26px;
-  font-weight: 300;
-  line-height: 1;
-  color: var(--fg-2);
+.sidebar-add[aria-current="page"] {
+  background: var(--segment);
+  color: var(--fg);
+  font-weight: 600;
 }
-.add-site.open {
-  align-items: stretch;
-  justify-content: flex-start;
-  gap: 10px;
-  border-style: solid;
-  background: var(--surface);
-  cursor: default;
+/* Phones: the sites become a scrolling row above the notes. */
+@media (max-width: 899px) {
+  .sidebar {
+    flex-direction: row;
+    align-items: center;
+    overflow-x: auto;
+    gap: 6px;
+    padding-bottom: 4px;
+  }
+  .sidebar-list {
+    flex-direction: row;
+    gap: 6px;
+  }
+  .sidebar-label {
+    display: none;
+  }
+  .sidebar-item,
+  .sidebar-add {
+    flex: none;
+    margin: 0;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 5px 12px;
+  }
+  .sidebar-name {
+    max-width: 160px;
+  }
+  .sidebar-row .sidebar-item {
+    padding-right: 12px;
+  }
+  .sidebar-row > .menu {
+    position: relative;
+    right: auto;
+    display: none;
+  }
+  .sidebar-row.current > .menu {
+    display: block;
+  }
+}
+/* On phones the sidebar would hold just "All sites", so it steps aside. */
+@media (max-width: 899px) {
+  .sidebar.no-sites {
+    display: none;
+  }
 }
 
 /* The notes panel: a title bar, the rows, and a footer, all in one box. */
 .notes-panel {
+  /* Rows adapt to the list's own width, not the window's (see .note-open). */
+  container-type: inline-size;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
@@ -1106,6 +960,9 @@ pre,
   align-items: center;
   gap: 8px 12px;
   padding: 8px 10px 8px 18px;
+  /* As tall as a bar with buttons in it (32px + padding + border), so a bar
+     without any (like setup's) matches the others. */
+  min-height: 49px;
   border-bottom: 1px solid var(--divider);
   border-radius: var(--radius) var(--radius) 0 0;
   background: var(--surface-raised);
@@ -1114,15 +971,12 @@ pre,
   font-size: 14px;
   font-weight: 600;
 }
-.notes-bar .menu {
-  margin-left: auto;
-}
-.segmented.small button {
+/* Site settings and the sort menu, together on the right. */
+.notes-bar-end {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 3px 10px;
-  font-size: 13px;
+  gap: 4px;
+  margin-left: auto;
 }
 .badge.small {
   padding: 0 6px;
@@ -1143,6 +997,28 @@ pre,
   border-color: var(--border-strong);
   color: var(--fg);
 }
+/* An icon and its label, side by side. */
+.with-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+/* A label that keeps one width whatever it says: all its options share one
+   grid cell, and only the current one is visible. */
+.stable-label {
+  display: inline-grid;
+  justify-items: start;
+}
+.stable-label > span {
+  grid-area: 1 / 1;
+}
+.stable-label > .ghost {
+  visibility: hidden;
+}
+/* In a button, the shorter labels sit centered. */
+.btn .stable-label {
+  justify-items: center;
+}
 .menu-list button[aria-pressed="true"] {
   font-weight: 600;
 }
@@ -1150,45 +1026,63 @@ pre,
   content: "✓";
   color: var(--accent);
 }
-.notes-group {
-  margin: 0;
-  display: flex;
-  justify-content: space-between;
-  padding: 8px 18px;
-  border-bottom: 1px solid var(--divider);
-  background: var(--surface-raised);
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--fg-2);
+/* Options with their own icon (a check for "Done") show the pick with a
+   highlight instead, so there's never a second check. */
+.menu-list button[aria-pressed="true"]:has(.with-icon) {
+  background: var(--segment);
+}
+.menu-list button[aria-pressed="true"]:has(.with-icon)::after {
+  content: none;
 }
 .notes-list {
   list-style: none;
   margin: 0;
   padding: 0;
 }
-/* Lined up like a table: site, note, page, time. */
-.note-link {
+/* A row: one button that opens the note (lined up like a table: site, note,
+   page, time), and quick actions that show on hover: just before the time on
+   standard screens, in its place on smaller ones. */
+.note-row {
+  position: relative;
+  border-bottom: 1px solid var(--divider);
+}
+.note-open {
   display: grid;
-  grid-template-columns: 150px minmax(0, 1fr) minmax(0, 170px) 64px 14px;
+  grid-template-columns: 148px minmax(0, 1fr) minmax(0, 120px) 96px;
   align-items: center;
   gap: 16px;
+  width: 100%;
   padding: 11px 18px;
-  border-bottom: 1px solid var(--divider);
+  border: 0;
+  background: none;
+  color: var(--fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
   transition: background 0.15s ease;
 }
-.note-link:hover {
+.note-open:hover {
   background: var(--surface-raised);
 }
-.note-link.no-site {
-  grid-template-columns: 7px minmax(0, 1fr) minmax(0, 170px) 64px 14px;
+.note-row.no-site .note-open {
+  grid-template-columns: 7px minmax(0, 1fr) minmax(0, 120px) 96px;
+}
+/* The open note: tinted, with an accent edge, like a selected mail. */
+.note-row.open .note-open {
+  background: var(--segment);
+  box-shadow: inset 3px 0 0 var(--accent);
 }
 .note-site {
   display: flex;
   align-items: center;
   gap: 8px;
   min-width: 0;
-  font-weight: 600;
+  font-weight: 500;
   white-space: nowrap;
+  overflow: hidden;
+}
+.note-site-name {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -1224,23 +1118,156 @@ pre,
   text-align: right;
   white-space: nowrap;
 }
-.note-go {
-  color: var(--faint);
-  transition: color 0.15s ease;
+.note-actions {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  translate: 0 -50%;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
 }
-.note-link:hover .note-go {
+.note-row:hover .note-actions,
+.note-row:focus-within .note-actions,
+.note-row.open .note-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+.note-row:hover .note-time,
+.note-row:focus-within .note-time,
+.note-row.open .note-time {
+  visibility: hidden;
+}
+/* A narrow list drops the page column, so the note itself keeps its room.
+   The page is in the open note anyway. */
+@container (max-width: 820px) {
+  .note-open,
+  .note-row.no-site .note-open {
+    grid-template-columns: 148px minmax(0, 1fr) auto;
+  }
+  .note-row.no-site .note-open {
+    grid-template-columns: 7px minmax(0, 1fr) auto;
+  }
+  .note-page {
+    display: none;
+  }
+}
+/* Standard screens have room for both. The time is always at the far right,
+   anchoring the row, and the actions get their own space just before it. */
+@media (min-width: 1360px) {
+  .note-open {
+    grid-template-columns: 148px 20px minmax(0, 1fr) minmax(0, 120px) 88px 72px;
+  }
+  .note-row.no-site .note-open {
+    grid-template-columns: 7px 20px minmax(0, 1fr) minmax(0, 120px) 88px 72px;
+  }
+  /* The reaction and the note become columns of their own. */
+  .note-text {
+    display: contents;
+  }
+  .note-text > span:last-child {
+    min-width: 0;
+  }
+  /* The last column, past the actions' space. */
+  .note-time {
+    grid-column: -2;
+  }
+  /* The row's padding, the time and the gap before it. */
+  .note-actions {
+    right: 106px;
+  }
+  .note-row:hover .note-time,
+  .note-row:focus-within .note-time,
+  .note-row.open .note-time {
+    visibility: visible;
+  }
+  @container (max-width: 820px) {
+    .note-open {
+      grid-template-columns: 148px 20px minmax(0, 1fr) 88px 72px;
+    }
+    .note-row.no-site .note-open {
+      grid-template-columns: 7px 20px minmax(0, 1fr) 88px 72px;
+    }
+  }
+}
+/* Column labels over the rows. They share the rows' grid, so they line up. */
+.note-row.notes-columns .note-open {
+  padding-block: 7px;
+  background: var(--surface-raised);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: default;
+}
+.note-row.notes-columns .note-open:hover {
+  background: var(--surface-raised);
+}
+.note-row.notes-columns .note-site,
+.note-row.notes-columns .note-page {
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  color: inherit;
+  /* Rows clip long text here; the labels are short, and clipping would cut
+     off their buttons' padding. */
+  overflow: visible;
+}
+.note-row.notes-columns .note-time {
+  visibility: visible;
+}
+.note-row.notes-columns .note-dot,
+.note-row.notes-columns .site-icon {
+  visibility: hidden;
+}
+.column-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: -3px -6px;
+  padding: 3px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.column-button:hover,
+.column-button.on {
+  background: var(--segment);
   color: var(--fg);
 }
-/* Read notes (in "All"): no dot, quieter text. */
-.note-link.read .note-dot {
+/* The faint arrow on When: what the list falls back to with nothing sorted. */
+.column-arrow.faint {
+  opacity: 0.5;
+}
+/* Every label's button hugs its text, including ones that are grid cells
+   themselves (the reaction and Note), which would otherwise stretch. */
+.note-row.notes-columns .column-button {
+  justify-self: start;
+}
+/* Read notes: no dot, quieter text. */
+.note-row.read .note-dot {
   background: transparent;
 }
-.note-link.read .note-site {
-  font-weight: 500;
+/* Unread notes lead with what they say, like an unread email's subject. */
+.note-row:not(.read) .note-text > span:last-child {
+  font-weight: 600;
 }
-.note-link.read .note-site,
-.note-link.read .note-text {
+.note-row.read .note-site {
+  font-weight: 400;
+}
+.note-row.read .note-site,
+.note-row.read .note-text {
   color: var(--fg-2);
+}
+/* On narrow screens, the open note shows right under its row. */
+.note-inline {
+  border-bottom: 1px solid var(--divider);
+  background: var(--surface-raised);
+}
+.note-inline .detail {
+  padding: 16px 18px 20px;
 }
 .notes-empty {
   padding: 18px;
@@ -1270,16 +1297,17 @@ pre,
   background: var(--surface);
 }
 /* The list's last row sits on the footer, or on the panel's own border. */
-.notes-panel > div:last-of-type .notes-list li:last-child .note-link {
+.notes-list li:last-child .note-row {
   border-bottom: 0;
 }
 .notes-more:not(:empty) {
   border-top: 1px solid var(--divider);
 }
-/* On narrow screens, drop the page column and stack the site over the note. */
+/* On narrow screens, drop the page column and stack the site over the note.
+   There's no hover on touch screens, so the actions live in the opened note. */
 @media (max-width: 640px) {
-  .note-link,
-  .note-link.no-site {
+  .note-open,
+  .note-row.no-site .note-open {
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 2px 12px;
   }
@@ -1293,12 +1321,30 @@ pre,
   .note-text {
     grid-column: 1 / -1;
   }
-  .note-page,
-  .note-go {
+  .note-page {
     display: none;
   }
-  .note-link.no-site .note-site {
+  .note-row.no-site .note-site {
     display: none;
+  }
+}
+/* When a note opens in the list (not the side pane), its own buttons are
+   right below, so the row doesn't repeat them over its text. */
+@media (max-width: 1359px) {
+  .note-row.open .note-actions {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .note-row.open .note-time {
+    visibility: visible;
+  }
+}
+@media (hover: none) {
+  .note-actions {
+    display: none;
+  }
+  .note-row .note-time {
+    visibility: visible;
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -1342,4 +1388,84 @@ pre,
   .waiting::before {
     animation: none;
   }
+}
+
+/* Setup and settings take the notes' place: the list's and the card's room. */
+@media (min-width: 900px) {
+  .wide-panel {
+    grid-column: 2 / -1;
+  }
+}
+/* Lines run the panel's full width; what's on them stays a readable width. */
+.setup-steps .step-body {
+  max-width: 760px;
+}
+.wide-panel .setting-row {
+  padding-right: max(24px, calc(100% - 900px));
+}
+
+/* A site's setup: all three steps in view, the current one open. */
+.setup-steps .step {
+  padding-inline: 18px;
+}
+.setup-steps .step.current {
+  background: none;
+}
+.setup-steps .step:last-child {
+  border-radius: 0 0 var(--radius) var(--radius);
+}
+.step-title h3 {
+  font-size: 15px;
+  font-weight: 700;
+}
+.step.upcoming .step-title h3 {
+  color: var(--fg-2);
+}
+.step.upcoming .step-title .muted {
+  color: var(--faint);
+}
+.setup-steps .inline-form {
+  max-width: 520px;
+}
+.setup-steps .inline-form .btn {
+  white-space: nowrap;
+}
+.origins-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+/* A site's settings: is it working, then rows of label + control. */
+.settings-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin: 0;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--divider);
+  color: var(--fg-2);
+}
+.settings-status strong {
+  color: var(--fg);
+}
+.settings-status.connected .status-dot {
+  background: var(--ok);
+}
+.setting-row:last-child {
+  border-radius: 0 0 var(--radius) var(--radius);
+}
+.danger-row .setting-title {
+  color: var(--danger);
+}
+/* One action beside two lines of text: centered on them, not hung from the
+   top. A taller confirm form makes the row taller instead. */
+.danger-row .setting-control {
+  justify-content: center;
+}
+.danger-row .setting-control > .btn {
+  align-self: flex-start;
+}
+.danger-row .confirm-label {
+  flex-basis: 100%;
 }

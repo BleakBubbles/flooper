@@ -88,12 +88,34 @@ code splitting, aggregation queries, and designing for data that drifts.
   link to the page with `?flooper-highlight=<selector>`; the widget there
   scrolls to the element and outlines it. Links only go to the project's own
   allowed origins, and ingest now rejects page URLs from other origins.
-- **Home screen as a hub, 2026-11-06.** `/app` shows a card per site (new
-  count, a 14-day sparkline, the new notes' reactions, last note) and one
-  list of notes from every site: new or all, newest or oldest, optionally
-  grouped by site or reaction, with "Show all" and paging. New API:
-  per-site summaries on `GET /v1/projects`, and `GET /v1/feedback` across
-  sites. Mockups: the "Home screen" row on the directions canvas.
+- **Home screen as a hub, 2026-11-06.** `/app` is laid out like a mail
+  app, and everything about your sites happens there, with the sidebar always
+  in view:
+  - **Sidebar:** "All sites", then your sites oldest first, each with its
+    favicon (or a letter tile), its unread count and a ⋯ menu ("Mark all as
+    read", "Site settings"; right-click opens it too), then "+ Add a site".
+  - **Notes:** every site's notes in one list, or one site's when picked. The
+    columns (site, reaction, note, page, when) sort ascending, descending or
+    off (newest first). Unread notes are bold; rows have quick actions
+    (read/unread, done, archive); a menu shows all, unread, done or archived;
+    an icon button marks the current view as read.
+  - **The open note** sits in a card on the right (inline on smaller
+    screens), with relative times and the exact time on hover. A note counts
+    as read once it has stayed open 1.5 s, and "seen" now shows as "Read".
+  - **Adding a site** starts with its address (it's named after it, renamable
+    later), then all three setup steps show at once: address, snippet, test
+    note. A site stays on these steps until its first note arrives, which then
+    opens in the list. A brand-new account sees exactly this.
+  - **Settings** open in the same spot: status, name, addresses, snippet,
+    delete.
+  - The separate site, setup, settings and inbox pages are gone; their old
+    links redirect into home. Disabled primary buttons now draw as ghost
+    buttons everywhere.
+
+  New API: per-site summaries on `GET /v1/projects` (oldest first),
+  `GET /v1/feedback` across sites (or one, via `projectId`; archived left out;
+  `sort` and `dir`), and `POST /v1/feedback/mark-all-read` (all sites, or one
+  via `projectId`). Mockups: the "Home screen" row on the directions canvas.
 - **Landing page, 2026-11-05.** https://flooper.app now opens on black, with
   example notes turning on a ring around the headline. Like the logo, the ring
   has a gap at the top right: notes slip into it and new ones come out the

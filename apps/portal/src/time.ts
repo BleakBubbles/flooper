@@ -19,11 +19,6 @@ export function timeAgo(iso: string, options: { short?: boolean } = {}): string 
   return "just now";
 }
 
-/** "1 note", "3 notes". */
-export function plural(n: number, noun: string): string {
-  return `${n} ${noun}${n === 1 ? "" : "s"}`;
-}
-
 /** "Nov 5, 2026, 3:42 PM", in the viewer's own language and time zone. */
 export function fullDate(iso: string): string {
   return new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });

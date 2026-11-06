@@ -10,6 +10,7 @@ import { ChevronIcon } from "./icons";
 export function Menu({
   label,
   ariaLabel,
+  tooltip,
   buttonClass,
   showChevron,
   alignRight,
@@ -17,6 +18,7 @@ export function Menu({
 }: {
   label: ReactNode;
   ariaLabel?: string;
+  tooltip?: string;
   buttonClass?: string;
   showChevron?: boolean;
   alignRight?: boolean;
@@ -43,7 +45,7 @@ export function Menu({
 
   return (
     <details className="menu" ref={ref}>
-      <summary className={buttonClass} aria-label={ariaLabel}>
+      <summary className={buttonClass} aria-label={ariaLabel} data-tooltip={tooltip}>
         {label}
         {showChevron && <ChevronIcon />}
       </summary>

@@ -2,6 +2,7 @@ import type { ApiErrorBody, FeedbackCounts, FeedbackStatus, Paginated } from "@f
 import type {
   CreateProjectInput,
   Feedback,
+  NoteSort,
   Project,
   ProjectWithSummary,
   UpdateProjectInput,
@@ -74,16 +75,23 @@ export const api = {
   /** Notes from all the user's sites, for the home screen. */
   listAllFeedback: (opts: {
     status?: FeedbackStatus;
-    order: NoteOrder;
+    sort: NoteSort;
+    dir: "asc" | "desc";
+    /** Just this site. */
+    projectId?: string;
     cursor?: string;
     limit?: number;
   }) => {
-    const qs = new URLSearchParams({ order: opts.order });
+    const qs = new URLSearchParams({ sort: opts.sort, dir: opts.dir });
+    if (opts.projectId) qs.set("projectId", opts.projectId);
     if (opts.status) qs.set("status", opts.status);
     if (opts.cursor) qs.set("cursor", opts.cursor);
     if (opts.limit) qs.set("limit", String(opts.limit));
     return request<Paginated<Feedback>>("GET", `/v1/feedback?${qs}`);
   },
+  /** Every site's new notes, or just one site's. */
+  markAllRead: (projectId?: string) =>
+    request<{ updated: number }>("POST", "/v1/feedback/mark-all-read", { projectId }),
   feedbackCounts: (projectId: string) =>
     request<FeedbackCounts>("GET", `/v1/projects/${projectId}/feedback/counts`),
   getFeedback: (id: string) => request<Feedback>("GET", `/v1/feedback/${id}`),
@@ -105,9 +113,8 @@ export const keys = {
   counts: (projectId: string) => ["feedback", projectId, "counts"] as const,
   note: (projectId: string, id: string) => ["feedback", projectId, "note", id] as const,
   // The home screen's notes from every site. Invalidate ["feedback", ALL_SITES] after a change.
-  allFeedback: (status: FeedbackStatus | undefined, order: NoteOrder) =>
-    ["feedback", ALL_SITES, status ?? "all", order] as const,
+  allFeedback: (status: FeedbackStatus | undefined, sort: string, projectId?: string) =>
+    ["feedback", ALL_SITES, projectId ?? "every-site", status ?? "all", sort] as const,
 };
 
 export const ALL_SITES = "all-sites";
-export type NoteOrder = "newest" | "oldest";
