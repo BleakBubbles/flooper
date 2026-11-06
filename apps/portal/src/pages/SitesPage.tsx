@@ -65,7 +65,7 @@ export function SitesPage() {
   let middle: ReactNode;
   if (adding) {
     // Keyed so a second "Add a site" starts from a blank step 1.
-    middle = <SetupPanel key="new" site={null} closeHref={sites.length > 0 ? "/app" : undefined} />;
+    middle = <SetupPanel key="new" site={null} closeHref={sites.length > 0 ? "/" : undefined} />;
   } else if (site && settings) {
     middle = <SiteSettings site={site} />;
   } else if (site && site.summary.total === 0) {
@@ -117,7 +117,7 @@ function Sidebar({
     const show = params.get("show");
     if (show) next.set("show", show);
     const qs = next.toString();
-    return qs ? `/app?${qs}` : "/app";
+    return qs ? `/?${qs}` : "/";
   };
 
   return (
@@ -168,7 +168,7 @@ function Sidebar({
       </ul>
       {/* With no sites yet, adding one is the whole middle of the page. */}
       {sites.length > 0 && (
-        <Link to="/app?new" className="sidebar-add" aria-current={adding ? "page" : undefined}>
+        <Link to="/?new" className="sidebar-add" aria-current={adding ? "page" : undefined}>
           <span aria-hidden="true">+</span> Add a site
         </Link>
       )}
@@ -203,7 +203,7 @@ function SiteMenu({ site }: { site: ProjectWithSummary }) {
           </span>
         </button>
       )}
-      <Link to={`/app?site=${site.id}&view=settings`}>
+      <Link to={`/?site=${site.id}&view=settings`}>
         <span className="with-icon">
           <GearIcon />
           Site settings

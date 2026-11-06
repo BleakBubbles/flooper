@@ -12,7 +12,7 @@ export function ErrorState({ error, onRetry }: { error: Error; onRetry: () => vo
     <div className="error-state" role="alert">
       <p className="error">{missing ? "This doesn't exist, or it was deleted." : error.message}</p>
       {missing ? (
-        <Link className="btn small" to="/app">
+        <Link className="btn small" to="/">
           Back to your sites
         </Link>
       ) : (

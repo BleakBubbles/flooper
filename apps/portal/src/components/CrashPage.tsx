@@ -18,7 +18,7 @@ export function CrashPage() {
         <button type="button" className="btn primary" onClick={() => window.location.reload()}>
           Reload
         </button>
-        <a className="btn" href="/app">
+        <a className="btn" href="/">
           Back to your sites
         </a>
       </div>

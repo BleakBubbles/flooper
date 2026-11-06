@@ -33,7 +33,7 @@ import type { AuthedEnv } from "../env";
 import { decodeCursor, encodeCursor } from "../lib/cursor";
 import { notFound } from "../lib/errors";
 import { parseJsonBody, parseQuery } from "../lib/validate";
-import { requireUser } from "../middleware/auth";
+import { requireUser, setSignedInHint } from "../middleware/auth";
 
 /**
  * The API the portal uses. Everything here requires a logged-in user, and
@@ -44,7 +44,12 @@ export const portal = new Hono<AuthedEnv>();
 
 portal.use(requireUser);
 
-portal.get("/me", (c) => c.json(toUser(c.get("user"))));
+// Also renews the "signed in" hint, so people who logged in before it
+// existed (or whose hint got cleared) still land on the app at /.
+portal.get("/me", (c) => {
+  setSignedInHint(c);
+  return c.json(toUser(c.get("user")));
+});
 
 // Each site comes with its summary, for the cards on the home screen.
 portal.get("/projects", async (c) => {

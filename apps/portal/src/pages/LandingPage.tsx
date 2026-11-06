@@ -8,7 +8,8 @@ import { NoteRing } from "./NoteRing";
 import "./landing.css";
 
 /**
- * The public front page at /. Shows instead of tells: a ring of notes that
+ * The public front page: flooper.app/ before you sign in, and /about after.
+ * Shows instead of tells: a ring of notes that
  * never stops filling up, then each step and each claim as a picture of the
  * real thing.
  */
@@ -27,7 +28,7 @@ export function LandingPage() {
         </Link>
         <nav>
           {loggedIn ? (
-            <Link className="btn primary big" to="/app">
+            <Link className="btn primary big" to="/">
               Open the app
               <MiniIcon size={16}>
                 <path d="M7 7h10v10" />
@@ -36,7 +37,7 @@ export function LandingPage() {
             </Link>
           ) : (
             <>
-              <Link className="btn quiet borderless big" to="/app">
+              <Link className="btn quiet borderless big" to="/login">
                 Log in
               </Link>
               <a className="btn primary big" href="/api/auth/github">
@@ -109,7 +110,7 @@ export function LandingPage() {
 
       <footer className="landing-footer">
         <span>Flooper. Made for small sites.</span>
-        <Link to="/app" className="landing-footer-link">
+        <Link to={loggedIn ? "/" : "/login"} className="landing-footer-link">
           Open the app
           <MiniIcon size={13}>
             <path d="M7 7h10v10" />

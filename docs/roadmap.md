@@ -88,6 +88,12 @@ code splitting, aggregation queries, and designing for data that drifts.
   link to the page with `?flooper-highlight=<selector>`; the widget there
   scrolls to the element and outlines it. Links only go to the project's own
   allowed origins, and ingest now rejects page URLs from other origins.
+- **The app at flooper.app/, 2026-11-06.** Signed in, `/` is the app; signed
+  out, it's the landing page, which also lives at `/about` (linked from the
+  account menu). Login is at `/login`. A readable `flooper_signed_in` hint
+  cookie, set beside the HttpOnly session (and renewed by `/me`), lets the page
+  pick without a flash; it grants nothing. Old `/app` links redirect to `/`,
+  keeping `?site=` and `?note=`.
 - **Home screen as a hub, 2026-11-06.** `/app` is laid out like a mail
   app, and everything about your sites happens there, with the sidebar always
   in view:

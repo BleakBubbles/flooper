@@ -21,7 +21,7 @@ export function SiteSettings({ site }: { site: ProjectWithSummary }) {
         </h2>
         <span className="notes-bar-end">
           <Link
-            to={`/app?site=${site.id}`}
+            to={`/?site=${site.id}`}
             className="icon-button"
             aria-label="Close settings"
             data-tooltip="Close"
@@ -69,7 +69,7 @@ function ConnectionStatus({ site }: { site: ProjectWithSummary }) {
       ) : (
         <>
           <strong>No notes yet</strong>
-          <Link to={`/app?site=${site.id}`} className="link">
+          <Link to={`/?site=${site.id}`} className="link">
             Finish connecting it
           </Link>
         </>
@@ -154,7 +154,7 @@ function DangerZone({ project }: { project: Project }) {
       queryClient.removeQueries({ queryKey: keys.project(project.id) });
       await queryClient.invalidateQueries({ queryKey: keys.projects });
       void queryClient.invalidateQueries({ queryKey: ["feedback"] });
-      navigate("/app");
+      navigate("/");
     },
   });
 
