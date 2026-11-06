@@ -348,6 +348,7 @@ pre,
   letter-spacing: -0.01em;
 }
 .badge {
+  white-space: nowrap;
   padding: 2px 9px;
   border-radius: 999px;
   background: var(--accent);
@@ -954,25 +955,356 @@ pre,
   gap: 10px;
 }
 
-/* Sites list */
-.site-list a {
+/* Home: a card per site, then the notes from all of them */
+.site-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  gap: 16px;
+}
+.site-grid > li {
+  display: flex;
+  min-width: 0;
+}
+.site-card,
+.add-site {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  transition: border-color 0.15s ease;
+}
+.site-card:hover {
+  border-color: var(--border-strong);
+}
+.site-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+.site-card-name {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.site-card-name strong {
+  font-size: 16px;
+  letter-spacing: -0.01em;
+}
+.site-card-name .mono {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.site-status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding-top: 2px;
+  color: var(--muted);
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+/* "Waiting for the first note": a small dot that gently pulses. */
+.pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: pulse-dot 1.8s ease-out infinite;
+}
+@keyframes pulse-dot {
+  from {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent);
+  }
+  to {
+    box-shadow: 0 0 0 6px transparent;
+  }
+}
+.spark {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 34px;
+}
+.spark i {
+  flex: 1;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--border-strong);
+}
+.spark i.new {
+  background: var(--accent);
+}
+.site-card-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.site-reactions {
+  display: flex;
+  gap: 12px;
+  color: var(--fg-2);
+}
+.site-card-foot > span,
+.site-reactions > span {
+  white-space: nowrap;
+}
+.add-site {
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 160px;
+  border-style: dashed;
+  background: transparent;
+  box-shadow: none;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+.add-site:hover {
+  border-color: var(--fg-2);
+  color: var(--fg-2);
+}
+.add-site-plus {
+  font-size: 26px;
+  font-weight: 300;
+  line-height: 1;
+  color: var(--fg-2);
+}
+.add-site.open {
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 10px;
+  border-style: solid;
+  background: var(--surface);
+  cursor: default;
+}
+
+/* The notes panel: a title bar, the rows, and a footer, all in one box. */
+.notes-panel {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.notes-bar {
   display: flex;
   flex-wrap: wrap;
-  justify-content: space-between;
   align-items: center;
-  gap: 8px;
-  padding: 16px 18px;
+  gap: 8px 12px;
+  padding: 8px 10px 8px 18px;
   border-bottom: 1px solid var(--divider);
-}
-.site-list a:hover {
+  border-radius: var(--radius) var(--radius) 0 0;
   background: var(--surface-raised);
 }
-.site-list li:last-child a {
+.notes-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+.notes-bar .menu {
+  margin-left: auto;
+}
+.segmented.small button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  font-size: 13px;
+}
+.badge.small {
+  padding: 0 6px;
+  font-size: 11px;
+}
+.sort-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--fg-2);
+  font-size: 13px;
+}
+.sort-button:hover,
+.menu[open] .sort-button {
+  border-color: var(--border-strong);
+  color: var(--fg);
+}
+.menu-list button[aria-pressed="true"] {
+  font-weight: 600;
+}
+.menu-list button[aria-pressed="true"]::after {
+  content: "✓";
+  color: var(--accent);
+}
+.notes-group {
+  margin: 0;
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 18px;
+  border-bottom: 1px solid var(--divider);
+  background: var(--surface-raised);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--fg-2);
+}
+.notes-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+/* Lined up like a table: site, note, page, time. */
+.note-link {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr) minmax(0, 170px) 64px 14px;
+  align-items: center;
+  gap: 16px;
+  padding: 11px 18px;
+  border-bottom: 1px solid var(--divider);
+  transition: background 0.15s ease;
+}
+.note-link:hover {
+  background: var(--surface-raised);
+}
+.note-link.no-site {
+  grid-template-columns: 7px minmax(0, 1fr) minmax(0, 170px) 64px 14px;
+}
+.note-site {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.note-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.note-text {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+/* Always there, empty for notes without a reaction, so every row's text lines up. */
+.note-emoji {
+  flex: none;
+  width: 18px;
+}
+.note-text > span:last-child,
+.note-page {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.note-page,
+.note-time {
+  color: var(--muted);
+}
+.note-time {
+  font-size: 12.5px;
+  text-align: right;
+  white-space: nowrap;
+}
+.note-go {
+  color: var(--faint);
+  transition: color 0.15s ease;
+}
+.note-link:hover .note-go {
+  color: var(--fg);
+}
+/* Read notes (in "All"): no dot, quieter text. */
+.note-link.read .note-dot {
+  background: transparent;
+}
+.note-link.read .note-site {
+  font-weight: 500;
+}
+.note-link.read .note-site,
+.note-link.read .note-text {
+  color: var(--fg-2);
+}
+.notes-empty {
+  padding: 18px;
+}
+.notes-more {
+  display: flex;
+  border-radius: 0 0 var(--radius) var(--radius);
+  background: var(--surface-raised);
+  overflow: hidden;
+}
+.notes-more-button {
+  flex: 1;
+  padding: 11px 18px;
+  border: 0;
+  background: none;
+  color: var(--fg-2);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+.notes-more-button + .notes-more-button {
+  border-left: 1px solid var(--divider);
+}
+.notes-more-button:hover {
+  color: var(--fg);
+  background: var(--surface);
+}
+/* The list's last row sits on the footer, or on the panel's own border. */
+.notes-panel > div:last-of-type .notes-list li:last-child .note-link {
   border-bottom: 0;
 }
-.site-name {
-  font-size: 15px;
-  font-weight: 600;
+.notes-more:not(:empty) {
+  border-top: 1px solid var(--divider);
+}
+/* On narrow screens, drop the page column and stack the site over the note. */
+@media (max-width: 640px) {
+  .note-link,
+  .note-link.no-site {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 2px 12px;
+  }
+  .note-site {
+    grid-column: 1;
+  }
+  .note-time {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .note-text {
+    grid-column: 1 / -1;
+  }
+  .note-page,
+  .note-go {
+    display: none;
+  }
+  .note-link.no-site .note-site {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pulse-dot {
+    animation: none;
+  }
 }
 
 /* Login */

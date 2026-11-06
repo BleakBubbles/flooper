@@ -20,6 +20,12 @@ function Icon({ size = 16, children }: { size?: number; children: ReactNode }) {
   );
 }
 
+export const ChevronIcon = () => (
+  <Icon size={14}>
+    <path d="m6 9 6 6 6-6" />
+  </Icon>
+);
+
 export const CheckIcon = () => (
   <Icon>
     <path d="M20 6 9 17l-5-5" />

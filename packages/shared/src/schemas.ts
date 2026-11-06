@@ -92,6 +92,11 @@ export const listFeedbackQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(LIMITS.pageSizeMax).default(LIMITS.pageSizeDefault),
 });
 
+/** The home screen's list of notes across every site the user owns. */
+export const listAllFeedbackQuerySchema = listFeedbackQuerySchema.extend({
+  order: z.enum(["newest", "oldest"]).default("newest"),
+});
+
 export type CreateProjectInput = z.input<typeof createProjectSchema>;
 export type UpdateProjectInput = z.input<typeof updateProjectSchema>;
 export type UpdateFeedbackInput = z.infer<typeof updateFeedbackSchema>;
@@ -112,6 +117,24 @@ export interface Project {
   publicKey: string;
   allowedOrigins: string[];
   createdAt: string;
+}
+
+/** At-a-glance numbers for a site, for its card on the home screen. */
+export interface ProjectSummary {
+  /** Notes still marked new. */
+  newCount: number;
+  /** New notes by reaction. Notes without a reaction aren't counted here. */
+  newByReaction: Partial<Record<(typeof REACTIONS)[number], number>>;
+  /** Every note, whatever its status. */
+  total: number;
+  lastNoteAt: string | null;
+  /** Notes per day for the last 14 days, oldest first. The last entry is the last 24 hours. */
+  activity: number[];
+}
+
+/** A site as the sites list returns it: the project plus its summary. */
+export interface ProjectWithSummary extends Project {
+  summary: ProjectSummary;
 }
 
 export interface Feedback {

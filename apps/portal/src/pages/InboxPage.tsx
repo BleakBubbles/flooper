@@ -14,7 +14,7 @@ import {
 } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
-import { api, keys } from "../api";
+import { ALL_SITES, api, keys } from "../api";
 import { ErrorState } from "../components/ErrorState";
 import { FeedbackDetail } from "../components/FeedbackDetail";
 import { FeedbackRow } from "../components/FeedbackRow";
@@ -132,7 +132,12 @@ export function InboxPage({ project, counts }: { project: Project; counts: Feedb
       if (context?.previous) queryClient.setQueryData(queryKey, context.previous);
       setStatusError(`Couldn't ${STATUS_ACTION[next]} that note, so nothing changed. Try again?`);
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ["feedback", project.id] }),
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ["feedback", project.id] });
+      // The home screen's counts and notes list change too.
+      void queryClient.invalidateQueries({ queryKey: keys.projects });
+      void queryClient.invalidateQueries({ queryKey: ["feedback", ALL_SITES] });
+    },
   });
 
   /**

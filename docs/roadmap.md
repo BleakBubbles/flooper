@@ -88,6 +88,12 @@ code splitting, aggregation queries, and designing for data that drifts.
   link to the page with `?flooper-highlight=<selector>`; the widget there
   scrolls to the element and outlines it. Links only go to the project's own
   allowed origins, and ingest now rejects page URLs from other origins.
+- **Home screen as a hub, 2026-11-06.** `/app` shows a card per site (new
+  count, a 14-day sparkline, the new notes' reactions, last note) and one
+  list of notes from every site: new or all, newest or oldest, optionally
+  grouped by site or reaction, with "Show all" and paging. New API:
+  per-site summaries on `GET /v1/projects`, and `GET /v1/feedback` across
+  sites. Mockups: the "Home screen" row on the directions canvas.
 - **Landing page, 2026-11-05.** https://flooper.app now opens on black, with
   example notes turning on a ring around the headline. Like the logo, the ring
   has a gap at the top right: notes slip into it and new ones come out the

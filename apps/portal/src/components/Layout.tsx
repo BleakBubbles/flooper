@@ -1,10 +1,10 @@
 import type { Project, User } from "@flooper/shared/schemas";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { type ReactNode, useEffect, useRef } from "react";
-import { Link, Outlet, useLocation, useMatch } from "react-router";
+import { Link, Outlet, useMatch } from "react-router";
 import { ApiRequestError, api, keys } from "../api";
 import { LoginPage } from "../pages/LoginPage";
 import { ErrorState } from "./ErrorState";
+import { Menu } from "./Menu";
 
 /**
  * The app shell, and the auth gate: if /me says we're not logged in, show the
@@ -127,55 +127,6 @@ function AccountMenu({ user }: { user: User }) {
   );
 }
 
-/**
- * A small dropdown built on <details>: keyboard and screen-reader support come
- * from the browser. It closes when you pick something, click elsewhere, or
- * navigate.
- */
-function Menu({
-  label,
-  ariaLabel,
-  buttonClass,
-  showChevron,
-  alignRight,
-  children,
-}: {
-  label: ReactNode;
-  ariaLabel?: string;
-  buttonClass?: string;
-  showChevron?: boolean;
-  alignRight?: boolean;
-  children: ReactNode;
-}) {
-  const ref = useRef<HTMLDetailsElement>(null);
-  const location = useLocation();
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: close on every navigation.
-  useEffect(() => {
-    if (ref.current) ref.current.open = false;
-  }, [location]);
-
-  useEffect(() => {
-    const close = (event: PointerEvent) => {
-      if (ref.current?.open && !ref.current.contains(event.target as Node)) {
-        ref.current.open = false;
-      }
-    };
-    document.addEventListener("pointerdown", close);
-    return () => document.removeEventListener("pointerdown", close);
-  }, []);
-
-  return (
-    <details className="menu" ref={ref}>
-      <summary className={buttonClass} aria-label={ariaLabel}>
-        {label}
-        {showChevron && <ChevronIcon />}
-      </summary>
-      <div className={alignRight ? "menu-list align-right" : "menu-list"}>{children}</div>
-    </details>
-  );
-}
-
 const iconProps = {
   fill: "none",
   stroke: "currentColor",
@@ -183,14 +134,6 @@ const iconProps = {
   strokeLinecap: "round" as const,
   strokeLinejoin: "round" as const,
 };
-
-function ChevronIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" {...iconProps}>
-      <path d="m6 9 6 6 6-6" />
-    </svg>
-  );
-}
 
 function GearIcon() {
   return (

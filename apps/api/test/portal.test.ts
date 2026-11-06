@@ -108,6 +108,105 @@ describe("portal API", () => {
     });
   });
 
+  it("summarizes each site in the sites list", async () => {
+    const cookie = await loginAsDev();
+    const busy = await createProject(cookie);
+    const quiet = await createProject(cookie);
+    const ingestPath = `/api/v1/ingest/${busy.publicKey}/feedback`;
+    const reactions = ["bug", "bug", "idea"];
+    const ids: string[] = [];
+    for (const [i, reaction] of reactions.entries()) {
+      const res = await json("POST", ingestPath, submission({ reaction }), {
+        Origin: SITE,
+        "CF-Connecting-IP": `198.51.100.${10 + i}`,
+      });
+      ids.push(((await res.json()) as { id: string }).id);
+    }
+    await json("PATCH", `/api/v1/feedback/${ids[2]}`, { status: "done" }, { Cookie: cookie });
+
+    const res = await request("/api/v1/projects", { headers: { Cookie: cookie } });
+    const { data } = (await res.json()) as {
+      data: { id: string; summary: Record<string, unknown> & { activity: number[] } }[];
+    };
+    const summary = (id: string) => data.find((p) => p.id === id)?.summary;
+
+    expect(summary(busy.id)).toMatchObject({
+      newCount: 2,
+      newByReaction: { bug: 2 },
+      total: 3,
+      lastNoteAt: expect.any(String),
+    });
+    // All three arrived just now, so they're in the last day's slot.
+    expect(summary(busy.id)?.activity).toEqual([...Array(13).fill(0), 3]);
+    expect(summary(quiet.id)).toEqual({
+      newCount: 0,
+      newByReaction: {},
+      total: 0,
+      lastNoteAt: null,
+      activity: Array(14).fill(0),
+    });
+  });
+
+  it("lists notes across all of a user's sites, and nobody else's", async () => {
+    const cookie = await loginAsDev();
+    const sites = [await createProject(cookie), await createProject(cookie)];
+    let ip = 20;
+    for (const site of sites) {
+      for (const message of ["first", "second"]) {
+        await json("POST", `/api/v1/ingest/${site.publicKey}/feedback`, submission({ message }), {
+          Origin: SITE,
+          "CF-Connecting-IP": `198.51.100.${ip++}`,
+        });
+      }
+    }
+    await env.DB.prepare(
+      `INSERT INTO users (id, github_id, login, created_at) VALUES ('usr_z', 95, 'z', 0);`,
+    ).run();
+    await env.DB.prepare(
+      `INSERT INTO projects (id, owner_id, name, public_key, created_at) VALUES ('prj_z', 'usr_z', 'Z', 'pk_z', 0);`,
+    ).run();
+    await env.DB.prepare(
+      `INSERT INTO feedback (id, project_id, message, page_url, context, idempotency_key, created_at)
+       VALUES ('fb_z', 'prj_z', 'not yours', 'https://z.example/', '{}', 'k', 0);`,
+    ).run();
+
+    type Page = {
+      data: { id: string; projectId: string; createdAt: string }[];
+      nextCursor: string | null;
+    };
+    const list = async (qs: string) =>
+      (await (
+        await request(`/api/v1/feedback?${qs}`, { headers: { Cookie: cookie } })
+      ).json()) as Page;
+
+    // Earlier tests left notes on the dev user's other sites, so check these
+    // two sites' notes are all there, and that every note is one of the user's.
+    const all = await list("limit=100");
+    const owned = (await (
+      await request("/api/v1/projects", { headers: { Cookie: cookie } })
+    ).json()) as {
+      data: { id: string }[];
+    };
+    const ownedIds = new Set(owned.data.map((p) => p.id));
+    expect(all.data.filter((n) => sites.some((s) => s.id === n.projectId))).toHaveLength(4);
+    expect(all.data.every((n) => ownedIds.has(n.projectId))).toBe(true);
+    expect(all.data.map((n) => n.id)).not.toContain("fb_z");
+
+    // Oldest first, two at a time: the same four notes in the reverse order.
+    const oldest: string[] = [];
+    let cursor: string | null = null;
+    do {
+      const page: Page = await list(`order=oldest&limit=2${cursor ? `&cursor=${cursor}` : ""}`);
+      oldest.push(...page.data.map((n) => n.id));
+      cursor = page.nextCursor;
+    } while (cursor);
+    expect(oldest).toEqual(all.data.map((n) => n.id).reverse());
+
+    const first = all.data[0]?.id;
+    await json("PATCH", `/api/v1/feedback/${first}`, { status: "seen" }, { Cookie: cookie });
+    expect((await list("status=new")).data.map((n) => n.id)).not.toContain(first);
+  });
+
   it("deletes a site with its notes, but only the owner's", async () => {
     const cookie = await loginAsDev();
     const project = await createProject(cookie);

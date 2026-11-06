@@ -1,5 +1,5 @@
-import type { FeedbackCounts, FeedbackStatus } from "@flooper/shared";
-import type { Feedback, FeedbackSubmission } from "@flooper/shared/schemas";
+import type { FeedbackCounts, FeedbackStatus, Reaction } from "@flooper/shared";
+import type { Feedback, FeedbackSubmission, ProjectSummary } from "@flooper/shared/schemas";
 import type { Cursor } from "../lib/cursor";
 import { newId } from "../lib/ids";
 
@@ -90,31 +90,116 @@ export async function countFeedback(db: D1Database, projectId: string): Promise<
   return counts;
 }
 
-/** Newest first. Fetches one extra row to learn whether there's a next page. */
+/**
+ * One site's notes (its inbox), or every note across an owner's sites (the
+ * home screen). Newest first unless asked otherwise. Fetches one extra row to
+ * learn whether there's a next page.
+ */
 export async function listFeedback(
   db: D1Database,
-  projectId: string,
-  opts: { status?: FeedbackStatus; cursor?: Cursor; limit: number },
+  scope: { projectId: string } | { ownerId: string },
+  opts: { status?: FeedbackStatus; order?: "newest" | "oldest"; cursor?: Cursor; limit: number },
 ): Promise<{ rows: FeedbackRow[]; hasMore: boolean }> {
-  const where = ["project_id = ?"];
-  const params: (string | number)[] = [projectId];
+  const where: string[] = [];
+  const params: (string | number)[] = [];
+  if ("projectId" in scope) {
+    where.push("project_id = ?");
+    params.push(scope.projectId);
+  } else {
+    where.push("project_id IN (SELECT id FROM projects WHERE owner_id = ?)");
+    params.push(scope.ownerId);
+  }
   if (opts.status) {
     where.push("status = ?");
     params.push(opts.status);
   }
+  const oldest = opts.order === "oldest";
   if (opts.cursor) {
-    // "Strictly after the cursor" in (created_at DESC, id DESC) order.
-    where.push("(created_at < ? OR (created_at = ? AND id < ?))");
+    // "Strictly after the cursor" in the list's (created_at, id) order.
+    const op = oldest ? ">" : "<";
+    where.push(`(created_at ${op} ? OR (created_at = ? AND id ${op} ?))`);
     params.push(opts.cursor.createdAt, opts.cursor.createdAt, opts.cursor.id);
   }
+  const dir = oldest ? "ASC" : "DESC";
   const { results } = await db
     .prepare(
       `SELECT * FROM feedback WHERE ${where.join(" AND ")}
-       ORDER BY created_at DESC, id DESC LIMIT ?`,
+       ORDER BY created_at ${dir}, id ${dir} LIMIT ?`,
     )
     .bind(...params, opts.limit + 1)
     .all<FeedbackRow>();
   return { rows: results.slice(0, opts.limit), hasMore: results.length > opts.limit };
+}
+
+const DAY = 24 * 60 * 60 * 1000;
+export const ACTIVITY_DAYS = 14;
+
+/**
+ * Each of the owner's sites' summary, for the home screen's cards: two grouped
+ * queries over all their sites at once, rather than a few per site. Sites with
+ * no notes are missing from the map.
+ */
+export async function summarizeProjects(
+  db: D1Database,
+  ownerId: string,
+  now = Date.now(),
+): Promise<Map<string, ProjectSummary>> {
+  const owned = "project_id IN (SELECT id FROM projects WHERE owner_id = ?)";
+  // Days are 24-hour windows counting back from now, so no time zone is needed.
+  const since = now - ACTIVITY_DAYS * DAY;
+  const [counts, days] = await db.batch<Record<string, string | number | null>>([
+    db
+      .prepare(
+        `SELECT project_id, status, reaction, COUNT(*) AS n, MAX(created_at) AS last
+         FROM feedback WHERE ${owned} GROUP BY project_id, status, reaction`,
+      )
+      .bind(ownerId),
+    db
+      .prepare(
+        `SELECT project_id, CAST((created_at - ?) / ${DAY} AS INTEGER) AS day, COUNT(*) AS n
+         FROM feedback WHERE ${owned} AND created_at >= ? GROUP BY project_id, day`,
+      )
+      .bind(since, ownerId, since),
+  ]);
+
+  const summaries = new Map<string, ProjectSummary>();
+  const get = (projectId: string) => {
+    let s = summaries.get(projectId);
+    if (!s) {
+      s = emptySummary();
+      summaries.set(projectId, s);
+    }
+    return s;
+  };
+  for (const row of counts?.results ?? []) {
+    const s = get(row.project_id as string);
+    const n = row.n as number;
+    s.total += n;
+    const last = new Date(row.last as number).toISOString();
+    if (!s.lastNoteAt || last > s.lastNoteAt) s.lastNoteAt = last;
+    if (row.status === "new") {
+      s.newCount += n;
+      const reaction = row.reaction as Reaction | null;
+      if (reaction) s.newByReaction[reaction] = (s.newByReaction[reaction] ?? 0) + n;
+    }
+  }
+  for (const row of days?.results ?? []) {
+    const day = row.day as number;
+    if (day >= 0 && day < ACTIVITY_DAYS)
+      get(row.project_id as string).activity[day] = row.n as number;
+  }
+  return summaries;
+}
+
+/** A site with no notes yet. */
+export function emptySummary(): ProjectSummary {
+  return {
+    newCount: 0,
+    newByReaction: {},
+    total: 0,
+    lastNoteAt: null,
+    activity: Array(ACTIVITY_DAYS).fill(0),
+  };
 }
 
 /** One note, but only if it belongs to one of the owner's projects. */
