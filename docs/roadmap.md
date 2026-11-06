@@ -107,7 +107,8 @@ code splitting, aggregation queries, and designing for data that drifts.
     an icon button marks the current view as read.
   - **The open note** sits in a card on the right (inline on smaller
     screens), with relative times and the exact time on hover. A note counts
-    as read once it has stayed open 1.5 s, and "seen" now shows as "Read".
+    as read once you click off it (close it, open another, or leave the
+    list), and "seen" now shows as "Read".
   - **Adding a site** starts with its address (it's named after it, renamable
     later), then all three setup steps show at once: address, snippet, test
     note. A site stays on these steps until its first note arrives, which then
