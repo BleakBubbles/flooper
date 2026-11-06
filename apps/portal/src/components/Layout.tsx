@@ -41,7 +41,7 @@ function Header({ user }: { user: User }) {
     <header className="header">
       <div className="header-inner">
         <Link to="/" className="brand">
-          <img src="/logo.svg" alt="" width={30} height={30} />
+          <img src="/logo.svg" alt="" width={36} height={36} />
           Flooper
         </Link>
         <AccountMenu user={user} />

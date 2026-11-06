@@ -16,6 +16,10 @@
   --accent-fg: #0b0b0c;
   --track: rgba(255, 255, 255, 0.08);
   --note-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  /* The page's two spacings: the side gutter (the app's, so the logo and the
+     content line up with it) and the one gap between sections. */
+  --gutter: 24px;
+  --section-gap: clamp(64px, 7vw, 96px);
   min-height: 100vh;
   background: var(--bg);
   color: var(--fg);
@@ -64,16 +68,19 @@ body:has(.landing) {
 }
 
 .landing-header,
+.ring,
 .landing-section,
 .landing-cta,
 .landing-footer {
   max-width: 1440px;
   margin: 0 auto;
-  padding-left: clamp(16px, 4vw, 40px);
-  padding-right: clamp(16px, 4vw, 40px);
+  padding-left: var(--gutter);
+  padding-right: var(--gutter);
 }
 /* Full width, pinned to the window's edges like a title bar, rather than
-   in the content column: the ring hero has no edges for it to line up with. */
+   in the content column: the ring hero has no edges for it to line up with.
+   The same size and spot as the app's header (and its border's height, kept
+   invisible), so the logo doesn't move between the two. */
 .landing-header {
   max-width: none;
   display: flex;
@@ -81,16 +88,17 @@ body:has(.landing) {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding-top: 28px;
-  padding-bottom: 28px;
+  padding-top: 18px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid transparent;
+  /* Above the ring, whose faded top tucks up under it. */
+  position: relative;
+  z-index: 5;
 }
-.landing-header .brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+/* As tall as the logo, so the header is exactly the app's height. */
+.landing-header .btn {
+  height: 36px;
+  padding-block: 0;
 }
 .landing-header nav {
   display: flex;
@@ -98,11 +106,7 @@ body:has(.landing) {
 }
 
 /* The hero: notes on a turning ring around the headline (see NoteRing.tsx). */
-.ring {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 clamp(16px, 4vw, 40px);
-}
+
 .ring-stage {
   position: relative;
 }
@@ -155,7 +159,9 @@ body:has(.landing) {
   --note-ink: #8b8b85;
   --note-ink-strong: #1a1a1a;
 }
+/* Shrinks with the ring (see layoutFor), so the picture stays the same. */
 .ring-card {
+  zoom: var(--card-scale, 1);
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -270,13 +276,24 @@ body:has(.landing) {
   letter-spacing: -0.035em;
 }
 .lede {
+  text-wrap: balance;
   font-size: 18px;
   color: var(--fg-2);
 }
 .fine {
+  text-wrap: balance;
   font-family: var(--mono);
   font-size: 12px;
   color: var(--muted);
+}
+/* Inside a smaller ring, the headline shrinks with the cards around it. */
+.ring:not(.compact) .hero h1 {
+  font-size: calc(clamp(38px, 5vw, 58px) * var(--card-scale, 1));
+}
+/* The fine print sits low, where the ring's cards come closer in, so it
+   wraps (balanced) before it reaches them. */
+.ring:not(.compact) .fine {
+  max-width: calc(100% - 80px);
 }
 .wall-note-chip {
   margin-top: 8px;
@@ -302,8 +319,7 @@ body:has(.landing) {
   display: flex;
   flex-direction: column;
   gap: 20px;
-  padding-top: 40px;
-  padding-bottom: 56px;
+  padding-top: var(--section-gap);
 }
 .landing-section h2 {
   font-size: 26px;
@@ -321,6 +337,23 @@ body:has(.landing) {
 @media (min-width: 1140px) {
   .steps {
     grid-template-columns: repeat(3, 1fr);
+  }
+}
+/* One per row but wide: each title beside its picture, so the card is filled
+   rather than stretched. */
+@media (min-width: 720px) and (max-width: 1139px) {
+  .steps .panel {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    align-items: start;
+  }
+  .steps .panel h3 {
+    padding: 16px 0 16px 16px;
+  }
+  .steps .step-art {
+    margin-left: 0;
+    margin-top: 16px;
+    min-height: 200px;
   }
 }
 .panel {
@@ -534,17 +567,21 @@ body:has(.landing) {
   }
 }
 
+/* After the same gap, a line, and the same gap again on both sides of the
+   call to action. The line runs the full content width, like the footer's. */
 .landing-cta {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  padding-top: 72px;
-  padding-bottom: 72px;
+  margin-top: var(--section-gap);
+  padding-top: var(--section-gap);
+  padding-bottom: var(--section-gap);
   border-top: 1px solid var(--border);
 }
 .landing-cta h2 {
+  text-wrap: balance;
   font-size: 32px;
   letter-spacing: -0.03em;
 }
