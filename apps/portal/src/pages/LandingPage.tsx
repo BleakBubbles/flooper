@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect } from "react";
 import { Link } from "react-router";
 import { api, keys } from "../api";
 import { usePageTitle } from "../usePageTitle";
@@ -15,6 +15,7 @@ import "./landing.css";
  */
 export function LandingPage() {
   usePageTitle();
+  useCanonical("/");
   // Already logged in? Then the way in is the app, not the login button.
   const me = useQuery({ queryKey: keys.me, queryFn: api.me });
   const loggedIn = me.isSuccess;
@@ -120,6 +121,20 @@ export function LandingPage() {
       </footer>
     </div>
   );
+}
+
+/**
+ * Tells search engines which address is the real one for this page, so the
+ * landing page at /about (for signed-in people) counts as the one at /.
+ */
+function useCanonical(path: string) {
+  useEffect(() => {
+    const link = document.createElement("link");
+    link.rel = "canonical";
+    link.href = new URL(path, window.location.origin).href;
+    document.head.append(link);
+    return () => link.remove();
+  }, [path]);
 }
 
 function Step({ n, title, children }: { n: number; title: string; children: ReactNode }) {
