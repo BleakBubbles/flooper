@@ -46,11 +46,14 @@ body:has(.landing) {
   font-size: 15px;
   gap: 8px;
 }
-.btn.borderless {
-  border-color: transparent;
+/* Clearly a button, but quiet: a thin edge and nothing inside. The header's
+   lone "Log in", which shouldn't compete with the hero's big button. */
+.btn.outline {
   background: transparent;
+  color: var(--fg);
 }
-/* Hover: the light buttons dim a touch, the quiet one gets a faint fill. */
+/* Hover: the light buttons dim a touch, the outlined one brightens its edge
+   and gets a faint fill. */
 .landing .btn {
   transition:
     background 0.15s ease,
@@ -61,10 +64,9 @@ body:has(.landing) {
   border-color: #c9c9c3;
   background: #c9c9c3;
 }
-.landing .btn.borderless:hover {
-  border-color: transparent;
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--fg);
+.landing .btn.outline:hover {
+  border-color: var(--fg-2);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .landing-header,

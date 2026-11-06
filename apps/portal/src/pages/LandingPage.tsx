@@ -36,14 +36,14 @@ export function LandingPage() {
               </MiniIcon>
             </Link>
           ) : (
-            <>
-              <Link className="btn quiet borderless" to="/login">
-                Log in
-              </Link>
-              <a className="btn primary" href="/api/auth/github">
-                Get started
-              </a>
-            </>
+            // For returning users, who look for "Log in". New visitors have the
+            // big "Continue with GitHub" in the hero (and again at the bottom),
+            // so the header doesn't repeat it as "Get started". Signing in and
+            // signing up are the same step: straight to GitHub, a full-page
+            // redirect, not a route.
+            <a className="btn outline" href="/api/auth/github">
+              Log in
+            </a>
           )}
         </nav>
       </header>
