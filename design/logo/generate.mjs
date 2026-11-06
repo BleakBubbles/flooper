@@ -6,6 +6,7 @@
 //   apps/portal/public/favicon.ico            32x32, for browsers without SVG favicons
 //   apps/portal/public/og-image.png           1200x630, for link previews (Slack, iMessage...)
 //   design/logo/github-social-preview.png     1280x640, upload in the repo's settings
+//   design/logo/github-oauth-logo.png         512x512, upload in the GitHub OAuth app's settings
 // Tweak the numbers below and run `pnpm logo`. Don't edit the outputs by hand.
 //
 // Geometry, on a 512x512 canvas centered at (256,256): the body is a thick arc
@@ -132,7 +133,8 @@ const icon = [
   "</svg>",
 ].join("\n");
 
-// iOS rounds the corners itself and dislikes transparency: a full-bleed square.
+// iOS (and GitHub's OAuth app page) round the corners themselves and dislike
+// transparency: a full-bleed square.
 const touchIcon = svgDoc(
   512,
   512,
@@ -215,3 +217,4 @@ out("apps/portal/public/apple-touch-icon.png", png(touchIcon, 180));
 out("apps/portal/public/favicon.ico", ico(png(standalone, 32), 32));
 out("apps/portal/public/og-image.png", png(card(1200, 630), 1200));
 out("design/logo/github-social-preview.png", png(card(1280, 640), 1280));
+out("design/logo/github-oauth-logo.png", png(touchIcon, 512));
