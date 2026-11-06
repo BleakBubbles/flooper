@@ -192,7 +192,8 @@ body:has(.landing) {
   background: var(--note-white);
   font-size: 18px;
 }
-/* Play/pause, quiet in the stage's bottom-right corner. */
+/* Play/pause, quiet in the stage's bottom-right corner. Same tile as the
+   DevTools claims' icons. */
 .ring-toggle {
   position: absolute;
   right: 0;
@@ -204,7 +205,7 @@ body:has(.landing) {
   height: 36px;
   padding: 0;
   border: 1px solid var(--border-strong);
-  border-radius: 50%;
+  border-radius: 10px;
   background: var(--surface);
   color: var(--muted);
   cursor: pointer;
