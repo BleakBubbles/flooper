@@ -284,7 +284,7 @@ export function NoteRing({ hero }: { hero: ReactNode }) {
         </ul>
         <button
           type="button"
-          className="ring-toggle"
+          className={playing ? "ring-toggle" : "ring-toggle still"}
           aria-label={playing ? "Pause the notes" : "Play the notes"}
           title={playing ? "Pause" : "Play"}
           onClick={() => setPlaying((p) => !p)}

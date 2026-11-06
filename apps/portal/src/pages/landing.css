@@ -217,6 +217,16 @@ body:has(.landing) {
   border-color: var(--fg-2);
   color: var(--fg);
 }
+/* Still, it's the way in to the motion (and the only one for people with
+   reduced motion), so it stands out. Turning, it stays out of the way. */
+.ring-toggle.still {
+  border-color: var(--muted);
+  background: #18181b;
+  color: var(--fg);
+}
+.ring-toggle.still:hover {
+  border-color: var(--fg);
+}
 /* A note that just arrived while the ring is still: a fade, no movement. */
 .ring-fresh {
   animation: ring-fresh 0.9s ease;
