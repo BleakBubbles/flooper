@@ -258,7 +258,47 @@ body:has(.landing) {
 .ring.compact .hero {
   padding: 40px 0 32px;
 }
+/* Just above the tunnel's mouth, centered on its dot, in the ring's gap
+   (see NoteRing.tsx). */
+.ring-counter {
+  position: absolute;
+  z-index: 2;
+  translate: -50% -100%;
+}
+/* As the count goes up, the number lets go of a "+1": it comes out of the
+   pill's left end, where the number is, and drifts up and away. */
+.ring-plus {
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  translate: -100% -50%;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  pointer-events: none;
+  opacity: 0;
+  animation: plus-release 0.8s ease-out;
+}
+@keyframes plus-release {
+  from {
+    opacity: 1;
+    transform: translate(10px, 0);
+  }
+  60% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    transform: translate(-6px, -22px);
+  }
+}
+/* Drawn afresh for each new note (keyed by the count), so it marks every
+   arrival: a small pulse while the ring turns, in step with the dot at the
+   tunnel's mouth, and a soft brighten while it's still (the play button
+   decides, so it follows reduce-motion and anyone who presses play). */
 .pill {
+  display: inline-block;
+  animation: pill-flash 0.6s ease-out;
   padding: 4px 12px;
   border-radius: 999px;
   background: var(--accent);
@@ -307,6 +347,19 @@ body:has(.landing) {
 .ring-card .wall-note-chip {
   border-color: #dcdcd6;
   color: inherit;
+}
+.ring.playing .pill {
+  animation: pill-pulse 0.5s ease-out;
+}
+@keyframes pill-pulse {
+  40% {
+    scale: 1.08;
+  }
+}
+@keyframes pill-flash {
+  from {
+    filter: brightness(1.35);
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .ring-mouth {
@@ -567,8 +620,10 @@ body:has(.landing) {
   }
 }
 
-/* After the same gap, a line, and the same gap again on both sides of the
-   call to action. The line runs the full content width, like the footer's. */
+/* After the usual section gap, a line, then a band about half that deep
+   around the call to action (a full gap on both sides of the line read as
+   twice the space anywhere else). The line runs the full content width, like
+   the footer's. */
 .landing-cta {
   display: flex;
   flex-wrap: wrap;
@@ -576,13 +631,14 @@ body:has(.landing) {
   justify-content: space-between;
   gap: 24px;
   margin-top: var(--section-gap);
-  padding-top: var(--section-gap);
-  padding-bottom: var(--section-gap);
+  padding-top: calc(var(--section-gap) * 0.58);
+  padding-bottom: calc(var(--section-gap) * 0.58);
   border-top: 1px solid var(--border);
 }
 .landing-cta h2 {
   text-wrap: balance;
   font-size: 32px;
+  line-height: 1.1;
   letter-spacing: -0.03em;
 }
 .landing-cta p {
