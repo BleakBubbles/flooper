@@ -1,4 +1,4 @@
-import { QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import {
@@ -9,32 +9,62 @@ import {
   useParams,
   useSearchParams,
 } from "react-router";
+import { api, keys } from "./api";
 import { CrashPage } from "./components/CrashPage";
 import { Layout } from "./components/Layout";
 import { LandingPage } from "./pages/LandingPage";
+import { LoginPage } from "./pages/LoginPage";
 import { SitesPage } from "./pages/SitesPage";
 import { createQueryClient } from "./queryClient";
+import { hasSignedInHint } from "./signedIn";
 import "./styles.css";
 
 const queryClient = createQueryClient();
 
 const router = createBrowserRouter([
-  { index: true, element: <LandingPage />, errorElement: <CrashPage /> },
+  // flooper.app/ is the app once you're signed in, and the landing page before.
   {
-    path: "app",
-    element: <Layout />,
+    path: "/",
+    element: <AppOrLanding />,
     errorElement: <CrashPage />,
-    children: [
-      { index: true, element: <SitesPage /> },
-      // A site's setup and settings used to be pages of their own; they're
-      // on home now. Keep old links (and ?note= links) working.
-      { path: "projects/:projectId", element: <SiteMovedHome /> },
-      { path: "projects/:projectId/settings", element: <SiteMovedHome settings /> },
-    ],
+    children: [{ index: true, element: <SitesPage /> }],
   },
-  // The app used to live at the root. Keep old bookmarks working.
-  { path: "projects/*", element: <MovedToApp /> },
+  // The landing page stays reachable when you're signed in.
+  { path: "about", element: <LandingPage />, errorElement: <CrashPage /> },
+  { path: "login", element: <LoginRoute />, errorElement: <CrashPage /> },
+
+  // Old addresses. The app lived at /app (and before that at the root, with
+  // pages of its own for each site's setup and settings). Keep every old link
+  // working, including ?site= and ?note=.
+  { path: "app", element: <MovedHome /> },
+  { path: "app/projects/:projectId", element: <SiteMovedHome /> },
+  { path: "app/projects/:projectId/settings", element: <SiteMovedHome settings /> },
+  { path: "projects/:projectId", element: <SiteMovedHome /> },
+  { path: "projects/:projectId/settings", element: <SiteMovedHome settings /> },
 ]);
+
+/**
+ * The app if this browser is signed in, the landing page if not. The cookie
+ * hint answers at once (no flash of the wrong page); /me backs it up for
+ * anyone signed in before the hint existed.
+ */
+function AppOrLanding() {
+  const me = useQuery({ queryKey: keys.me, queryFn: api.me, enabled: !hasSignedInHint() });
+  return hasSignedInHint() || me.isSuccess ? <Layout /> : <LandingPage />;
+}
+
+/** The login page, or home if you're already signed in (or just signed in). */
+function LoginRoute() {
+  const me = useQuery({ queryKey: keys.me, queryFn: api.me });
+  if (me.isSuccess) return <Navigate to="/" replace />;
+  if (me.isPending) return null;
+  return <LoginPage />;
+}
+
+function MovedHome() {
+  const { search } = useLocation();
+  return <Navigate to={`/${search}`} replace />;
+}
 
 function SiteMovedHome({ settings = false }: { settings?: boolean }) {
   const { projectId = "" } = useParams();
@@ -43,12 +73,7 @@ function SiteMovedHome({ settings = false }: { settings?: boolean }) {
   if (settings) next.set("view", "settings");
   const note = params.get("note");
   if (note) next.set("note", note);
-  return <Navigate to={`/app?${next}`} replace />;
-}
-
-function MovedToApp() {
-  const { pathname, search } = useLocation();
-  return <Navigate to={`/app${pathname}${search}`} replace />;
+  return <Navigate to={`/?${next}`} replace />;
 }
 
 const root = document.getElementById("root");

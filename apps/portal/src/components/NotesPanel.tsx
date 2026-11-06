@@ -232,7 +232,7 @@ export function NotesPanel({
           from && {
             name: from.name,
             // A link to just this site's notes, unless that's the view already.
-            href: site ? undefined : `/app?site=${from.id}&note=${note.id}`,
+            href: site ? undefined : `/?site=${from.id}&note=${note.id}`,
           }
         }
         onClose={() => onOpen(null)}

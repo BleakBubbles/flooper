@@ -4,7 +4,7 @@
 interface __BaseEnv_Env {
 	DB: D1Database;
 	ENVIRONMENT: "production" | "development";
-	APP_URL: "/app" | "http://localhost:5173/app";
+	APP_URL: "/" | "http://localhost:5173/";
 	TRUSTED_ORIGINS: "" | "http://localhost:5173";
 }
 declare namespace Cloudflare {
@@ -14,7 +14,7 @@ declare namespace Cloudflare {
 	interface ProductionEnv {
 		DB: D1Database;
 		ENVIRONMENT: "production";
-		APP_URL: "/app";
+		APP_URL: "/";
 		TRUSTED_ORIGINS: "";
 	}
 	interface Env extends __BaseEnv_Env {}
