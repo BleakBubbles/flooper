@@ -4,20 +4,33 @@ import type { ReactNode } from "react";
 import { Link } from "react-router";
 import { pageUrl, showMeUrl } from "../feedbackLinks";
 import { fullDate, timeAgo } from "../time";
-import { REACTION_LABELS, StatusActions } from "./FeedbackRow";
-import { BackIcon } from "./icons";
+import { CloseIcon } from "./icons";
+import { REACTION_LABELS, StatusActions } from "./NoteActions";
 
-/** Everything about one note, with its actions at the top. */
+/** How each status reads to a person. "seen" is shown as "read". */
+export const STATUS_LABELS: Record<FeedbackStatus, string> = {
+  new: "New",
+  seen: "Read",
+  done: "Done",
+  archived: "Archived",
+};
+
+/**
+ * Everything about one note, with its actions at the top. It can name the
+ * site it came from, and be closed.
+ */
 export function FeedbackDetail({
   feedback,
   allowedOrigins,
-  backHref,
+  site,
+  onClose,
   onStatus,
 }: {
   feedback: Feedback;
   allowedOrigins: string[];
-  /** Back to the list (only shown on narrow screens, where the list is hidden). */
-  backHref: string;
+  /** The site the note came from, and a link to just that site's notes. */
+  site?: { name: string; href?: string };
+  onClose?: () => void;
   onStatus: (status: FeedbackStatus) => void;
 }) {
   const { context, target, visitor, metadata } = feedback;
@@ -26,10 +39,6 @@ export function FeedbackDetail({
 
   return (
     <article className="detail" aria-labelledby="detail-heading">
-      <Link to={backHref} className="detail-back">
-        <BackIcon /> Inbox
-      </Link>
-
       <header className="detail-head">
         <div className="detail-title">
           {feedback.reaction && (
@@ -45,12 +54,26 @@ export function FeedbackDetail({
             <h2 id="detail-heading" className="sr-only">
               Note from {fullDate(feedback.createdAt)}
             </h2>
+            {/* Short here; the exact time is under "Received" below. */}
             <time className="small muted" dateTime={feedback.createdAt}>
-              {fullDate(feedback.createdAt)} · {timeAgo(feedback.createdAt)}
+              {timeAgo(feedback.createdAt)}
             </time>
           </div>
         </div>
-        <StatusActions status={feedback.status} onStatus={onStatus} />
+        <div className="detail-actions">
+          <StatusActions status={feedback.status} onStatus={onStatus} />
+          {onClose && (
+            <button
+              type="button"
+              className="icon-button"
+              aria-label="Close"
+              data-tooltip="Close"
+              onClick={onClose}
+            >
+              <CloseIcon />
+            </button>
+          )}
+        </div>
       </header>
 
       {feedback.message && <p className="detail-message">{feedback.message}</p>}
@@ -69,6 +92,20 @@ export function FeedbackDetail({
       )}
 
       <dl className="facts">
+        {site && (
+          <Fact label="Site">
+            {site.href ? (
+              <Link to={site.href} className="link-plain">
+                {site.name}
+              </Link>
+            ) : (
+              site.name
+            )}
+          </Fact>
+        )}
+        <Fact label="Received">
+          <time dateTime={feedback.createdAt}>{fullDate(feedback.createdAt)}</time>
+        </Fact>
         <Fact label="Page">
           {page ? (
             <a
@@ -90,7 +127,7 @@ export function FeedbackDetail({
           </Fact>
         )}
         <Fact label="Status">
-          <span className={`status-pill ${feedback.status}`}>{feedback.status}</span>
+          <span className={`status-pill ${feedback.status}`}>{STATUS_LABELS[feedback.status]}</span>
         </Fact>
         {(visitor?.name || visitor?.email || visitor?.id) && (
           <Fact label="Visitor">

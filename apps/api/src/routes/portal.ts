@@ -2,15 +2,21 @@ import type { Paginated } from "@flooper/shared";
 import {
   createProjectSchema,
   type Feedback,
+  listAllFeedbackQuerySchema,
   listFeedbackQuerySchema,
+  markAllReadSchema,
   updateFeedbackSchema,
   updateProjectSchema,
 } from "@flooper/shared/schemas";
 import { Hono } from "hono";
 import {
   countFeedback,
+  emptySummary,
   getFeedbackForOwner,
   listFeedback,
+  markAllSeen,
+  type SortedFeedbackRow,
+  summarizeProjects,
   toFeedback,
   updateFeedbackStatus,
 } from "../db/feedback";
@@ -40,9 +46,19 @@ portal.use(requireUser);
 
 portal.get("/me", (c) => c.json(toUser(c.get("user"))));
 
+// Each site comes with its summary, for the cards on the home screen.
 portal.get("/projects", async (c) => {
-  const rows = await listProjects(c.env.DB, c.get("user").id);
-  return c.json({ data: rows.map(toProject) });
+  const ownerId = c.get("user").id;
+  const [rows, summaries] = await Promise.all([
+    listProjects(c.env.DB, ownerId),
+    summarizeProjects(c.env.DB, ownerId),
+  ]);
+  return c.json({
+    data: rows.map((row) => ({
+      ...toProject(row),
+      summary: summaries.get(row.id) ?? emptySummary(),
+    })),
+  });
 });
 
 portal.post("/projects", async (c) => {
@@ -75,17 +91,34 @@ portal.get("/projects/:id/feedback", async (c) => {
   if (!project) throw notFound("Project");
 
   const query = parseQuery(c, listFeedbackQuerySchema);
-  const { rows, hasMore } = await listFeedback(c.env.DB, project.id, {
-    status: query.status,
-    cursor: query.cursor ? decodeCursor(query.cursor) : undefined,
-    limit: query.limit,
-  });
-  const last = rows.at(-1);
-  const body: Paginated<Feedback> = {
-    data: rows.map(toFeedback),
-    nextCursor: hasMore && last ? encodeCursor({ createdAt: last.created_at, id: last.id }) : null,
-  };
-  return c.json(body);
+  const result = await listFeedback(
+    c.env.DB,
+    { projectId: project.id },
+    { ...query, cursor: query.cursor ? decodeCursor(query.cursor) : undefined },
+  );
+  return c.json(page(result));
+});
+
+// Notes from every one of the user's sites, for the home screen.
+portal.get("/feedback", async (c) => {
+  const query = parseQuery(c, listAllFeedbackQuerySchema);
+  const result = await listFeedback(
+    c.env.DB,
+    { ownerId: c.get("user").id, projectId: query.projectId },
+    {
+      ...query,
+      hideArchived: true,
+      cursor: query.cursor ? decodeCursor(query.cursor) : undefined,
+    },
+  );
+  return c.json(page(result));
+});
+
+// "Mark all as read" on the home screen.
+portal.post("/feedback/mark-all-read", async (c) => {
+  const { projectId } = await parseJsonBody(c, markAllReadSchema);
+  const updated = await markAllSeen(c.env.DB, c.get("user").id, projectId);
+  return c.json({ updated });
 });
 
 portal.get("/projects/:id/feedback/counts", async (c) => {
@@ -106,3 +139,20 @@ portal.patch("/feedback/:id", async (c) => {
   if (!row) throw notFound("Feedback");
   return c.json(toFeedback(row));
 });
+
+function page({
+  rows,
+  hasMore,
+}: {
+  rows: SortedFeedbackRow[];
+  hasMore: boolean;
+}): Paginated<Feedback> {
+  const last = rows.at(-1);
+  return {
+    data: rows.map(toFeedback),
+    nextCursor:
+      hasMore && last
+        ? encodeCursor({ createdAt: last.created_at, id: last.id, key: last.sort_key ?? undefined })
+        : null,
+  };
+}

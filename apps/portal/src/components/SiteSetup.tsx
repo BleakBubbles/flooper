@@ -4,8 +4,8 @@ import { type FormEvent, useRef, useState } from "react";
 import { api, keys } from "../api";
 import { FieldErrors } from "./FieldErrors";
 
-// The pieces of connecting a site, shared by the Setup page (first run) and
-// Site settings (later changes).
+// The pieces of connecting a site, shared by its setup steps (first run) and
+// its settings (later changes).
 
 /** The <script> tag for a site. The portal, API and SDK share this origin. */
 export function snippetFor(project: Project): string {
@@ -107,7 +107,7 @@ export function OriginsForm({ project, onSaved }: { project: Project; onSaved?: 
   }
 
   return (
-    <form onSubmit={onSubmit} className="panel-body" style={{ padding: 0 }}>
+    <form onSubmit={onSubmit} className="origins-form">
       <label htmlFor={`origins-${project.id}`} className="sr-only">
         Allowed addresses, one per line
       </label>
@@ -121,12 +121,7 @@ export function OriginsForm({ project, onSaved }: { project: Project; onSaved?: 
       />
       <FieldErrors error={save.error} />
       <div className="row-inline">
-        {/* Quiet (ghost) while there's nothing to save, solid once there is. */}
-        <button
-          type="submit"
-          className={unchanged ? "btn ghost" : "btn primary"}
-          disabled={save.isPending || unchanged}
-        >
+        <button type="submit" className="btn primary" disabled={save.isPending || unchanged}>
           {save.isPending ? "Saving…" : "Save"}
         </button>
         {save.isSuccess && unchanged && <span className="muted small">Saved</span>}

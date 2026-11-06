@@ -10,9 +10,13 @@ export interface ProjectRow {
   created_at: number;
 }
 
+/**
+ * Oldest first: new sites join at the bottom, so adding one never moves the
+ * others, and the site you added first (usually your main one) leads.
+ */
 export async function listProjects(db: D1Database, ownerId: string): Promise<ProjectRow[]> {
   const { results } = await db
-    .prepare("SELECT * FROM projects WHERE owner_id = ? ORDER BY created_at DESC")
+    .prepare("SELECT * FROM projects WHERE owner_id = ? ORDER BY created_at, id")
     .bind(ownerId)
     .all<ProjectRow>();
   return results;
