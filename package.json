@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "pnpm --parallel --filter @flooper/api --filter @flooper/portal --filter @flooper/sdk dev",
     "build": "pnpm -r build",
-    "typecheck": "pnpm -r typecheck",
+    "typecheck": "pnpm --filter @flooper/sdk build && pnpm -r typecheck",
     "test": "pnpm -r test",
     "lint": "biome check .",
     "format": "biome check --write .",
