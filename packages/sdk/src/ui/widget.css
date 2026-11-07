@@ -46,7 +46,7 @@
     --accent-fg: #0b0b0c;
     --danger: #f87171;
     --shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-    --launcher-shadow: 0 0 0 1px rgba(255, 255, 255, 0.22), 0 0 18px rgba(255, 255, 255, 0.08);
+    --launcher-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.6), 0 0 18px rgba(255, 255, 255, 0.08);
   }
 }
 :host([data-theme="dark"]) {
@@ -63,7 +63,7 @@
   --accent-fg: #0b0b0c;
   --danger: #f87171;
   --shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-  --launcher-shadow: 0 0 0 1px rgba(255, 255, 255, 0.22), 0 0 18px rgba(255, 255, 255, 0.08);
+  --launcher-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.6), 0 0 18px rgba(255, 255, 255, 0.08);
 }
 
 * {
@@ -195,9 +195,13 @@ svg.lucide {
 .reaction:hover {
   background: color-mix(in srgb, var(--surface) 55%, transparent);
 }
+/* The picked one: its own tile, ringed in the foreground color (white in dark
+   mode, where the tile alone barely stands out). Inset, so nothing shifts. */
 .reaction[aria-pressed="true"] {
   background: var(--surface);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  box-shadow:
+    inset 0 0 0 1.5px var(--fg),
+    0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
 textarea {
