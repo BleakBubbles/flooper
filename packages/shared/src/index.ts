@@ -64,6 +64,10 @@ export type ApiErrorCode =
   | "origin_not_allowed"
   | "payload_too_large"
   | "rate_limited"
+  /** The site has had its day's worth of notes (see NOTES_PER_SITE_PER_DAY). */
+  | "site_limit_reached"
+  /** Incoming notes are switched off for now (INGEST_PAUSED), e.g. during an incident. */
+  | "paused"
   | "internal_error";
 
 export interface Paginated<T> {

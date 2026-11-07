@@ -1,3 +1,4 @@
+import { env } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
 import { createProject, json, loginAsDev, request, SITE, submission } from "./helpers";
 
@@ -116,6 +117,48 @@ describe("POST /api/v1/ingest/:publicKey/feedback", () => {
     // The SDK can read the error and Retry-After, so it can back off.
     expect(last?.headers.get("Access-Control-Allow-Origin")).toBe(SITE);
     expect(last?.headers.get("Retry-After")).toMatch(/^\d+$/);
+  });
+
+  it("caps a site's notes per day, whoever sends them", async () => {
+    const { cookie, project, path } = await setup();
+    // Fill today's counter for the site to the cap, as if 1000 notes came in.
+    const day = 24 * 60 * 60 * 1000;
+    const today = Date.now() - (Date.now() % day);
+    await env.DB.prepare("INSERT INTO rate_limits (key, window_start, count) VALUES (?, ?, ?)")
+      .bind(`site-day:${project.id}`, today, Number(env.NOTES_PER_SITE_PER_DAY))
+      .run();
+
+    // A fresh visitor (no per-visitor limit in play) is still refused.
+    const res = await json("POST", path, submission(), {
+      Origin: SITE,
+      "CF-Connecting-IP": "198.51.100.99",
+    });
+    expect(res.status).toBe(429);
+    const body = (await res.json()) as { error: { code: string } };
+    expect(body.error.code).toBe("site_limit_reached");
+    // Until the day turns over: longer than the SDK will wait, so it doesn't retry.
+    expect(Number(res.headers.get("Retry-After"))).toBeGreaterThan(10);
+
+    const inbox = await request(`/api/v1/projects/${project.id}/feedback`, {
+      headers: { Cookie: cookie },
+    });
+    expect(((await inbox.json()) as { data: unknown[] }).data).toHaveLength(0);
+  });
+
+  it("refuses every note while paused, and accepts them again after", async () => {
+    const { path } = await setup();
+    env.INGEST_PAUSED = "true";
+    try {
+      const res = await json("POST", path, submission(), { Origin: SITE });
+      expect(res.status).toBe(503);
+      expect(((await res.json()) as { error: { code: string } }).error.code).toBe("paused");
+      expect(res.headers.get("Access-Control-Allow-Origin")).toBe(SITE);
+      expect(Number(res.headers.get("Retry-After"))).toBeGreaterThan(10);
+    } finally {
+      env.INGEST_PAUSED = undefined;
+    }
+    const after = await json("POST", path, submission(), { Origin: SITE });
+    expect(after.status).toBe(202);
   });
 
   it("rejects a page URL that isn't on the sending site", async () => {
