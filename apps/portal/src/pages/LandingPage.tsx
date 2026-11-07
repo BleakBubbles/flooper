@@ -105,8 +105,8 @@ export function LandingPage() {
 
       <section className="landing-cta">
         <div>
-          <h2>Ship it before your coffee cools.</h2>
-          <p>Log in with GitHub, add your site, paste the line.</p>
+          <h2>Start hearing from your users.</h2>
+          <p>Log in with GitHub, add your site, and load the script.</p>
         </div>
         <GithubButton />
       </section>
