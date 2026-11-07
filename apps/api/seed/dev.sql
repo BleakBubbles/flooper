@@ -1,5 +1,6 @@
 -- Local development seed. Gives you a dev user, a project wired up to the SDK
--- playground (http://localhost:5174), and a few example notes.
+-- playground (http://localhost:5174) and the portal's own landing page
+-- (http://localhost:5173, which uses this key locally), and a few example notes.
 -- Safe to re-run: every insert is INSERT OR IGNORE.
 
 INSERT OR IGNORE INTO users (id, github_id, login, name, avatar_url, created_at)
@@ -8,7 +9,7 @@ VALUES ('usr_dev', 0, 'dev', 'Dev User', NULL, 1767225600000);
 INSERT OR IGNORE INTO projects (id, owner_id, name, public_key, allowed_origins, created_at)
 VALUES (
   'prj_playground', 'usr_dev', 'SDK Playground', 'pk_dev_playground',
-  '["http://localhost:5174","http://127.0.0.1:5174"]', 1767225600000
+  '["http://localhost:5174","http://127.0.0.1:5174","http://localhost:5173"]', 1767225600000
 );
 
 INSERT OR IGNORE INTO feedback

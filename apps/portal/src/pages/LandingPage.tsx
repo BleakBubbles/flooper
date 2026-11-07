@@ -1,3 +1,4 @@
+import type { FlooperInstance } from "@flooper/sdk";
 import { useQuery } from "@tanstack/react-query";
 import { type ReactNode, useEffect } from "react";
 import { Link } from "react-router";
@@ -16,6 +17,7 @@ import "./landing.css";
 export function LandingPage() {
   usePageTitle();
   useCanonical("/");
+  useFlooperWidget();
   // Already logged in? Then the way in is the app, not the login button.
   const me = useQuery({ queryKey: keys.me, queryFn: api.me });
   const loggedIn = me.isSuccess;
@@ -135,6 +137,33 @@ function useCanonical(path: string) {
     document.head.append(link);
     return () => link.remove();
   }, [path]);
+}
+
+/**
+ * The page's own project key: notes left here land in the "flooper.app" site.
+ * Locally it's the dev seed's SDK Playground, so testing never reaches the
+ * real inbox. Keys are public by design, like a Stripe publishable key.
+ */
+const FLOOPER_KEY = import.meta.env.DEV ? "pk_dev_playground" : "pk_nrszdxgx2qsh5qq1992mwsmc";
+
+/**
+ * Flooper on Flooper's own page: the real widget, so visitors can try it.
+ * Loaded only here (the app never downloads it), and removed when you leave,
+ * since "Open the app" switches pages without a reload.
+ */
+function useFlooperWidget() {
+  useEffect(() => {
+    let widget: FlooperInstance | undefined;
+    let left = false;
+    void import("@flooper/sdk").then(({ init }) => {
+      if (left) return;
+      widget = init({ projectKey: FLOOPER_KEY, apiUrl: window.location.origin });
+    });
+    return () => {
+      left = true;
+      widget?.destroy();
+    };
+  }, []);
 }
 
 function Step({ n, title, children }: { n: number; title: string; children: ReactNode }) {
