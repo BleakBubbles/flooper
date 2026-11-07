@@ -5,9 +5,27 @@ place to keep ideas so they don't get lost. Finished items move to the bottom.
 
 ## Next
 
-### Remaining from the first deploy
+### Email notifications
 
-- Put the widget on a real page (your own site) and live with it for a bit.
+An email (or daily digest) when new notes arrive, so owners don't have to
+remember to check the app. Introduces background work (Queues or Cron
+Triggers) and sending email. See "Notifications" below for the longer view.
+
+### Scaling, from the surge audit (2026-11-07)
+
+The per-site cap and the pause switch are in (see docs/operations.md). Next,
+as volume grows:
+
+- **Running counts** for the home screen's per-site summaries, instead of
+  counting every note on each load.
+- **Cloudflare's rate limiting binding** instead of a database write per note.
+- **Indexes or limits** for sorting by site, note or page, which read every note.
+- **A retention policy** for old archived notes.
+
+### App polish
+
+- The login page, to match the black landing page.
+- Light and dark: keep following the system, or go black like the landing page.
 
 ## Later
 
@@ -78,6 +96,28 @@ Production patterns it would exercise: scoped short-lived credentials,
 code splitting, aggregation queries, and designing for data that drifts.
 
 ## Done
+
+- **Safeguards for a surge, 2026-11-07.** At most 1000 notes per site per day
+  (UTC), whoever sends them, and an `INGEST_PAUSED` secret that stops all
+  incoming notes without a deploy. The widget explains both. How to use them,
+  and what to set up in Cloudflare: docs/operations.md.
+- **Flooper on flooper.app, 2026-11-07.** The landing page runs the real widget
+  (loaded on demand, never in the app), so visitors can try it; notes land in
+  the `flooper.app` site.
+- **Widget polish, 2026-11-07.** The launcher's creature rests as a C and turns
+  up into the logo's pose on hover; its ring in dark mode is firmer (60% white);
+  the picked reaction gets an outline. Site icons never load favicons from local
+  or private addresses (no more "access other apps and services" prompt).
+- **Landing page pass, 2026-11-07.** One section gap and the app's gutter; a
+  73px header shared with the app; the note ring sizes itself to fit the first
+  screen, with a "new notes" counter at the tunnel's mouth that lets go of a
+  "+1" per note; the play button sits inside the ring; the DevTools claims stay
+  put until clicked; a plain closing line ("Join the Feedback Loop today.").
+  Signed out, the header is a single "Log in" straight to GitHub. Signed out,
+  `/about` sends you to `/`, and the page names `/` as its canonical address.
+- **Notes read when you click off them, 2026-11-06.** Instead of after 1.5 s
+  open; clicking an empty spot on the page also closes the open note, and the
+  notes list takes the note's column while none is open.
 
 - **Portal redesign, 2026-11-05.** One header (logo / site switcher, Site
   settings, account); the inbox is a single panel whose toolbar holds the

@@ -1,6 +1,6 @@
 import type { ProjectWithSummary } from "@flooper/shared/schemas";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { type ReactNode, useCallback } from "react";
+import { type MouseEvent, type ReactNode, useCallback } from "react";
 import { Link, useSearchParams } from "react-router";
 import { api, keys } from "../api";
 import { ErrorState } from "../components/ErrorState";
@@ -11,6 +11,10 @@ import { SetupPanel } from "../components/SetupPanel";
 import { SiteIcon } from "../components/SiteIcon";
 import { SiteSettings } from "../components/SiteSettings";
 import { usePageTitle } from "../usePageTitle";
+
+/** What a click away from the open note must not land on. */
+const INTERACTIVE_OR_NOTE =
+  "a, button, input, textarea, select, label, summary, [role='menu'], .note-row, .reading-pane, .note-inline";
 
 const SHOWS: Show[] = ["all", "unread", "done", "archived"];
 
@@ -53,6 +57,20 @@ export function SitesPage() {
   );
   const onOpen = useCallback((id: string | null) => update({ note: id }), [update]);
 
+  /**
+   * Clicking an empty spot closes the open note, like clicking away from a
+   * popover. Clicks on anything that does something (links, buttons, fields,
+   * menus), on a row (which opens its own note) or inside the note stay put.
+   */
+  const closeOnEmptyClick = (event: MouseEvent<HTMLElement>) => {
+    if (!params.get("note")) return;
+    const target = event.target as Element;
+    if (target.closest(INTERACTIVE_OR_NOTE)) return;
+    // A drag that selected text isn't a click away.
+    if (window.getSelection()?.toString()) return;
+    onOpen(null);
+  };
+
   if (projects.isPending) return <main className="page muted">Loading…</main>;
   if (projects.isError) {
     return (
@@ -84,7 +102,8 @@ export function SitesPage() {
   }
 
   return (
-    <main className="page home">
+    // biome-ignore lint/a11y/useKeyWithClickEvents: click-away is a convenience for pointers; Escape closes the note from the keyboard.
+    <main className="page home" onClick={closeOnEmptyClick}>
       <h1 className="sr-only">{adding ? "Add a site" : site ? site.name : "All sites"}</h1>
       <div className="home-layout">
         <Sidebar sites={sites} current={adding ? undefined : site} adding={adding} />

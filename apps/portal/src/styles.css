@@ -725,9 +725,9 @@ pre,
 /* Home, like a mail app. On a standard screen: the sites on the left and the
    open note on the right at fixed widths, the notes list filling the space
    between, with the same gap everywhere, so the three read as one connected
-   set. The note's column stays reserved while empty, so the list never
-   resizes. Narrower, the list fills the space beside the sidebar and notes
-   open in it; narrower still, the sidebar becomes a row of sites. */
+   set. While no note is open, the list takes the note's column too, instead
+   of leaving it empty. Narrower, the list fills the space beside the sidebar
+   and notes open in it; narrower still, the sidebar becomes a row of sites. */
 .page.home {
   max-width: none;
   padding-inline: 24px;
@@ -759,6 +759,9 @@ pre,
     display: contents;
   }
   .notes-panel {
+    grid-column: 2 / -1;
+  }
+  .notes-area.reading .notes-panel {
     grid-column: 2;
   }
   /* The open note stays in view while the list scrolls. */
