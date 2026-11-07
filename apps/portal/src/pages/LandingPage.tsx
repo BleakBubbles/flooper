@@ -115,13 +115,18 @@ export function LandingPage() {
 
       <footer className="landing-footer">
         <span>Flooper. Made for small sites.</span>
-        <Link to={loggedIn ? "/" : "/login"} className="landing-footer-link">
-          Open the app
-          <MiniIcon size={13}>
-            <path d="M7 7h10v10" />
-            <path d="M7 17 17 7" />
-          </MiniIcon>
-        </Link>
+        {/* Signed out, straight to GitHub like "Log in": one click, not two. */}
+        {loggedIn ? (
+          <Link to="/" className="landing-footer-link">
+            Open the app
+            <FooterArrow />
+          </Link>
+        ) : (
+          <a href="/api/auth/github" className="landing-footer-link">
+            Open the app
+            <FooterArrow />
+          </a>
+        )}
       </footer>
     </div>
   );
@@ -244,6 +249,15 @@ function PickerSketch() {
         </span>
       </span>
     </div>
+  );
+}
+
+function FooterArrow() {
+  return (
+    <MiniIcon size={13}>
+      <path d="M7 7h10v10" />
+      <path d="M7 17 17 7" />
+    </MiniIcon>
   );
 }
 
