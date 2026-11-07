@@ -651,6 +651,7 @@ body:has(.landing) {
   letter-spacing: -0.03em;
 }
 .landing-cta p {
+  text-wrap: balance;
   margin-top: 6px;
   color: var(--fg-2);
 }
@@ -660,7 +661,9 @@ body:has(.landing) {
   justify-content: space-between;
   gap: 12px;
   padding-top: 22px;
-  padding-bottom: 22px;
+  /* Room below, so the page's own Flooper button (fixed 20px from the
+     corner, 48px tall) never sits on the footer's links. */
+  padding-bottom: 84px;
   border-top: 1px solid var(--border);
   color: var(--muted);
   font-size: 13px;
