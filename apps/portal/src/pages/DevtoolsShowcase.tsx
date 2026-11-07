@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useState } from "react";
 import "./devtools.css";
 
 type Tab = "Elements" | "Console" | "Network";
@@ -69,41 +69,18 @@ const CLAIMS: Claim[] = [
 ];
 
 const TABS = ["Elements", "Console", "Sources", "Network", "Performance"];
-const SECONDS_PER_CLAIM = 7;
 
 /**
  * "Built the way you'd build it": one mock browser with DevTools open, and the
  * claims as tabs beside it. Each claim switches DevTools to where you'd verify
- * it yourself. Cycles on its own until you hover or pick one; with reduced
- * motion it waits for you.
+ * it yourself. It stays on the one you pick; nothing moves on its own.
  */
 export function DevtoolsShowcase({ heading }: { heading: string }) {
   const [active, setActive] = useState(0);
-  const [held, setHeld] = useState(false);
-  const [reduced] = useState(() => window.matchMedia("(prefers-reduced-motion: reduce)").matches);
   const claim = CLAIMS[active] as Claim;
-  const cycling = !held && !reduced;
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: restart the timer on every switch, so a click gets a full turn too.
-  useEffect(() => {
-    if (!cycling) return;
-    const timer = setTimeout(
-      () => setActive((i) => (i + 1) % CLAIMS.length),
-      SECONDS_PER_CLAIM * 1000,
-    );
-    return () => clearTimeout(timer);
-  }, [active, cycling]);
 
   return (
-    // Hovering or focusing anywhere in it holds the current claim.
-    <section
-      className="dt-showcase"
-      aria-labelledby="dt-heading"
-      onPointerEnter={() => setHeld(true)}
-      onPointerLeave={() => setHeld(false)}
-      onFocus={() => setHeld(true)}
-      onBlur={() => setHeld(false)}
-    >
+    <section className="dt-showcase" aria-labelledby="dt-heading">
       {/* The heading heads the list, not the whole section, so the left
           column reads as one unit and starts level with the window. */}
       <div className="dt-side">
@@ -139,12 +116,6 @@ export function DevtoolsShowcase({ heading }: { heading: string }) {
                 <strong>{c.title}</strong>
                 <span className="dt-claim-line">{c.line}</span>
               </span>
-              {i === active && cycling && (
-                <span
-                  className="dt-progress"
-                  style={{ animationDuration: `${SECONDS_PER_CLAIM}s` }}
-                />
-              )}
             </button>
           ))}
         </div>
