@@ -105,8 +105,10 @@ export function LandingPage() {
 
       <section className="landing-cta">
         <div>
-          <h2>Start hearing from your users.</h2>
-          <p>Log in with GitHub, add your site, and load the script.</p>
+          <h2>Join the Feedback Loop today.</h2>
+          <p>
+            Log in with GitHub, add your sites, and start collecting feedback with a single script.
+          </p>
         </div>
         <GithubButton />
       </section>
