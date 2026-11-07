@@ -8,6 +8,12 @@ import type { UserRow } from "./db/users";
 export interface Bindings extends Env {
   GITHUB_CLIENT_ID?: string;
   GITHUB_CLIENT_SECRET?: string;
+  /**
+   * The emergency switch: "true" stops accepting notes (everything else keeps
+   * working). A secret rather than a var, so it can be flipped without a
+   * deploy, and a deploy doesn't flip it back. See docs/operations.md.
+   */
+  INGEST_PAUSED?: string;
 }
 
 /** Per-request values that middleware stores on the Hono context. */
