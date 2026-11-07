@@ -32,7 +32,10 @@
     "APP_URL": "http://localhost:5173/",
     // Extra origins allowed to make cookie-authenticated portal requests.
     // In production the portal is same-origin, so this can be empty.
-    "TRUSTED_ORIGINS": "http://localhost:5173"
+    "TRUSTED_ORIGINS": "http://localhost:5173",
+    // At most this many notes per site per day (UTC), whoever sends them: a
+    // backstop against floods the per-visitor rate limit can't catch.
+    "NOTES_PER_SITE_PER_DAY": "1000"
   },
 
   "env": {
@@ -47,7 +50,8 @@
       "vars": {
         "ENVIRONMENT": "production",
         "APP_URL": "/",
-        "TRUSTED_ORIGINS": ""
+        "TRUSTED_ORIGINS": "",
+        "NOTES_PER_SITE_PER_DAY": "1000"
       },
       "d1_databases": [
         {

@@ -26,6 +26,7 @@ import { parseJsonBody } from "../lib/validate";
 export const ingest = new Hono<AppEnv>();
 
 const RATE_LIMIT = { limit: 10, windowMs: 60_000 };
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 ingest.use("*", async (c, next) => {
   const origin = c.req.header("Origin");
@@ -47,6 +48,15 @@ ingest.options("/:publicKey/feedback", (c) => {
 });
 
 ingest.post("/:publicKey/feedback", async (c) => {
+  // The emergency switch, checked before any database work. 503 with a long
+  // Retry-After: the SDK doesn't retry waits over 10 seconds, so visitors get
+  // one clear message instead of a burst of retries.
+  if (c.env.INGEST_PAUSED === "true") {
+    throw new ApiError(503, "paused", "Notes are paused for a little while", undefined, {
+      "Retry-After": "300",
+    });
+  }
+
   const project = await authorizeOrigin(c);
   const submission = await parseJsonBody(c, feedbackSubmissionSchema, LIMITS.ingestBodyMaxBytes);
 
@@ -76,6 +86,27 @@ ingest.post("/:publicKey/feedback", async (c) => {
     throw new ApiError(429, "rate_limited", "Slow down a little and try again soon", undefined, {
       "Retry-After": String(rate.retryAfter),
     });
+  }
+
+  // And a daily cap per site, whoever sends: a flood from many visitors (or
+  // many addresses) stops here instead of filling the inbox and the database.
+  const perDay = Number(c.env.NOTES_PER_SITE_PER_DAY) || 1000;
+  const today = await hitRateLimit(c.env.DB, `site-day:${project.id}`, {
+    limit: perDay,
+    windowMs: DAY_MS,
+  });
+  if (!today.allowed) {
+    log("warn", "site daily limit reached", {
+      requestId: c.get("requestId"),
+      projectId: project.id,
+    });
+    throw new ApiError(
+      429,
+      "site_limit_reached",
+      "This site has had a lot of notes today. Try again tomorrow",
+      undefined,
+      { "Retry-After": String(today.retryAfter) },
+    );
   }
 
   const { id } = await insertFeedback(c.env.DB, project.id, submission);

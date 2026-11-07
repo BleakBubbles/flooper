@@ -43,6 +43,8 @@ export type SubmitHandler = (input: WidgetInput) => Promise<SubmitResult>;
 const FAILURE_MESSAGES: Partial<Record<SubmitErrorCode, string>> = {
   network_error: "Couldn't connect. Check your connection and try again.",
   rate_limited: "That's a lot of notes! Try again in a minute.",
+  site_limit_reached: "This site has had a lot of notes today. Try again tomorrow.",
+  paused: "Notes are paused for a little while. Try again later.",
   origin_not_allowed: "Notes aren't switched on for this site yet.",
   not_found: "Notes aren't switched on for this site yet.",
   internal_error: "Something went wrong on our end. Try again?",
