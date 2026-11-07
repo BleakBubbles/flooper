@@ -32,7 +32,7 @@
   flex-direction: column;
   gap: 20px;
 }
-/* The claims: a list of tabs, with a bar that fills while each one is shown. */
+/* The claims: a list of tabs. */
 .dt-claims {
   display: flex;
   flex-direction: column;
@@ -106,24 +106,6 @@
 /* Every sentence always shows, so nothing moves; the others are just quieter. */
 .dt-claim[aria-selected="false"] .dt-claim-line {
   color: var(--faint);
-}
-.dt-progress {
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  height: 2px;
-  width: 100%;
-  background: var(--accent);
-  transform-origin: left;
-  animation: dt-progress linear forwards;
-}
-@keyframes dt-progress {
-  from {
-    transform: scaleX(0);
-  }
-  to {
-    transform: scaleX(1);
-  }
 }
 
 /* The window: a browser with DevTools docked at the bottom, on a soft glow. */
