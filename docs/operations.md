@@ -41,6 +41,34 @@ Edit `NOTES_PER_SITE_PER_DAY` in both `vars` blocks of `apps/api/wrangler.jsonc`
 (local and production), run `pnpm exec wrangler types` in `apps/api`, and ship
 it like any change. Today's count carries on; only the limit moves.
 
+## The daily digest
+
+Once a day (13:00 UTC, the `triggers` cron in `apps/api/wrangler.jsonc`), each
+user who turned the digest on gets one email about notes that arrived since
+their last one, grouped by site, with a one-click unsubscribe. Days without new
+notes send nothing. If the provider refuses an email, that user's next run
+covers everything since the last one that went out.
+
+Emails go through [Resend](https://resend.com). To switch sending on:
+
+1. Create a Resend account and add the domain `flooper.app` (Domains → Add).
+2. Add the DNS records Resend shows to the `flooper.app` zone in Cloudflare
+   (DNS → Records), then wait for Resend to mark the domain verified.
+3. Create an API key with "Sending access" and store it as a secret, from
+   `apps/api`:
+
+   ```bash
+   pnpm exec wrangler secret put RESEND_API_KEY --env production
+   ```
+
+Without the key, digests are written to the logs instead of sent, which is how
+it runs locally. Emails come from `EMAIL_FROM` (`Flooper <notes@flooper.app>`).
+Resend's free plan sends 100 emails a day; each run sends to at most 100 users
+(`USERS_PER_RUN` in `apps/api/src/digest.ts`), so raise both together.
+
+To run a digest locally, with the API's dev server running (`pnpm dev`), open
+`http://localhost:8787/__scheduled`; the digest is printed in its log.
+
 ## Worth setting up in Cloudflare
 
 - **Plan:** the free Workers plan stops serving after its daily request and

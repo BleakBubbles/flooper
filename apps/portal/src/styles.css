@@ -1474,3 +1474,39 @@ pre,
 .danger-row .confirm-label {
   flex-basis: 100%;
 }
+
+/* The daily digest: its setting, and the one-time prompt above the notes. */
+.digest-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.check-row input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--fg);
+}
+.digest-prompt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--divider);
+  color: var(--fg-2);
+}
+.digest-prompt-text {
+  flex: 1 1 260px;
+}
+.digest-prompt-actions {
+  display: flex;
+  gap: 6px;
+}

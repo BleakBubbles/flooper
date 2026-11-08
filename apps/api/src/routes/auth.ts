@@ -48,7 +48,9 @@ auth.get("/github", (c) => {
   const url = new URL("https://github.com/login/oauth/authorize");
   url.searchParams.set("client_id", clientId);
   url.searchParams.set("redirect_uri", callbackUrl(c));
-  url.searchParams.set("scope", "read:user");
+  // user:email: the primary verified address, to pre-fill the daily digest
+  // setting. Nothing is sent until the user turns the digest on.
+  url.searchParams.set("scope", "read:user user:email");
   url.searchParams.set("state", state);
   return c.redirect(url.toString());
 });
@@ -122,7 +124,30 @@ async function fetchGithubProfile(c: Context<AppEnv>, code: string) {
     login: profile.login,
     name: profile.name,
     avatarUrl: profile.avatar_url,
+    email: await fetchPrimaryEmail(token.access_token),
   };
+}
+
+/**
+ * The user's primary verified email, or null if GitHub won't say (an older
+ * session without the user:email scope, or no verified address). Never fails
+ * the login over it.
+ */
+async function fetchPrimaryEmail(accessToken: string): Promise<string | null> {
+  try {
+    const res = await fetch("https://api.github.com/user/emails", {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: "application/vnd.github+json",
+        "User-Agent": "flooper",
+      },
+    });
+    if (!res.ok) return null;
+    const emails = (await res.json()) as { email: string; primary: boolean; verified: boolean }[];
+    return emails.find((e) => e.primary && e.verified)?.email ?? null;
+  } catch {
+    return null;
+  }
 }
 
 /** Local development only: log in as a fake user without setting up GitHub. */
@@ -133,6 +158,7 @@ auth.post("/dev-login", async (c) => {
     login: "dev",
     name: "Dev User",
     avatarUrl: null,
+    email: "dev@example.com",
   });
   setSessionCookie(c, await createSession(c.env.DB, user.id));
   return c.body(null, 204);

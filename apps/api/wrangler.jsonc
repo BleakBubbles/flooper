@@ -10,7 +10,9 @@
   "assets": {
     "directory": "../portal/dist",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*"]
+    // /__scheduled: so `wrangler dev --test-scheduled` can run the daily digest
+    // locally (nothing answers it in production but the API's "not found").
+    "run_worker_first": ["/api/*", "/__scheduled"]
   },
 
   "d1_databases": [
@@ -35,8 +37,16 @@
     "TRUSTED_ORIGINS": "http://localhost:5173",
     // At most this many notes per site per day (UTC), whoever sends them: a
     // backstop against floods the per-visitor rate limit can't catch.
-    "NOTES_PER_SITE_PER_DAY": "1000"
+    "NOTES_PER_SITE_PER_DAY": "1000",
+    // Links in emails point here. Emails come from EMAIL_FROM (a domain
+    // verified with the email provider; see docs/operations.md).
+    "PUBLIC_URL": "http://localhost:5173",
+    "EMAIL_FROM": "Flooper <notes@flooper.app>"
   },
+
+  // The daily digest, 13:00 UTC (morning in the Americas, afternoon in Europe).
+  // Run it locally: wrangler dev --test-scheduled, then GET /__scheduled.
+  "triggers": { "crons": ["0 13 * * *"] },
 
   "env": {
     "production": {
@@ -51,8 +61,11 @@
         "ENVIRONMENT": "production",
         "APP_URL": "/",
         "TRUSTED_ORIGINS": "",
-        "NOTES_PER_SITE_PER_DAY": "1000"
+        "NOTES_PER_SITE_PER_DAY": "1000",
+        "PUBLIC_URL": "https://flooper.app",
+        "EMAIL_FROM": "Flooper <notes@flooper.app>"
       },
+      "triggers": { "crons": ["0 13 * * *"] },
       "d1_databases": [
         {
           "binding": "DB",

@@ -12,6 +12,7 @@ import { sortNotes } from "../sortNotes";
 import { timeAgo } from "../time";
 import { useMarkRead } from "../useMarkRead";
 import { useMediaQuery } from "../useMediaQuery";
+import { DigestPrompt } from "./DigestPrompt";
 import { ErrorState } from "./ErrorState";
 import { FeedbackDetail } from "./FeedbackDetail";
 import { ArchiveIcon, CheckIcon, InboxIcon, MailIcon, MailOpenIcon, SmileIcon } from "./icons";
@@ -317,6 +318,7 @@ export function NotesPanel({
           </span>
         </div>
 
+        <DigestPrompt />
         {withPane && loaded.length > 0 && (
           <ColumnHeaders showSite={!site} sort={active} onSort={cycleSort} />
         )}

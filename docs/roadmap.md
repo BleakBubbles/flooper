@@ -5,12 +5,6 @@ place to keep ideas so they don't get lost. Finished items move to the bottom.
 
 ## Next
 
-### Email notifications
-
-An email (or daily digest) when new notes arrive, so owners don't have to
-remember to check the app. Introduces background work (Queues or Cron
-Triggers) and sending email. See "Notifications" below for the longer view.
-
 ### Scaling, from the surge audit (2026-11-07)
 
 The per-site cap and the pause switch are in (see docs/operations.md). Next,
@@ -97,6 +91,11 @@ code splitting, aggregation queries, and designing for data that drifts.
 
 ## Done
 
+- **Daily digest emails, 2026-11-07.** Opt in from the prompt above your notes or
+  from "Email digest" in the account menu; one email a day (13:00 UTC) about
+  new notes, by site, with one-click unsubscribe. The address comes from GitHub
+  at sign-in and is yours to change. A cron trigger and Resend; see
+  docs/operations.md. Next on this path: instant emails, then "close the loop".
 - **Safeguards for a surge, 2026-11-07.** At most 1000 notes per site per day
   (UTC), whoever sends them, and an `INGEST_PAUSED` secret that stops all
   incoming notes without a deploy. The widget explains both. How to use them,
