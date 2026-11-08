@@ -14,6 +14,8 @@ export interface Bindings extends Env {
    * deploy, and a deploy doesn't flip it back. See docs/operations.md.
    */
   INGEST_PAUSED?: string;
+  /** Resend's API key, for the daily digest. Without it, digests are logged, not sent. */
+  RESEND_API_KEY?: string;
 }
 
 /** Per-request values that middleware stores on the Hono context. */
