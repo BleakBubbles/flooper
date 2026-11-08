@@ -1,5 +1,6 @@
 import { Hono } from "hono";
-import type { AppEnv } from "./env";
+import { resendSender, runDigests } from "./digest";
+import type { AppEnv, Bindings } from "./env";
 import { ApiError, notFound } from "./lib/errors";
 import { log } from "./lib/log";
 import { requireTrustedOrigin } from "./middleware/auth";
@@ -7,11 +8,13 @@ import { requestContext } from "./middleware/request-context";
 import { auth } from "./routes/auth";
 import { ingest } from "./routes/ingest";
 import { portal } from "./routes/portal";
+import { unsubscribe } from "./routes/unsubscribe";
 
 // Request flow:
 //
 //   /api/v1/ingest/:key/feedback   public, CORS, called by the SDK on any site
 //   /api/auth/*                    login/logout (cookie-based)
+//   /api/unsubscribe/:token        public, from the link in digest emails
 //   /api/v1/*                      portal API (cookie session + origin check)
 //   everything else                the portal's static files (see wrangler.jsonc)
 
@@ -22,6 +25,7 @@ app.use(requestContext);
 app.get("/health", (c) => c.json({ ok: true }));
 
 app.route("/v1/ingest", ingest);
+app.route("/unsubscribe", unsubscribe);
 
 app.use("/auth/*", requireTrustedOrigin);
 app.route("/auth", auth);
@@ -50,4 +54,10 @@ app.onError((err, c) => {
   return c.json(body, 500);
 });
 
-export default app;
+export default {
+  fetch: app.fetch,
+  // The daily digest (see `triggers` in wrangler.jsonc).
+  scheduled(_controller, env, ctx) {
+    ctx.waitUntil(runDigests(env, Date.now(), resendSender(env)));
+  },
+} satisfies ExportedHandler<Bindings>;

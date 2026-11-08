@@ -78,7 +78,7 @@ function ConnectionStatus({ site }: { site: ProjectWithSummary }) {
   );
 }
 
-function SettingRow({
+export function SettingRow({
   title,
   help,
   children,

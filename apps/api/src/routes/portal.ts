@@ -5,6 +5,7 @@ import {
   listAllFeedbackQuerySchema,
   listFeedbackQuerySchema,
   markAllReadSchema,
+  notificationSettingsSchema,
   updateFeedbackSchema,
   updateProjectSchema,
 } from "@flooper/shared/schemas";
@@ -28,7 +29,7 @@ import {
   toProject,
   updateProject,
 } from "../db/projects";
-import { toUser } from "../db/users";
+import { toUser, updateNotificationSettings } from "../db/users";
 import type { AuthedEnv } from "../env";
 import { decodeCursor, encodeCursor } from "../lib/cursor";
 import { notFound } from "../lib/errors";
@@ -49,6 +50,13 @@ portal.use(requireUser);
 portal.get("/me", (c) => {
   setSignedInHint(c);
   return c.json(toUser(c.get("user")));
+});
+
+// The daily digest: on or off, and where it goes.
+portal.put("/me/notifications", async (c) => {
+  const settings = await parseJsonBody(c, notificationSettingsSchema);
+  const row = await updateNotificationSettings(c.env.DB, c.get("user").id, settings);
+  return c.json(toUser(row));
 });
 
 // Each site comes with its summary, for the cards on the home screen.

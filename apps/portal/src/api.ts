@@ -3,6 +3,7 @@ import type {
   CreateProjectInput,
   Feedback,
   NoteSort,
+  NotificationSettings,
   Project,
   ProjectWithSummary,
   UpdateProjectInput,
@@ -97,6 +98,9 @@ export const api = {
   getFeedback: (id: string) => request<Feedback>("GET", `/v1/feedback/${id}`),
   updateFeedback: (id: string, status: FeedbackStatus) =>
     request<Feedback>("PATCH", `/v1/feedback/${id}`, { status }),
+  /** The daily digest: on or off, and where it goes. */
+  updateNotifications: (settings: NotificationSettings) =>
+    request<User>("PUT", "/v1/me/notifications", settings),
 };
 
 /**

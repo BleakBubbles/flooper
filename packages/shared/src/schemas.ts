@@ -125,7 +125,23 @@ export interface User {
   login: string;
   name: string | null;
   avatarUrl: string | null;
+  /** Where daily digests go (from GitHub at first sign-in, then the user's to change). */
+  email: string | null;
+  /** Whether they get a daily email about new notes. Off until they turn it on. */
+  digestEnabled: boolean;
 }
+
+/** Turning the daily digest on or off, and where it goes. */
+export const notificationSettingsSchema = z
+  .object({
+    email: z.email().max(254).nullable(),
+    digestEnabled: z.boolean(),
+  })
+  .refine((s) => !s.digestEnabled || s.email !== null, {
+    message: "Add an email address to get the daily digest",
+    path: ["email"],
+  });
+export type NotificationSettings = z.infer<typeof notificationSettingsSchema>;
 
 export interface Project {
   id: string;

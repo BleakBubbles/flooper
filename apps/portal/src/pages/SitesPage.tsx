@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type MouseEvent, type ReactNode, useCallback } from "react";
 import { Link, useSearchParams } from "react-router";
 import { api, keys } from "../api";
+import { AccountSettings } from "../components/AccountSettings";
 import { ErrorState } from "../components/ErrorState";
 import { GearIcon, InboxIcon, MailOpenIcon, MoreIcon } from "../components/icons";
 import { Menu } from "../components/Menu";
@@ -29,6 +30,7 @@ const SHOWS: Show[] = ["all", "unread", "done", "archived"];
  * - a site's setup steps, until its first note arrives
  * - "Add a site" (?new), which is also all a brand-new account sees
  * - a site's settings (?view=settings)
+ * - your own settings (?view=account), from the account menu
  */
 export function SitesPage() {
   const projects = useQuery({ queryKey: keys.projects, queryFn: api.listProjects });
@@ -38,8 +40,13 @@ export function SitesPage() {
   const show = SHOWS.find((s) => s === params.get("show")) ?? "all";
   const adding = params.has("new") || (projects.isSuccess && sites.length === 0);
   const settings = site !== undefined && params.get("view") === "settings";
+  const account = params.get("view") === "account";
   usePageTitle(
-    ...(adding ? ["Add a site"] : [settings ? "Settings" : undefined, site?.name ?? "All sites"]),
+    ...(adding
+      ? ["Add a site"]
+      : account
+        ? ["Your settings"]
+        : [settings ? "Settings" : undefined, site?.name ?? "All sites"]),
   );
 
   /** Change some URL parameters, keeping the rest (null removes one). */
@@ -81,7 +88,9 @@ export function SitesPage() {
   }
 
   let middle: ReactNode;
-  if (adding) {
+  if (account && !adding) {
+    middle = <AccountSettings />;
+  } else if (adding) {
     // Keyed so a second "Add a site" starts from a blank step 1.
     middle = <SetupPanel key="new" site={null} closeHref={sites.length > 0 ? "/" : undefined} />;
   } else if (site && settings) {

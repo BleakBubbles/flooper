@@ -4,7 +4,7 @@ import { Link, Outlet } from "react-router";
 import { ApiRequestError, api, keys } from "../api";
 import { LoginPage } from "../pages/LoginPage";
 import { ErrorState } from "./ErrorState";
-import { InfoIcon, LogOutIcon } from "./icons";
+import { InfoIcon, LogOutIcon, MailIcon } from "./icons";
 import { Menu } from "./Menu";
 
 /**
@@ -77,6 +77,12 @@ function AccountMenu({ user }: { user: User }) {
         </span>
       </div>
       <hr />
+      <Link to="/?view=account">
+        <span className="with-icon">
+          <MailIcon />
+          Email digest
+        </span>
+      </Link>
       {/* Home is the app now, so the landing page lives here. */}
       <Link to="/about">
         <span className="with-icon">
