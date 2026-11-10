@@ -1,9 +1,10 @@
 import { type FeedbackStatus, type Paginated, REACTION_EMOJI } from "@flooper/shared";
-import type { Feedback, NoteSort, ProjectWithSummary } from "@flooper/shared/schemas";
+import type { Feedback, NoteSort, PageGroup, ProjectWithSummary } from "@flooper/shared/schemas";
 import {
   type InfiniteData,
   useInfiniteQuery,
   useMutation,
+  useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
 import { type ReactNode, useEffect, useState } from "react";
@@ -15,9 +16,19 @@ import { useMediaQuery } from "../useMediaQuery";
 import { DigestPrompt } from "./DigestPrompt";
 import { ErrorState } from "./ErrorState";
 import { FeedbackDetail } from "./FeedbackDetail";
-import { ArchiveIcon, CheckIcon, InboxIcon, MailIcon, MailOpenIcon, SmileIcon } from "./icons";
+import {
+  ArchiveIcon,
+  CheckIcon,
+  CollapseAllIcon,
+  ExpandAllIcon,
+  InboxIcon,
+  MailIcon,
+  MailOpenIcon,
+  SmileIcon,
+} from "./icons";
 import { Menu } from "./Menu";
 import { REACTION_LABELS, StatusActions } from "./NoteActions";
+import { PageHeader } from "./PageHeader";
 import { SiteIcon } from "./SiteIcon";
 
 /** Which notes the list shows. "all" is everything but archived. */
@@ -25,6 +36,7 @@ export type Show = "all" | "unread" | "done" | "archived";
 /** A column the list is sorted by, or null for the default (newest first). */
 type Sort = { by: NoteSort; dir: "asc" | "desc" } | null;
 type NotePages = InfiniteData<Paginated<Feedback>, string | undefined>;
+type PageGroups = { data: PageGroup[] };
 
 const PAGE_SIZE = 50;
 /** Wide enough for the sidebar, the list and the reading pane side by side. Matches the CSS. */
@@ -63,21 +75,32 @@ const SHOWS: {
  * A note counts as read once you click off it (close it or open another). Each row also has
  * quick actions (read/unread, done, archive), and the title bar can mark
  * everything read, so working through notes never leaves the page.
+ *
+ * Sorting by Page groups the notes under their pages, busiest page first, with
+ * each page's newest few notes; "Show more" narrows the list to that page
+ * until its chip in the title bar is cleared.
  */
 export function NotesPanel({
   sites,
   site,
   show,
+  page,
   openId,
   onShow,
+  onPickPage,
+  onClearPage,
   onOpen,
 }: {
   sites: ProjectWithSummary[];
   /** The site picked in the sidebar, if any. */
   site: ProjectWithSummary | undefined;
   show: Show;
+  /** Just this page's notes (a path), if one was picked from its group. */
+  page: string | null;
   openId: string | null;
   onShow: (show: Show) => void;
+  onPickPage: (page: PageGroup) => void;
+  onClearPage: () => void;
   onOpen: (id: string | null) => void;
 }) {
   const queryClient = useQueryClient();
@@ -85,22 +108,37 @@ export function NotesPanel({
   const [sort, setSort] = useState<Sort>(null);
   // One site's notes all have the same site, so sorting by it means nothing.
   const active = sort && !(site && sort.by === "site") ? sort : null;
-  const sorted = active ?? NEWEST_FIRST;
-  /** A column header was clicked: ascending, then descending, then off. */
+  // Sorting by Page groups the notes under their pages (busiest first, "desc"),
+  // unless one page is picked already: then it's just that page's notes.
+  const grouped = active?.by === "page" && !page;
+  const listSort = active?.by === "page" ? null : active;
+  const sorted = listSort ?? NEWEST_FIRST;
+  /**
+   * A column header was clicked: ascending, then descending, then off. Page
+   * starts with busiest first, the useful end.
+   */
   const cycleSort = (by: NoteSort) =>
-    setSort((current) =>
-      current?.by !== by ? { by, dir: "asc" } : current.dir === "asc" ? { by, dir: "desc" } : null,
-    );
+    setSort((current) => {
+      const first = by === "page" ? "desc" : "asc";
+      if (current?.by !== by) return { by, dir: first };
+      return current.dir === first ? { by, dir: first === "asc" ? "desc" : "asc" } : null;
+    });
 
   const showing = SHOWS.find((s) => s.value === show) ?? (SHOWS[0] as (typeof SHOWS)[number]);
   const listQuery = (sort: { by: NoteSort; dir: "asc" | "desc" }, enabled: boolean) => ({
-    queryKey: keys.allFeedback(showing.status, `${sort.by}-${sort.dir}`, site?.id),
+    queryKey: keys.allFeedback(
+      showing.status,
+      `${sort.by}-${sort.dir}`,
+      site?.id,
+      page ?? undefined,
+    ),
     queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
       api.listAllFeedback({
         status: showing.status,
         sort: sort.by,
         dir: sort.dir,
         projectId: site?.id,
+        page: page ?? undefined,
         cursor: pageParam,
         limit: PAGE_SIZE,
       }),
@@ -113,14 +151,22 @@ export function NotesPanel({
   // too, with no request. Otherwise the server sorts, so the order covers
   // notes that aren't loaded yet.
   const baseQuery = listQuery(NEWEST_FIRST, true);
-  const base = useInfiniteQuery(baseQuery);
-  const sortHere = !!active && base.isSuccess && !base.hasNextPage;
-  const serverQuery = listQuery(sorted, !!active && !sortHere);
+  const base = useInfiniteQuery({ ...baseQuery, enabled: !grouped });
+  const sortHere = !!listSort && base.isSuccess && !base.hasNextPage;
+  const serverQuery = listQuery(sorted, !grouped && !!listSort && !sortHere);
   const sortedByServer = useInfiniteQuery(serverQuery);
-  const byServer = !!active && !sortHere;
+  const byServer = !!listSort && !sortHere;
   const notes = byServer ? sortedByServer : base;
+  // Grouped by page: each page with its counts and newest notes, in one request.
+  const groupsKey = keys.pages(site?.id, showing.status);
+  const groups = useQuery({
+    queryKey: groupsKey,
+    queryFn: () => api.listPages({ projectId: site?.id, status: showing.status }),
+    enabled: grouped,
+  });
+  const listing = grouped ? groups : notes;
   // Changes to notes (read, done, ...) go to the list that's showing.
-  const queryKey = byServer ? serverQuery.queryKey : baseQuery.queryKey;
+  const queryKey = grouped ? groupsKey : byServer ? serverQuery.queryKey : baseQuery.queryKey;
 
   const sitesById = new Map(sites.map((s) => [s.id, s]));
   const inScope = site ? [site] : sites;
@@ -133,10 +179,31 @@ export function NotesPanel({
     done: sum((s) => s.summary.done),
     archived: sum((s) => s.summary.archived),
   }[show];
-  const fetched = notes.data?.pages.flatMap((p) => p.data) ?? [];
-  const loaded = sortHere && active ? sortNotes(fetched, active, sitesById) : fetched;
+  // Busiest first from the server; flipped here for quietest first.
+  const busiestFirst = groups.data?.data ?? [];
+  const pageGroups = active?.dir === "asc" ? [...busiestFirst].reverse() : busiestFirst;
+  const allNotes = busiestFirst.reduce((n, g) => n + g.total, 0);
+  // Which pages are folded away, by site and path. Kept while the list
+  // refreshes, so a fold survives marking a note read.
+  const [folded, setFolded] = useState<ReadonlySet<string>>(new Set());
+  const groupKey = (g: PageGroup) => `${g.projectId} ${g.path}`;
+  const allFolded = pageGroups.length > 0 && pageGroups.every((g) => folded.has(groupKey(g)));
+  const foldAll = (fold: boolean) =>
+    setFolded(fold ? new Set(pageGroups.map(groupKey)) : new Set());
+  const toggleFold = (g: PageGroup) =>
+    setFolded((current) => {
+      const next = new Set(current);
+      if (next.has(groupKey(g))) next.delete(groupKey(g));
+      else next.add(groupKey(g));
+      return next;
+    });
+  const fetched = grouped
+    ? pageGroups.flatMap((g) => g.notes)
+    : (notes.data?.pages.flatMap((p) => p.data) ?? []);
+  const loaded = sortHere && listSort ? sortNotes(fetched, listSort, sitesById) : fetched;
   // From the sites' counts, which can lag a moment behind; never below zero.
-  const left = Math.max(0, total - loaded.length);
+  // They count whole sites, so with one page picked there's no count to give.
+  const left = page ? 0 : Math.max(0, total - loaded.length);
   const open = loaded.find((n) => n.id === openId);
 
   // Esc closes the open note.
@@ -149,19 +216,30 @@ export function NotesPanel({
     return () => window.removeEventListener("keydown", onKey);
   }, [openId, onOpen]);
 
-  /** Change this list's copy of the notes, dropping any `keep` returns false for. */
+  /**
+   * Change this list's copy of the notes, dropping any `keep` returns false
+   * for. Grouped, a page's counts catch up when the server answers.
+   */
   const updateList = (change: (note: Feedback) => Feedback, keep: (note: Feedback) => boolean) =>
-    queryClient.setQueryData<NotePages>(
-      queryKey,
-      (data) =>
-        data && {
-          ...data,
-          pages: data.pages.map((page) => ({
-            ...page,
-            data: page.data.map(change).filter(keep),
-          })),
-        },
-    );
+    grouped
+      ? queryClient.setQueryData<PageGroups>(
+          queryKey,
+          (data) =>
+            data && {
+              data: data.data.map((g) => ({ ...g, notes: g.notes.map(change).filter(keep) })),
+            },
+        )
+      : queryClient.setQueryData<NotePages>(
+          queryKey,
+          (data) =>
+            data && {
+              ...data,
+              pages: data.pages.map((page) => ({
+                ...page,
+                data: page.data.map(change).filter(keep),
+              })),
+            },
+        );
   const belongs = (note: Feedback) =>
     showing.status ? note.status === showing.status : note.status !== "archived";
   /** The sidebar's counts come from the sites list. */
@@ -175,7 +253,7 @@ export function NotesPanel({
       api.updateFeedback(id, next),
     onMutate: async ({ id, status: next }) => {
       await queryClient.cancelQueries({ queryKey });
-      const previous = queryClient.getQueryData<NotePages>(queryKey);
+      const previous = queryClient.getQueryData(queryKey);
       updateList(
         (n) => (n.id === id ? { ...n, status: next } : n),
         (n) => n.id === openId || belongs(n),
@@ -242,6 +320,21 @@ export function NotesPanel({
     );
   };
 
+  const row = (note: Feedback) => (
+    <li key={note.id}>
+      <NoteRow
+        note={note}
+        site={sitesById.get(note.projectId)}
+        showSite={!site}
+        isOpen={note.id === openId}
+        onOpen={() => onOpen(note.id === openId ? null : note.id)}
+        onStatus={(next) => setStatus.mutate({ id: note.id, status: next })}
+      />
+      {/* Without room for the pane, the note opens right here, under its row. */}
+      {!withPane && note.id === openId && <div className="note-inline">{detail(note)}</div>}
+    </li>
+  );
+
   return (
     <div className={open && withPane ? "notes-area reading" : "notes-area"}>
       <section className="notes-panel" aria-labelledby="notes-heading">
@@ -249,9 +342,32 @@ export function NotesPanel({
           <h2 id="notes-heading" className="notes-title">
             {site ? site.name : "All sites"}
           </h2>
+          {page && (
+            <button
+              type="button"
+              className="page-chip"
+              onClick={onClearPage}
+              aria-label={`Showing notes on ${page}. Show every page's notes.`}
+            >
+              <span className="mono">{page}</span>
+              <span aria-hidden="true">×</span>
+            </button>
+          )}
           {/* The unread count is in the sidebar, right beside this. */}
           <span className="notes-bar-end">
-            {unread > 0 && (
+            {/* "Mark all as read" covers whole sites, so not with one page picked. */}
+            {grouped && pageGroups.length > 1 && (
+              <button
+                type="button"
+                className="icon-button"
+                aria-label={allFolded ? "Expand all pages" : "Collapse all pages"}
+                data-tooltip={allFolded ? "Expand all" : "Collapse all"}
+                onClick={() => foldAll(!allFolded)}
+              >
+                {allFolded ? <ExpandAllIcon /> : <CollapseAllIcon />}
+              </button>
+            )}
+            {!page && unread > 0 && (
               <button
                 type="button"
                 className="icon-button"
@@ -314,6 +430,15 @@ export function NotesPanel({
                   Oldest first
                 </button>
               )}
+              {!withPane && (
+                <button
+                  type="button"
+                  aria-pressed={active?.by === "page"}
+                  onClick={() => setSort({ by: "page", dir: "desc" })}
+                >
+                  By page
+                </button>
+              )}
             </Menu>
           </span>
         </div>
@@ -322,33 +447,36 @@ export function NotesPanel({
         {withPane && loaded.length > 0 && (
           <ColumnHeaders showSite={!site} sort={active} onSort={cycleSort} />
         )}
-        {notes.isPending && <p className="notes-empty muted">Loading…</p>}
-        {notes.isError && !notes.data && (
+        {listing.isPending && <p className="notes-empty muted">Loading…</p>}
+        {listing.isError && !listing.data && (
           <div className="notes-empty">
-            <ErrorState error={notes.error} onRetry={() => notes.refetch()} />
+            <ErrorState error={listing.error} onRetry={() => listing.refetch()} />
           </div>
         )}
-        {notes.isSuccess && loaded.length === 0 && <EmptyNotes show={show} />}
+        {listing.isSuccess && loaded.length === 0 && <EmptyNotes show={show} />}
 
-        <ul className="notes-list">
-          {loaded.map((note) => (
-            <li key={note.id}>
-              <NoteRow
-                note={note}
-                site={sitesById.get(note.projectId)}
-                showSite={!site}
-                isOpen={note.id === openId}
-                onOpen={() => onOpen(note.id === openId ? null : note.id)}
-                onStatus={(next) => setStatus.mutate({ id: note.id, status: next })}
-              />
-              {/* Without room for the pane, the note opens right here, under its row. */}
-              {!withPane && note.id === openId && <div className="note-inline">{detail(note)}</div>}
-            </li>
-          ))}
-        </ul>
+        {grouped ? (
+          pageGroups.map((group) => (
+            <PageGroupSection
+              key={groupKey(group)}
+              group={group}
+              folded={folded.has(groupKey(group))}
+              // Alt-click folds or unfolds every page, like a tree in DevTools.
+              onToggle={(all) => (all ? foldAll(!folded.has(groupKey(group))) : toggleFold(group))}
+              site={sitesById.get(group.projectId)}
+              showSite={!site}
+              all={allNotes}
+              onMore={() => onPickPage(group)}
+            >
+              {group.notes.map(row)}
+            </PageGroupSection>
+          ))
+        ) : (
+          <ul className="notes-list">{loaded.map(row)}</ul>
+        )}
 
         {/* Notes come 50 at a time; the rest load on request. */}
-        {notes.hasNextPage && (
+        {!grouped && notes.hasNextPage && (
           <div className="notes-more">
             <button
               type="button"
@@ -388,7 +516,15 @@ function ColumnHeaders({
   const header = (by: NoteSort, label: ReactNode, name: string) => {
     const on = sort?.by === by;
     const arrow = on ? (sort.dir === "asc" ? "↑" : "↓") : by === "time" && !sort ? "↓" : "";
-    const state = on ? (sort.dir === "asc" ? "ascending" : "descending") : "not sorted";
+    const state = !on
+      ? "not sorted"
+      : by === "page"
+        ? sort.dir === "desc"
+          ? "grouped, busiest page first"
+          : "grouped, quietest page first"
+        : sort.dir === "asc"
+          ? "ascending"
+          : "descending";
     return (
       <button
         type="button"
@@ -418,6 +554,55 @@ function ColumnHeaders({
         <span className="note-time">{header("time", "When", "When")}</span>
       </div>
     </div>
+  );
+}
+
+/**
+ * One page's group: its header, then its newest notes, then "Show N more"
+ * when it has more than that. The header folds the group away (with Alt,
+ * every group).
+ */
+function PageGroupSection({
+  group,
+  folded,
+  onToggle,
+  site,
+  showSite,
+  all,
+  onMore,
+  children,
+}: {
+  group: PageGroup;
+  folded: boolean;
+  /** `all` when Alt was held: fold or unfold every page. */
+  onToggle: (all: boolean) => void;
+  site: ProjectWithSummary | undefined;
+  showSite: boolean;
+  all: number;
+  onMore: () => void;
+  children: ReactNode;
+}) {
+  const more = group.total - group.notes.length;
+  return (
+    <section className="page-group" aria-label={`Notes on ${group.path}`}>
+      <PageHeader
+        group={group}
+        site={showSite ? site : undefined}
+        all={all}
+        folded={folded}
+        onToggle={onToggle}
+      />
+      {!folded && (
+        <>
+          <ul className="notes-list">{children}</ul>
+          {more > 0 && (
+            <button type="button" className="page-more" onClick={onMore}>
+              Show {more} more on <span className="mono">{group.path}</span> →
+            </button>
+          )}
+        </>
+      )}
+    </section>
   );
 }
 

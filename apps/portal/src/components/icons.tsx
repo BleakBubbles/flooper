@@ -26,6 +26,22 @@ export const ChevronIcon = () => (
   </Icon>
 );
 
+/** "Collapse all": two chevrons pointing in, folding everything shut. */
+export const CollapseAllIcon = () => (
+  <Icon>
+    <path d="m7 20 5-5 5 5" />
+    <path d="m7 4 5 5 5-5" />
+  </Icon>
+);
+
+/** "Expand all": two chevrons pointing out, opening everything up. */
+export const ExpandAllIcon = () => (
+  <Icon>
+    <path d="m7 15 5 5 5-5" />
+    <path d="m7 9 5-5 5 5" />
+  </Icon>
+);
+
 /** "All notes": an inbox tray. */
 export const InboxIcon = () => (
   <Icon>

@@ -106,6 +106,18 @@ export const listAllFeedbackQuerySchema = listFeedbackQuerySchema.extend({
   dir: z.enum(["asc", "desc"]).default("desc"),
   /** Just this one of the user's sites. */
   projectId: z.string().max(64).optional(),
+  /** Just the notes left on this page (its path, as in `context.path`). */
+  page: z.string().max(2048).optional(),
+});
+
+/**
+ * The notes list grouped by page: every site's pages, or just one site's.
+ * Counts and notes follow `status` like the list does (archived left out
+ * unless asked for).
+ */
+export const listPagesQuerySchema = z.object({
+  projectId: z.string().max(64).optional(),
+  status: z.enum(FEEDBACK_STATUSES).optional(),
 });
 
 /** "Mark all as read": every site's new notes, or just one site's. */
@@ -166,6 +178,25 @@ export interface ProjectSummary {
   lastNoteAt: string | null;
   /** Notes per day for the last 14 days, oldest first. The last entry is the last 24 hours. */
   activity: number[];
+}
+
+/**
+ * One page of one site, and the notes left on it: counts, and the newest few
+ * notes themselves. Archived notes aren't counted unless asked for, like the
+ * notes list.
+ */
+export interface PageGroup {
+  projectId: string;
+  /** The page's path, as in a note's `context.path`. */
+  path: string;
+  total: number;
+  /** Notes still marked new. */
+  newCount: number;
+  /** Notes by reaction. Notes without a reaction aren't counted here. */
+  byReaction: Partial<Record<(typeof REACTIONS)[number], number>>;
+  lastNoteAt: string;
+  /** The page's newest notes (a few), newest first. The rest load by page. */
+  notes: Feedback[];
 }
 
 /** A site as the sites list returns it: the project plus its summary. */

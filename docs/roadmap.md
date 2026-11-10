@@ -18,7 +18,6 @@ as volume grows:
 
 ### App polish
 
-- The login page, to match the black landing page.
 - Light and dark: keep following the system, or go black like the landing page.
 
 ## Later
@@ -37,11 +36,10 @@ The repo is private for now. When it's time to make it public:
 5. Optionally publish the SDK to npm as `@flooper/sdk` (claim the `@flooper`
    scope first).
 
-### Notifications
+### Instant emails
 
-An email (or daily digest) when new notes arrive, so owners don't have to
-remember to check the portal. Introduces background work (Queues or Cron
-Triggers) and sending email.
+An email as each note arrives, for owners who'd rather not wait for the daily
+digest (which is done; see below).
 
 ### Close the loop
 
@@ -78,9 +76,9 @@ answer the real question ("what are people reacting to?").
 
 Stepping stones, each useful on its own:
 
-1. **Per-page heat in the portal:** which pages get the most feedback, with
-   reaction breakdowns. Needs only the page path, which is already captured
-   (worth promoting to an indexed `page_path` column).
+1. **Per-page heat in the portal** (done: sorting by Page groups the notes by
+   page). Still worth promoting the path to an indexed `page_path` column as
+   volume grows; for now it's read from each note's context.
 2. **The picker,** so notes carry selectors.
 3. **"Show me on the page,"** the single-note version of review mode.
 4. **Full review mode:** per-element aggregation, review tokens, the
@@ -91,6 +89,15 @@ code splitting, aggregation queries, and designing for data that drifts.
 
 ## Done
 
+- **Notes grouped by page, 2026-11-10.** Sorting by the Page column (or "By
+  page" in the list's menu on smaller screens) groups the notes under their
+  pages, busiest first (click again for quietest first). Each page's header
+  has a bar for how busy it is, its reactions, unread count and total, and
+  folds away; under it, its 3 newest notes, then "Show N more", which narrows
+  the list to that page (a removable chip in the title bar). Follows the Show
+  filter. New API: `GET /v1/pages`, and a `page` filter on `GET /v1/feedback`.
+- **Login page on black, 2026-11-10.** The landing page's look, with the logo
+  large above "Log in to Flooper" and the shared "Continue with GitHub".
 - **Daily digest emails, 2026-11-07.** Opt in from the prompt above your notes or
   from "Email digest" in the account menu; one email a day (13:00 UTC) about
   new notes, by site, with one-click unsubscribe. The address comes from GitHub

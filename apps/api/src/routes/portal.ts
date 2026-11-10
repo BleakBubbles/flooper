@@ -4,6 +4,7 @@ import {
   type Feedback,
   listAllFeedbackQuerySchema,
   listFeedbackQuerySchema,
+  listPagesQuerySchema,
   markAllReadSchema,
   notificationSettingsSchema,
   updateFeedbackSchema,
@@ -15,6 +16,7 @@ import {
   emptySummary,
   getFeedbackForOwner,
   listFeedback,
+  listPageGroups,
   markAllSeen,
   type SortedFeedbackRow,
   summarizeProjects,
@@ -125,6 +127,12 @@ portal.get("/feedback", async (c) => {
     },
   );
   return c.json(page(result));
+});
+
+// The notes list grouped by page, busiest first: every site's, or one site's.
+portal.get("/pages", async (c) => {
+  const query = parseQuery(c, listPagesQuerySchema);
+  return c.json({ data: await listPageGroups(c.env.DB, c.get("user").id, query) });
 });
 
 // "Mark all as read" on the home screen.
