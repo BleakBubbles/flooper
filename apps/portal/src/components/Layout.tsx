@@ -8,10 +8,10 @@ import { LoginPage } from "../pages/LoginPage";
 import { type Theme, useTheme } from "../theme";
 import { ErrorState } from "./ErrorState";
 import {
+  GearIcon,
   InfoIcon,
   KeyboardIcon,
   LogOutIcon,
-  MailIcon,
   MessageIcon,
   MonitorIcon,
   MoonIcon,
@@ -127,10 +127,11 @@ function AccountMenu({ user }: { user: User }) {
       <hr />
       <ThemePicker theme={theme} onPick={setTheme} />
       <hr />
+      {/* Your settings: the digest, exporting notes, deleting the account. */}
       <Link to="/?view=account">
         <span className="with-icon">
-          <MailIcon />
-          Email digest
+          <GearIcon />
+          Settings
         </span>
       </Link>
       {/* Home is the app now, so the landing page lives here. */}
