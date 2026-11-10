@@ -16,6 +16,7 @@ import { sortNotes } from "../sortNotes";
 import { timeAgo } from "../time";
 import { useMarkRead } from "../useMarkRead";
 import { useMediaQuery } from "../useMediaQuery";
+import { Checkbox } from "./Checkbox";
 import { DigestPrompt } from "./DigestPrompt";
 import { ErrorState } from "./ErrorState";
 import { FeedbackDetail } from "./FeedbackDetail";
@@ -35,6 +36,7 @@ import {
 import { Menu } from "./Menu";
 import { DeletedActions, REACTION_LABELS, StatusActions } from "./NoteActions";
 import { PageHeader } from "./PageHeader";
+import { SelectionBar } from "./SelectionBar";
 import { SiteIcon } from "./SiteIcon";
 import { showToast } from "./Toasts";
 
@@ -263,6 +265,39 @@ export function NotesPanel({
   // The note the keyboard is on: the open one, else a highlighted row.
   const [cursorId, setCursorId] = useState<string | null>(null);
   const currentId = openId ?? (shown.some((n) => n.id === cursorId) ? cursorId : null);
+  // Selected notes, for acting on several at once. Cleared when the view
+  // changes, so nothing hidden is ever acted on.
+  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+  const [anchorId, setAnchorId] = useState<string | null>(null);
+  const viewKey = `${site?.id}|${show}|${q}|${page}|${grouped}`;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a new view starts with nothing selected.
+  useEffect(() => {
+    setSelected(new Set());
+    setAnchorId(null);
+  }, [viewKey]);
+  const selectedNotes = shown.filter((n) => selected.has(n.id));
+  const selecting = selectedNotes.length > 0;
+  const allSelected = selecting && selectedNotes.length === shown.length;
+  const clearSelection = () => setSelected(new Set());
+  /** A row's box: one note, or (with Shift) every note from the last one picked. */
+  const toggleSelect = (id: string, range: boolean) => {
+    const next = new Set(selected);
+    const on = !selected.has(id);
+    const from = anchorId ? shown.findIndex((n) => n.id === anchorId) : -1;
+    const to = shown.findIndex((n) => n.id === id);
+    if (range && from >= 0 && to >= 0) {
+      const [lo, hi] = from < to ? [from, to] : [to, from];
+      for (const n of shown.slice(lo, hi + 1)) {
+        if (on) next.add(n.id);
+        else next.delete(n.id);
+      }
+    } else if (on) next.add(id);
+    else next.delete(id);
+    setSelected(next);
+    setAnchorId(id);
+  };
+  const selectAll = (on: boolean) => setSelected(on ? new Set(shown.map((n) => n.id)) : new Set());
+
   /** The note after this one in the list (or before, at the end): where to go next. */
   const nextAfter = (id: string) => {
     const i = shown.findIndex((n) => n.id === id);
@@ -456,6 +491,76 @@ export function NotesPanel({
     }
   };
 
+  // Acting on the selection: all at once, at once in the list, with one Undo.
+  const plural = (n: number) => `${n} ${n === 1 ? "note" : "notes"}`;
+  const BULK_DONE: Record<FeedbackStatus, string> = {
+    seen: "Marked as read",
+    new: "Marked as unread",
+    done: "Marked done",
+    archived: "Archived",
+  };
+  /** Selected notes to one status; Undo puts each back to what it was. */
+  const bulkStatus = (status: FeedbackStatus) => {
+    const notes = selectedNotes;
+    const ids = notes.map((n) => n.id);
+    updateList(
+      (n) => (ids.includes(n.id) ? { ...n, status } : n),
+      (n) => !ids.includes(n.id) || belongs(n),
+    );
+    if (open && ids.includes(open.id) && !belongs({ ...open, status })) openNow(null);
+    clearSelection();
+    const before = new Map<FeedbackStatus, string[]>();
+    for (const n of notes) before.set(n.status, [...(before.get(n.status) ?? []), n.id]);
+    void api
+      .setStatuses(ids, status)
+      .then(() =>
+        showToast({
+          message: `${BULK_DONE[status]}: ${plural(ids.length)}`,
+          undo: () =>
+            void Promise.all([...before].map(([was, back]) => api.setStatuses(back, was))).then(
+              refreshAll,
+              refreshAll,
+            ),
+        }),
+      )
+      .finally(refreshAll);
+  };
+  const leaveList = (ids: string[]) => {
+    dropNow(ids);
+    if (openId && ids.includes(openId)) openNow(null);
+    clearSelection();
+  };
+  const bulkDelete = () => {
+    const ids = selectedNotes.map((n) => n.id);
+    leaveList(ids);
+    void api
+      .deleteNotes(ids)
+      .then(() =>
+        showToast({
+          message: `Deleted ${plural(ids.length)}`,
+          undo: () => void api.restoreNotes(ids).then(refreshAll, refreshAll),
+        }),
+      )
+      .finally(refreshAll);
+  };
+  const bulkRestore = () => {
+    const ids = selectedNotes.map((n) => n.id);
+    leaveList(ids);
+    void api
+      .restoreNotes(ids)
+      .then(() => showToast({ message: `Restored ${plural(ids.length)}` }))
+      .finally(refreshAll);
+  };
+  const bulkDeleteForever = () => {
+    const ids = selectedNotes.map((n) => n.id);
+    if (!window.confirm(`Delete ${plural(ids.length)} forever? This can't be undone.`)) return;
+    leaveList(ids);
+    void api
+      .deleteNotesForever(ids)
+      .then(() => showToast({ message: `Deleted ${plural(ids.length)} forever` }))
+      .finally(refreshAll);
+  };
+
   const detail = (note: Feedback) => {
     const from = sitesById.get(note.projectId);
     return (
@@ -497,6 +602,8 @@ export function NotesPanel({
     const onKey = (event: KeyboardEvent) => {
       if (event.metaKey || event.ctrlKey || event.altKey) return;
       if (isTyping(event, ", dialog")) return;
+      // A row's own box handles Space; everything else here is ours.
+      if ((event.target as Element).closest(".select-box") && event.key === " ") return;
       // Enter on a focused button or link is that button's own click.
       if (event.key === "Enter" && (event.target as Element).closest("button, a")) return;
       const index = shown.findIndex((n) => n.id === currentId);
@@ -516,7 +623,45 @@ export function NotesPanel({
         if (openId) onOpen(after?.id ?? null);
         else setCursorId(after?.id ?? null);
       };
+      // With notes selected, the actions act on all of them.
+      if (selecting) {
+        const bulk: Record<string, () => void> = {
+          e: () => bulkStatus("archived"),
+          d: () => bulkStatus("done"),
+          u: () => bulkStatus(selectedNotes.some((n) => n.status === "new") ? "seen" : "new"),
+          "#": () => (deletedView ? undefined : bulkDelete()),
+          Escape: clearSelection,
+        };
+        const act = bulk[event.key];
+        if (act) {
+          act();
+          event.preventDefault();
+          return;
+        }
+      }
       switch (event.key) {
+        case "x":
+          if (!current) return;
+          toggleSelect(current.id, false);
+          break;
+        case "J":
+        case "K": {
+          // Extend the selection down or up, like Shift+arrows in a file list.
+          if (!current) return;
+          const next =
+            shown[Math.min(shown.length - 1, Math.max(0, index + (event.key === "J" ? 1 : -1)))];
+          const both = new Set(selected).add(current.id);
+          if (next) both.add(next.id);
+          setSelected(both);
+          if (next) {
+            if (openId) onOpen(next.id);
+            else setCursorId(next.id);
+            document
+              .querySelector(`[data-note="${next.id}"]`)
+              ?.scrollIntoView({ block: "nearest" });
+          }
+          break;
+        }
         case "j":
           move(1);
           break;
@@ -571,6 +716,8 @@ export function NotesPanel({
         showSite={!site}
         isCursor={!openId && note.id === currentId}
         isOpen={note.id === openId}
+        isSelected={selected.has(note.id)}
+        onSelect={(range) => toggleSelect(note.id, range)}
         onOpen={() => onOpen(note.id === openId ? null : note.id)}
         onStatus={(next) => setStatus.mutate({ id: note.id, status: next, previous: note.status })}
         onRestore={() => restoreNote.mutate(note.id)}
@@ -583,115 +730,144 @@ export function NotesPanel({
 
   return (
     <div className={open && withPane ? "notes-area reading" : "notes-area"}>
-      <section className="notes-panel" aria-labelledby="notes-heading">
-        <div className="notes-bar">
-          <h2 id="notes-heading" className="notes-title">
-            {site ? site.name : "All sites"}
-          </h2>
-          {page && (
-            <button
-              type="button"
-              className="page-chip"
-              onClick={onClearPage}
-              aria-label={`Showing notes on ${page}. Show every page's notes.`}
-            >
-              <span className="mono">{page}</span>
-              <span aria-hidden="true">×</span>
-            </button>
-          )}
-          {/* The unread count is in the sidebar, right beside this. */}
-          <span className="notes-bar-end">
-            {/* "Mark all as read" covers whole sites, so not with one page picked. */}
-            {grouped && pageGroups.length > 1 && (
+      <section
+        className={selecting ? "notes-panel selecting" : "notes-panel"}
+        aria-labelledby="notes-heading"
+      >
+        {selecting ? (
+          <SelectionBar
+            count={selectedNotes.length}
+            all={allSelected}
+            deletedView={deletedView}
+            onSelectAll={selectAll}
+            onClear={clearSelection}
+            onRead={() => bulkStatus("seen")}
+            onUnread={() => bulkStatus("new")}
+            onDone={() => bulkStatus("done")}
+            onArchive={() => bulkStatus("archived")}
+            onDelete={bulkDelete}
+            onRestore={bulkRestore}
+            onDeleteForever={bulkDeleteForever}
+          />
+        ) : (
+          <div className="notes-bar">
+            <h2 id="notes-heading" className="notes-title">
+              {site ? site.name : "All sites"}
+            </h2>
+            {page && (
               <button
                 type="button"
-                className="icon-button"
-                aria-label={allFolded ? "Expand all pages" : "Collapse all pages"}
-                data-tooltip={allFolded ? "Expand all" : "Collapse all"}
-                onClick={() => foldAll(!allFolded)}
+                className="page-chip"
+                onClick={onClearPage}
+                aria-label={`Showing notes on ${page}. Show every page's notes.`}
               >
-                {allFolded ? <ExpandAllIcon /> : <CollapseAllIcon />}
+                <span className="mono">{page}</span>
+                <span aria-hidden="true">×</span>
               </button>
             )}
-            {!page && unread > 0 && (
-              <button
-                type="button"
-                className="icon-button"
-                aria-label={site ? `Mark all of ${site.name} as read` : "Mark all as read"}
-                data-tooltip="Mark all as read"
-                onClick={() => markAllRead.mutate()}
-                disabled={markAllRead.isPending}
+            {/* The unread count is in the sidebar, right beside this. */}
+            <span className="notes-bar-end">
+              {/* "Mark all as read" covers whole sites, so not with one page picked. */}
+              {grouped && pageGroups.length > 1 && (
+                <button
+                  type="button"
+                  className="icon-button"
+                  aria-label={allFolded ? "Expand all pages" : "Collapse all pages"}
+                  data-tooltip={allFolded ? "Expand all" : "Collapse all"}
+                  onClick={() => foldAll(!allFolded)}
+                >
+                  {allFolded ? <ExpandAllIcon /> : <CollapseAllIcon />}
+                </button>
+              )}
+              {!page && unread > 0 && (
+                <button
+                  type="button"
+                  className="icon-button"
+                  aria-label={site ? `Mark all of ${site.name} as read` : "Mark all as read"}
+                  data-tooltip="Mark all as read"
+                  onClick={() => markAllRead.mutate()}
+                  disabled={markAllRead.isPending}
+                >
+                  <MailOpenIcon />
+                </button>
+              )}
+              <Menu
+                label={
+                  // Every option stacked in one spot, only the current one visible,
+                  // so the button is always as wide as the longest and never jumps.
+                  <span className="stable-label">
+                    {SHOWS.map((s) => (
+                      <span
+                        key={s.value}
+                        className={s.value === show ? "with-icon" : "with-icon ghost"}
+                      >
+                        {s.icon}
+                        {s.label}
+                      </span>
+                    ))}
+                  </span>
+                }
+                ariaLabel={`Show: ${showing.label}`}
+                buttonClass="sort-button"
+                showChevron
+                alignRight
               >
-                <MailOpenIcon />
-              </button>
-            )}
-            <Menu
-              label={
-                // Every option stacked in one spot, only the current one visible,
-                // so the button is always as wide as the longest and never jumps.
-                <span className="stable-label">
-                  {SHOWS.map((s) => (
-                    <span
-                      key={s.value}
-                      className={s.value === show ? "with-icon" : "with-icon ghost"}
-                    >
+                <span className="menu-label">Show</span>
+                {SHOWS.map((s) => (
+                  <button
+                    key={s.value}
+                    type="button"
+                    aria-pressed={show === s.value}
+                    onClick={() => onShow(s.value)}
+                  >
+                    <span className="with-icon">
                       {s.icon}
                       {s.label}
                     </span>
-                  ))}
-                </span>
-              }
-              ariaLabel={`Show: ${showing.label}`}
-              buttonClass="sort-button"
-              showChevron
-              alignRight
-            >
-              <span className="menu-label">Show</span>
-              {SHOWS.map((s) => (
-                <button
-                  key={s.value}
-                  type="button"
-                  aria-pressed={show === s.value}
-                  onClick={() => onShow(s.value)}
-                >
-                  <span className="with-icon">
-                    {s.icon}
-                    {s.label}
-                  </span>
-                </button>
-              ))}
-              {/* Without column headers (smaller screens), the order lives here. */}
-              {!withPane && <span className="menu-label">Order</span>}
-              {!withPane && (
-                <button type="button" aria-pressed={!active} onClick={() => setSort(null)}>
-                  Newest first
-                </button>
-              )}
-              {!withPane && (
-                <button
-                  type="button"
-                  aria-pressed={active?.by === "time" && active.dir === "asc"}
-                  onClick={() => setSort({ by: "time", dir: "asc" })}
-                >
-                  Oldest first
-                </button>
-              )}
-              {!withPane && (
-                <button
-                  type="button"
-                  aria-pressed={active?.by === "page"}
-                  onClick={() => setSort({ by: "page", dir: "desc" })}
-                >
-                  By page
-                </button>
-              )}
-            </Menu>
-          </span>
-        </div>
+                  </button>
+                ))}
+                {/* Without column headers (smaller screens), the order lives here. */}
+                {!withPane && <span className="menu-label">Order</span>}
+                {!withPane && (
+                  <button type="button" aria-pressed={!active} onClick={() => setSort(null)}>
+                    Newest first
+                  </button>
+                )}
+                {!withPane && (
+                  <button
+                    type="button"
+                    aria-pressed={active?.by === "time" && active.dir === "asc"}
+                    onClick={() => setSort({ by: "time", dir: "asc" })}
+                  >
+                    Oldest first
+                  </button>
+                )}
+                {!withPane && (
+                  <button
+                    type="button"
+                    aria-pressed={active?.by === "page"}
+                    onClick={() => setSort({ by: "page", dir: "desc" })}
+                  >
+                    By page
+                  </button>
+                )}
+              </Menu>
+            </span>
+          </div>
+        )}
 
         <DigestPrompt />
         {withPane && loaded.length > 0 && (
-          <ColumnHeaders showSite={!site} sort={active} onSort={cycleSort} />
+          <ColumnHeaders
+            showSite={!site}
+            sort={active}
+            onSort={cycleSort}
+            selectAll={{
+              all: allSelected,
+              some: selecting,
+              onToggle: () => selectAll(!allSelected),
+            }}
+          />
         )}
         {listing.isPending && <p className="notes-empty muted">Loading…</p>}
         {listing.isError && !listing.data && (
@@ -756,10 +932,13 @@ function ColumnHeaders({
   showSite,
   sort,
   onSort,
+  selectAll,
 }: {
   showSite: boolean;
   sort: Sort;
   onSort: (by: NoteSort) => void;
+  /** The box over the rows' boxes: select every note shown, or none. */
+  selectAll: { all: boolean; some: boolean; onToggle: () => void };
 }) {
   const header = (by: NoteSort, label: ReactNode, name: string) => {
     const on = sort?.by === by;
@@ -790,6 +969,13 @@ function ColumnHeaders({
   };
   return (
     <div className={showSite ? "note-row notes-columns" : "note-row notes-columns no-site"}>
+      <Checkbox
+        className="note-check"
+        checked={selectAll.all}
+        mixed={selectAll.some}
+        label={selectAll.all ? "Select none" : "Select all"}
+        onToggle={selectAll.onToggle}
+      />
       <div className="note-open">
         {/* The same slots as a row (the dot's invisible), so the labels line up. */}
         <span className="note-lead">
@@ -896,6 +1082,8 @@ function NoteRow({
   showSite,
   isOpen,
   isCursor,
+  isSelected,
+  onSelect,
   onOpen,
   onStatus,
   onRestore,
@@ -907,6 +1095,9 @@ function NoteRow({
   isOpen: boolean;
   /** Where the keyboard is (j/k), while no note is open. */
   isCursor: boolean;
+  isSelected: boolean;
+  /** `range`: Shift was held, to select every note from the last one picked. */
+  onSelect: (range: boolean) => void;
   onOpen: () => void;
   onStatus: (status: FeedbackStatus) => void;
   onRestore: () => void;
@@ -919,9 +1110,17 @@ function NoteRow({
     showSite ? "" : "no-site",
     isOpen ? "open" : "",
     isCursor ? "cursor" : "",
+    isSelected ? "selected" : "",
   ];
   return (
     <div className={classes.filter(Boolean).join(" ")}>
+      {/* Over the unread dot: shown on hover, and on every row while selecting. */}
+      <Checkbox
+        className="note-check"
+        checked={isSelected}
+        label={`Select: ${headline(note)}`}
+        onToggle={onSelect}
+      />
       <button type="button" className="note-open" onClick={onOpen} aria-expanded={isOpen}>
         <span className="note-lead">
           <span className="note-dot" aria-hidden="true" />

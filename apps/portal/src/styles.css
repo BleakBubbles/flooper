@@ -2112,3 +2112,118 @@ kbd,
   gap: 4px;
   margin: 0;
 }
+
+/* Selecting notes: a box over each row's unread dot, shown on hover and on
+   every row once something is selected (Gmail's pattern). The column header
+   row is a .note-row too, so its select-all box follows the same rules. */
+.select-box {
+  /* Drawn here rather than the browser's own: a softer, slightly thicker
+     border that doesn't shimmer, pink once ticked. Still a real checkbox.
+     The checkbox itself is 27px, the whole click target, so it doesn't take
+     careful aim; the 15px box you see is drawn inside it (::before), and the
+     -6px margin keeps it taking only the box's room in a row of things. */
+  appearance: none;
+  position: relative;
+  display: inline-grid;
+  place-content: center;
+  flex: none;
+  width: 27px;
+  height: 27px;
+  min-width: 0;
+  margin: -6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+.select-box::before {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border: 1.5px solid color-mix(in srgb, var(--muted) 55%, transparent);
+  border-radius: 4px;
+  transition:
+    border-color 0.12s ease,
+    background 0.12s ease;
+}
+.select-box:hover::before {
+  border-color: var(--muted);
+}
+.select-box:focus-visible {
+  outline: none;
+}
+.select-box:focus-visible::before {
+  outline: 2px solid color-mix(in srgb, var(--accent) 50%, transparent);
+  outline-offset: 2px;
+}
+.select-box:checked::before,
+.select-box:indeterminate::before {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+/* The tick, and the dash for "some selected", in the accent's text colour. */
+.select-box::after {
+  content: "";
+  position: relative;
+  width: 8px;
+  height: 8px;
+  background: var(--accent-fg);
+  opacity: 0;
+  clip-path: polygon(14% 44%, 0 59%, 39% 100%, 100% 23%, 86% 9%, 39% 70%);
+}
+.select-box:checked::after {
+  opacity: 1;
+}
+.select-box:indeterminate::after {
+  height: 2px;
+  border-radius: 1px;
+  clip-path: none;
+  opacity: 1;
+}
+.note-check {
+  position: absolute;
+  top: 50%;
+  /* Centred on the dot: the row's 18px padding plus half the 7px dot, less
+     half the 27px target (the -6px margin doesn't apply to a positioned box). */
+  left: calc(18px + 3.5px - 13.5px);
+  margin: 0;
+  translate: 0 -50%;
+  z-index: 1;
+  opacity: 0;
+}
+.note-row:hover .note-check,
+.note-row .note-check:focus-visible,
+.selecting .note-row .note-check,
+.note-row.selected .note-check {
+  opacity: 1;
+}
+.note-row:hover .note-dot,
+.selecting .note-row .note-dot {
+  visibility: hidden;
+}
+.note-row.selected .note-open {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+.note-row.selected {
+  --row-bg: color-mix(in srgb, var(--accent) 8%, var(--surface));
+}
+/* No hover on touch screens: selecting is for mouse and keyboard. */
+@media (hover: none) {
+  .note-check {
+    display: none;
+  }
+}
+
+/* The title bar while selecting: the box, "3 selected", then the actions. */
+.selection-bar .select-box {
+  /* Lined up with the rows' boxes below (and their unread dots). */
+  margin-left: -10px;
+}
+.selection-count {
+  min-width: 90px;
+}
+.selection-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
