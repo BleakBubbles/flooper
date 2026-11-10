@@ -955,15 +955,33 @@ pre,
     display: none;
   }
 }
-/* Collapsed (wide screens): a strip of icons. Names are kept for screen
+/* Collapsed (wide screens): a 38px strip of icons. Names are kept for screen
    readers and shown on hover; an unread count becomes a dot on the icon. */
 @media (min-width: 900px) {
   .home-layout.sidebar-collapsed {
-    grid-template-columns: 40px minmax(0, 1fr);
+    grid-template-columns: 38px minmax(0, 1fr);
   }
-  .sidebar-collapsed .sidebar-label,
   .sidebar-collapsed .sidebar-row > .menu {
     display: none;
+  }
+  /* "Your sites" keeps its height, as a short line instead of words, so
+     every row sits where it does in the full sidebar. */
+  .sidebar-collapsed .sidebar-label {
+    position: relative;
+    overflow: hidden;
+    color: transparent;
+    white-space: nowrap;
+    user-select: none;
+  }
+  .sidebar-collapsed .sidebar-label::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 16px;
+    height: 1px;
+    translate: -50% 0;
+    background: var(--border-strong);
   }
   .sidebar-collapsed .sidebar-name {
     position: absolute;
@@ -972,15 +990,21 @@ pre,
     overflow: hidden;
     clip-path: inset(50%);
   }
+  /* As tall as the full sidebar's rows: their 8px padding around a line of
+     text (22.5px) makes 38.5px; an 18px icon needs 10.25px each side. */
   .sidebar-collapsed .sidebar-item,
   .sidebar-collapsed .sidebar-row .sidebar-item,
   .sidebar-collapsed .sidebar-add {
     position: relative;
-    justify-content: center;
-    padding: 11px 0;
+    /* Left-aligned at 10px, like the full sidebar, so nothing moves sideways;
+       in the 38px strip that also centres the 18px icons. */
+    justify-content: flex-start;
+    padding: 10.25px 0 10.25px 10px;
   }
-  .sidebar-collapsed .sidebar-list {
-    margin-top: 10px;
+  /* "+" is a line of text, like the full row's. */
+  .sidebar-collapsed .sidebar-add {
+    gap: 0;
+    padding-block: 8px;
   }
   .sidebar-collapsed .sidebar-item .badge {
     position: absolute;
@@ -996,7 +1020,7 @@ pre,
 }
 @media (min-width: 1360px) {
   .home-layout.sidebar-collapsed {
-    grid-template-columns: 40px minmax(0, 1fr) 420px;
+    grid-template-columns: 38px minmax(0, 1fr) 420px;
   }
 }
 /* On phones the sidebar would hold just "All sites", so it steps aside. */
@@ -1109,7 +1133,7 @@ pre,
 }
 .note-open {
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr) minmax(0, 120px) 96px;
+  grid-template-columns: 7px minmax(0, 1fr) 18px minmax(0, 120px) 96px;
   align-items: center;
   gap: 16px;
   width: 100%;
@@ -1171,8 +1195,8 @@ pre,
   .note-site-icon::after {
     content: attr(data-tooltip);
     position: absolute;
-    top: 50%;
-    left: calc(100% + 8px);
+    bottom: calc(100% + 6px);
+    left: 50%;
     padding: 3px 8px;
     border-radius: 6px;
     background: var(--fg);
@@ -1182,7 +1206,7 @@ pre,
     white-space: nowrap;
     pointer-events: none;
     opacity: 0;
-    transform: translate(-2px, -50%);
+    transform: translate(-50%, 2px);
     transition:
       opacity 120ms ease,
       transform 120ms ease;
@@ -1190,9 +1214,14 @@ pre,
   }
   .note-site-icon:hover::after {
     opacity: 1;
-    transform: translate(0, -50%);
+    transform: translate(-50%, 0);
     transition-delay: 300ms;
   }
+}
+/* The row's first cell: just the unread dot. */
+.note-lead {
+  display: flex;
+  align-items: center;
 }
 .note-dot {
   flex: none;
@@ -1254,7 +1283,7 @@ pre,
 @container (max-width: 820px) {
   .note-open,
   .note-row.no-site .note-open {
-    grid-template-columns: 34px minmax(0, 1fr) auto;
+    grid-template-columns: 7px minmax(0, 1fr) 18px auto;
   }
   .note-row.no-site .note-open {
     grid-template-columns: 7px minmax(0, 1fr) auto;
@@ -1267,7 +1296,7 @@ pre,
    anchoring the row, and the actions get their own space just before it. */
 @media (min-width: 1360px) {
   .note-open {
-    grid-template-columns: 34px 20px minmax(0, 1fr) minmax(0, 120px) 88px 72px;
+    grid-template-columns: 7px 20px minmax(0, 1fr) 18px minmax(0, 120px) 88px 72px;
   }
   .note-row.no-site .note-open {
     grid-template-columns: 7px 20px minmax(0, 1fr) minmax(0, 120px) 88px 72px;
@@ -1294,7 +1323,7 @@ pre,
   }
   @container (max-width: 820px) {
     .note-open {
-      grid-template-columns: 34px 20px minmax(0, 1fr) 88px 72px;
+      grid-template-columns: 7px 20px minmax(0, 1fr) 18px 88px 72px;
     }
     .note-row.no-site .note-open {
       grid-template-columns: 7px 20px minmax(0, 1fr) 88px 72px;
@@ -1436,23 +1465,26 @@ pre,
 @media (max-width: 640px) {
   .note-open,
   .note-row.no-site .note-open {
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 2px 12px;
+    grid-template-columns: 7px minmax(0, 1fr) auto;
+    gap: 2px 8px;
+  }
+  .note-lead {
+    grid-column: 1;
+    grid-row: 1;
   }
   .note-site {
-    grid-column: 1;
+    grid-column: 2;
+    grid-row: 1;
   }
   .note-time {
-    grid-column: 2;
+    grid-column: 3;
     grid-row: 1;
   }
   .note-text {
     grid-column: 1 / -1;
+    grid-row: 2;
   }
   .note-page {
-    display: none;
-  }
-  .note-row.no-site .note-site {
     display: none;
   }
 }
