@@ -112,3 +112,20 @@ export async function unsubscribeByToken(db: D1Database, token: string): Promise
     .run();
   return (result.meta.changes ?? 0) > 0;
 }
+
+/**
+ * Delete an account: its sites, all their notes, its sessions, and the user.
+ * One batch, so it's all or nothing.
+ */
+export async function deleteUser(db: D1Database, userId: string): Promise<void> {
+  await db.batch([
+    db
+      .prepare(
+        "DELETE FROM feedback WHERE project_id IN (SELECT id FROM projects WHERE owner_id = ?)",
+      )
+      .bind(userId),
+    db.prepare("DELETE FROM projects WHERE owner_id = ?").bind(userId),
+    db.prepare("DELETE FROM sessions WHERE user_id = ?").bind(userId),
+    db.prepare("DELETE FROM users WHERE id = ?").bind(userId),
+  ]);
+}

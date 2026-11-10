@@ -129,6 +129,11 @@ export const markAllReadSchema = z.object({
   projectId: z.string().max(64).optional(),
 });
 
+/** "Delete my account": the user types their GitHub username to confirm. */
+export const deleteAccountSchema = z.object({
+  confirm: z.string().max(100),
+});
+
 /** Several notes at once: to delete, restore, or delete for good. */
 export const noteIdsSchema = z.object({
   ids: z.array(z.string().max(64)).min(1).max(5000),

@@ -42,7 +42,7 @@ export function setSignedInHint<E extends AppEnv>(c: Context<E>): void {
   });
 }
 
-export function clearSessionCookie(c: Context<AppEnv>): void {
+export function clearSessionCookie<E extends AppEnv>(c: Context<E>): void {
   deleteCookie(c, SESSION_COOKIE, { path: "/" });
   deleteCookie(c, SIGNED_IN_COOKIE, { path: "/" });
 }

@@ -645,6 +645,32 @@ pre,
   flex: 1 1 240px;
   width: auto;
 }
+/* A dropdown, like the text fields beside it, with its own chevron. */
+select {
+  appearance: none;
+  padding: 8px 32px 8px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238b8b93' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
+    no-repeat right 10px center;
+  color: var(--fg);
+  font: inherit;
+  cursor: pointer;
+}
+.inline-form select {
+  flex: 0 1 220px;
+  min-width: 0;
+}
+/* A link inside a sentence: underlined, so it reads as one. */
+.text-link {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.text-link:hover {
+  color: var(--fg);
+}
 .inline-form .error {
   flex-basis: 100%;
 }
@@ -1662,12 +1688,6 @@ pre,
   gap: 8px;
   font-weight: 600;
   cursor: pointer;
-}
-.check-row input {
-  width: 16px;
-  height: 16px;
-  margin: 0;
-  accent-color: var(--fg);
 }
 .digest-prompt {
   display: flex;
