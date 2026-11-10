@@ -1,5 +1,6 @@
 import { type FeedbackStatus, type Paginated, REACTION_EMOJI } from "@flooper/shared";
 import type { Feedback, NoteSort, PageGroup, ProjectWithSummary } from "@flooper/shared/schemas";
+import { NOTE_SORTS } from "@flooper/shared/schemas";
 import {
   type InfiniteData,
   useInfiniteQuery,
@@ -7,8 +8,9 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect } from "react";
 import { api, keys } from "../api";
+import { usePref } from "../prefs";
 import { sortNotes } from "../sortNotes";
 import { timeAgo } from "../time";
 import { useMarkRead } from "../useMarkRead";
@@ -44,6 +46,15 @@ const PAGE_SIZE = 50;
 const PANE_QUERY = "(min-width: 1360px)";
 
 const NEWEST_FIRST = { by: "time", dir: "desc" } as const;
+
+/** A remembered order, if it's still one the list knows. */
+const isSort = (value: unknown): value is Sort =>
+  value === null ||
+  (typeof value === "object" &&
+    NOTE_SORTS.includes((value as { by: NoteSort }).by) &&
+    ["asc", "desc"].includes((value as { dir: string }).dir));
+const isStrings = (value: unknown): value is string[] =>
+  Array.isArray(value) && value.every((v) => typeof v === "string");
 
 // Each view's icon is the same as the action that puts notes in it (mark
 // unread, mark done, archive), so you can see where a note went.
@@ -106,7 +117,8 @@ export function NotesPanel({
 }) {
   const queryClient = useQueryClient();
   const withPane = useMediaQuery(PANE_QUERY);
-  const [sort, setSort] = useState<Sort>(null);
+  // The order (and grouping by page) is remembered in this browser.
+  const [sort, setSort] = usePref<Sort>("notes-sort", null, isSort);
   // One site's notes all have the same site, so sorting by it means nothing.
   const active = sort && !(site && sort.by === "site") ? sort : null;
   // Sorting by Page groups the notes under their pages (busiest first, "desc"),
@@ -118,12 +130,11 @@ export function NotesPanel({
    * A column header was clicked: ascending, then descending, then off. Page
    * starts with busiest first, the useful end.
    */
-  const cycleSort = (by: NoteSort) =>
-    setSort((current) => {
-      const first = by === "page" ? "desc" : "asc";
-      if (current?.by !== by) return { by, dir: first };
-      return current.dir === first ? { by, dir: first === "asc" ? "desc" : "asc" } : null;
-    });
+  const cycleSort = (by: NoteSort) => {
+    const first = by === "page" ? "desc" : "asc";
+    if (sort?.by !== by) setSort({ by, dir: first });
+    else setSort(sort.dir === first ? { by, dir: first === "asc" ? "desc" : "asc" } : null);
+  };
 
   const showing = SHOWS.find((s) => s.value === show) ?? (SHOWS[0] as (typeof SHOWS)[number]);
   const listQuery = (sort: { by: NoteSort; dir: "asc" | "desc" }, enabled: boolean) => ({
@@ -184,20 +195,28 @@ export function NotesPanel({
   const busiestFirst = groups.data?.data ?? [];
   const pageGroups = active?.dir === "asc" ? [...busiestFirst].reverse() : busiestFirst;
   const allNotes = busiestFirst.reduce((n, g) => n + g.total, 0);
-  // Which pages are folded away, by site and path. Kept while the list
-  // refreshes, so a fold survives marking a note read.
-  const [folded, setFolded] = useState<ReadonlySet<string>>(new Set());
+  // Which pages are folded away, by site and path: remembered in this
+  // browser, and kept while the list refreshes (marking a note read, say).
+  const [foldedList, setFoldedList] = usePref<string[]>("folded-pages", [], isStrings);
+  const folded = new Set(foldedList);
   const groupKey = (g: PageGroup) => `${g.projectId} ${g.path}`;
   const allFolded = pageGroups.length > 0 && pageGroups.every((g) => folded.has(groupKey(g)));
-  const foldAll = (fold: boolean) =>
-    setFolded(fold ? new Set(pageGroups.map(groupKey)) : new Set());
-  const toggleFold = (g: PageGroup) =>
-    setFolded((current) => {
-      const next = new Set(current);
-      if (next.has(groupKey(g))) next.delete(groupKey(g));
-      else next.add(groupKey(g));
-      return next;
-    });
+  // Kept to a few hundred, newest last, so it never grows without end.
+  const setFolded = (next: Set<string>) => setFoldedList([...next].slice(-300));
+  const foldAll = (fold: boolean) => {
+    const next = new Set(folded);
+    for (const g of pageGroups) {
+      if (fold) next.add(groupKey(g));
+      else next.delete(groupKey(g));
+    }
+    setFolded(next);
+  };
+  const toggleFold = (g: PageGroup) => {
+    const next = new Set(folded);
+    if (next.has(groupKey(g))) next.delete(groupKey(g));
+    else next.add(groupKey(g));
+    setFolded(next);
+  };
   const fetched = grouped
     ? pageGroups.flatMap((g) => g.notes)
     : (notes.data?.pages.flatMap((p) => p.data) ?? []);

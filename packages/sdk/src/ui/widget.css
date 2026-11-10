@@ -100,6 +100,10 @@ svg.lucide {
   align-items: flex-start;
 }
 
+/* Hidden with launcher: false; the site opens the widget from its own button. */
+.launcher[hidden] {
+  display: none;
+}
 .launcher {
   width: 48px;
   height: 48px;

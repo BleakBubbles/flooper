@@ -1,11 +1,25 @@
+import type { FlooperInstance } from "@flooper/sdk";
 import type { User } from "@flooper/shared/schemas";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { type ReactNode, useEffect, useRef } from "react";
 import { Link, Outlet } from "react-router";
 import { ApiRequestError, api, keys } from "../api";
 import { LoginPage } from "../pages/LoginPage";
+import { type Theme, useTheme } from "../theme";
 import { ErrorState } from "./ErrorState";
-import { InfoIcon, LogOutIcon, MailIcon } from "./icons";
+import {
+  InfoIcon,
+  LogOutIcon,
+  MailIcon,
+  MessageIcon,
+  MonitorIcon,
+  MoonIcon,
+  SunIcon,
+} from "./icons";
 import { Menu } from "./Menu";
+
+/** Flooper's own site on Flooper, where "Send feedback" notes land. */
+const FLOOPER_KEY = import.meta.env.DEV ? "pk_dev_playground" : "pk_nrszdxgx2qsh5qq1992mwsmc";
 
 /**
  * The app shell, and the auth gate: if /me says we're not logged in, show the
@@ -13,6 +27,8 @@ import { Menu } from "./Menu";
  */
 export function Layout() {
   const me = useQuery({ queryKey: keys.me, queryFn: api.me });
+  // Applies the picked theme everywhere in the app (the menu below changes it).
+  useTheme();
 
   if (me.isPending) return <div className="center muted">Loading…</div>;
   if (me.error instanceof ApiRequestError && me.error.status === 401) {
@@ -53,6 +69,8 @@ function Header({ user }: { user: User }) {
 /** Your avatar; its menu says who you're signed in as, and logs you out. */
 function AccountMenu({ user }: { user: User }) {
   const queryClient = useQueryClient();
+  const [theme, setTheme] = useTheme();
+  const openFeedback = useFeedbackWidget(user, theme);
   const logout = useMutation({
     mutationFn: api.logout,
     // A full load of /, which is the landing page once signed out.
@@ -77,6 +95,8 @@ function AccountMenu({ user }: { user: User }) {
         </span>
       </div>
       <hr />
+      <ThemePicker theme={theme} onPick={setTheme} />
+      <hr />
       <Link to="/?view=account">
         <span className="with-icon">
           <MailIcon />
@@ -90,6 +110,12 @@ function AccountMenu({ user }: { user: User }) {
           About Flooper
         </span>
       </Link>
+      <button type="button" onClick={openFeedback}>
+        <span className="with-icon">
+          <MessageIcon />
+          Send feedback
+        </span>
+      </button>
       <button type="button" onClick={() => logout.mutate()} disabled={logout.isPending}>
         <span className="with-icon">
           <LogOutIcon />
@@ -103,4 +129,75 @@ function AccountMenu({ user }: { user: User }) {
       )}
     </Menu>
   );
+}
+
+const THEME_OPTIONS: { value: Theme; label: string; icon: ReactNode }[] = [
+  { value: "system", label: "System", icon: <MonitorIcon /> },
+  { value: "light", label: "Light", icon: <SunIcon /> },
+  { value: "dark", label: "Dark", icon: <MoonIcon /> },
+];
+
+/**
+ * System, Light or Dark, as three buttons in one pill. Picking one keeps the
+ * menu open, so you see the change and can switch back.
+ */
+function ThemePicker({ theme, onPick }: { theme: Theme; onPick: (theme: Theme) => void }) {
+  return (
+    <div className="theme-row">
+      <span>Theme</span>
+      <fieldset className="theme-picker">
+        <legend className="sr-only">Theme</legend>
+        {THEME_OPTIONS.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            className="icon-button"
+            aria-pressed={theme === option.value}
+            aria-label={option.label}
+            data-tooltip={option.label}
+            onClick={(event) => {
+              // The menu closes when a button in it is picked; not this one.
+              event.stopPropagation();
+              onPick(option.value);
+            }}
+          >
+            {option.icon}
+          </button>
+        ))}
+      </fieldset>
+    </div>
+  );
+}
+
+/**
+ * "Send feedback": Flooper's own widget, on Flooper, without its floating
+ * button (it would sit over the notes). Loaded on the first click, knowing who
+ * you are, in the app's theme. A theme change makes a fresh one next time.
+ */
+function useFeedbackWidget(user: User, theme: Theme) {
+  const widget = useRef<FlooperInstance | undefined>(undefined);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a new theme retires the old widget.
+  useEffect(
+    () => () => {
+      widget.current?.destroy();
+      widget.current = undefined;
+    },
+    [theme],
+  );
+  return () => {
+    if (widget.current) {
+      widget.current.open();
+      return;
+    }
+    void import("@flooper/sdk").then(({ init }) => {
+      widget.current ??= init({
+        projectKey: FLOOPER_KEY,
+        apiUrl: window.location.origin,
+        launcher: false,
+        theme: theme === "system" ? "auto" : theme,
+        visitor: { id: user.id, name: user.name ?? user.login },
+      });
+      widget.current.open();
+    });
+  };
 }

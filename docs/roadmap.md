@@ -18,7 +18,11 @@ as volume grows:
 
 ### App polish
 
-- Light and dark: keep following the system, or go black like the landing page.
+Batch 1 is done (see below). Next, batch 2, the inbox basics: undo after
+Done, Archive and Mark all as read; search over notes and pages; keyboard
+shortcuts (j/k, Enter, e, d, u, /, ?). Then batch 3, account trust: export
+notes as CSV, and delete your account. Open question: whether dark mode goes
+pure black like the landing page.
 
 ## Later
 
@@ -89,6 +93,13 @@ code splitting, aggregation queries, and designing for data that drifts.
 
 ## Done
 
+- **App quick wins, 2026-11-10.** A System / Light / Dark switch in the account
+  menu (applied before the first paint, so no flash); a sidebar that collapses
+  to a strip of site icons with unread dots (`[` toggles it); the list's sort,
+  grouping by page and folded pages remembered in the browser; and "Send
+  feedback" in the account menu, which opens Flooper's own widget. For that,
+  the widget gained `launcher: false` (`data-launcher="false"`) to open it
+  from your own button without the floating one.
 - **Notes grouped by page, 2026-11-10.** Sorting by the Page column (or "By
   page" in the list's menu on smaller screens) groups the notes under their
   pages, busiest first (click again for quietest first). Each page's header

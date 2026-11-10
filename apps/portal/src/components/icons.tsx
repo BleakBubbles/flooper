@@ -42,6 +42,52 @@ export const ExpandAllIcon = () => (
   </Icon>
 );
 
+/** Theme: follow the device. */
+export const MonitorIcon = () => (
+  <Icon>
+    <rect width="20" height="14" x="2" y="3" rx="2" />
+    <path d="M8 21h8" />
+    <path d="M12 17v4" />
+  </Icon>
+);
+
+/** Theme: light. */
+export const SunIcon = () => (
+  <Icon>
+    <circle cx="12" cy="12" r="4" />
+    <path d="M12 2v2" />
+    <path d="M12 20v2" />
+    <path d="m4.93 4.93 1.41 1.41" />
+    <path d="m17.66 17.66 1.41 1.41" />
+    <path d="M2 12h2" />
+    <path d="M20 12h2" />
+    <path d="m6.34 17.66-1.41 1.41" />
+    <path d="m19.07 4.93-1.41 1.41" />
+  </Icon>
+);
+
+/** Theme: dark. */
+export const MoonIcon = () => (
+  <Icon>
+    <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+  </Icon>
+);
+
+/** "Send feedback": a speech bubble. */
+export const MessageIcon = () => (
+  <Icon>
+    <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
+  </Icon>
+);
+
+/** Collapse or expand the sidebar: a panel with its left column. */
+export const SidebarIcon = () => (
+  <Icon>
+    <rect width="18" height="18" x="3" y="3" rx="2" />
+    <path d="M9 3v18" />
+  </Icon>
+);
+
 /** "All notes": an inbox tray. */
 export const InboxIcon = () => (
   <Icon>

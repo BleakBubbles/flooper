@@ -12,7 +12,13 @@ afterEach(() => {
 async function send(result: SubmitResult) {
   const onSubmit = vi.fn<SubmitHandler>().mockResolvedValue(result);
   widget = new Widget(
-    { position: "bottom-right", theme: "auto", title: "Hi", homeUrl: "https://flooper.test/" },
+    {
+      position: "bottom-right",
+      launcher: true,
+      theme: "auto",
+      title: "Hi",
+      homeUrl: "https://flooper.test/",
+    },
     onSubmit,
   );
   widget.mount();
@@ -50,10 +56,34 @@ describe("Widget", () => {
 
   it("links the credit to Flooper's home page, and only to a web page", () => {
     widget = new Widget(
-      { position: "bottom-right", theme: "auto", title: "Hi", homeUrl: "javascript:alert(1)" },
+      {
+        position: "bottom-right",
+        launcher: true,
+        theme: "auto",
+        title: "Hi",
+        homeUrl: "javascript:alert(1)",
+      },
       vi.fn(),
     );
     const link = widget.host.shadowRoot?.querySelector(".powered");
     expect(link?.hasAttribute("href")).toBe(false);
+  });
+
+  it("can leave out its button, and still opens from the site's own", () => {
+    widget = new Widget(
+      {
+        position: "bottom-right",
+        launcher: false,
+        theme: "auto",
+        title: "Hi",
+        homeUrl: "https://flooper.test/",
+      },
+      vi.fn(),
+    );
+    widget.mount();
+    const root = widget.host.shadowRoot as ShadowRoot;
+    expect(root.querySelector<HTMLElement>(".launcher")?.hidden).toBe(true);
+    widget.open();
+    expect(root.querySelector<HTMLElement>(".panel")?.hidden).toBe(false);
   });
 });
