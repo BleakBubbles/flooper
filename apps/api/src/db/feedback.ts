@@ -3,6 +3,7 @@ import type {
   Feedback,
   FeedbackSubmission,
   NoteSort,
+  PageGroup,
   ProjectSummary,
 } from "@flooper/shared/schemas";
 import type { Cursor } from "../lib/cursor";
@@ -121,6 +122,8 @@ export async function listFeedback(
   scope: { projectId: string } | { ownerId: string; projectId?: string },
   opts: {
     status?: FeedbackStatus;
+    /** Just the notes left on this page path. */
+    page?: string;
     /** Leave archived notes out when no status is asked for. */
     hideArchived?: boolean;
     sort?: NoteSort;
@@ -138,6 +141,10 @@ export async function listFeedback(
   if (scope.projectId) {
     where.push("f.project_id = ?");
     params.push(scope.projectId);
+  }
+  if (opts.page !== undefined) {
+    where.push(`${PAGE_PATH} = ?`);
+    params.push(opts.page);
   }
   if (opts.status) {
     where.push("f.status = ?");
@@ -172,6 +179,101 @@ export async function listFeedback(
     .bind(...params, opts.limit + 1)
     .all<SortedFeedbackRow>();
   return { rows: results.slice(0, opts.limit), hasMore: results.length > opts.limit };
+}
+
+/** A note's page path. Kept in its context, as the widget sent it. */
+const PAGE_PATH = "json_extract(f.context, '$.path')";
+/** Pages listed at most, busiest first. */
+export const PAGES_MAX = 200;
+/** Notes shown under each page; the rest load by picking the page. */
+export const NOTES_PER_PAGE = 3;
+
+/**
+ * The notes list grouped by page, busiest page first (then most recent):
+ * every one of the owner's sites, or just `projectId`. Each page has its
+ * counts and its newest few notes. Two queries in one batch. Like the list,
+ * `status` narrows everything, and archived notes are left out unless asked for.
+ */
+export async function listPageGroups(
+  db: D1Database,
+  ownerId: string,
+  opts: { projectId?: string; status?: FeedbackStatus } = {},
+): Promise<PageGroup[]> {
+  const where = ["p.owner_id = ?"];
+  const params: string[] = [ownerId];
+  if (opts.projectId) {
+    where.push("f.project_id = ?");
+    params.push(opts.projectId);
+  }
+  if (opts.status) {
+    where.push("f.status = ?");
+    params.push(opts.status);
+  } else {
+    where.push("f.status != 'archived'");
+  }
+  const from = `FROM feedback f JOIN projects p ON p.id = f.project_id WHERE ${where.join(" AND ")}`;
+  const [counts, newest] = await db.batch<Record<string, unknown>>([
+    db
+      .prepare(
+        `SELECT f.project_id, ${PAGE_PATH} AS path, f.status, f.reaction,
+                COUNT(*) AS n, MAX(f.created_at) AS last
+         ${from}
+         GROUP BY f.project_id, path, f.status, f.reaction`,
+      )
+      .bind(...params),
+    db
+      .prepare(
+        `SELECT * FROM (
+           SELECT f.*, ${PAGE_PATH} AS path, ROW_NUMBER() OVER (
+             PARTITION BY f.project_id, ${PAGE_PATH} ORDER BY f.created_at DESC, f.id DESC
+           ) AS nth
+           ${from}
+         ) WHERE nth <= ${NOTES_PER_PAGE}
+         ORDER BY created_at DESC, id DESC`,
+      )
+      .bind(...params),
+  ]);
+  const results = (counts?.results ?? []) as unknown as {
+    project_id: string;
+    path: string | null;
+    status: FeedbackStatus;
+    reaction: Reaction | null;
+    n: number;
+    last: number;
+  }[];
+
+  const pages = new Map<string, PageGroup & { last: number }>();
+  for (const row of results) {
+    const path = row.path ?? "/";
+    const id = `${row.project_id} ${path}`;
+    let page = pages.get(id);
+    if (!page) {
+      page = {
+        projectId: row.project_id,
+        path,
+        total: 0,
+        newCount: 0,
+        byReaction: {},
+        lastNoteAt: "",
+        notes: [],
+        last: 0,
+      };
+      pages.set(id, page);
+    }
+    page.total += row.n;
+    if (row.status === "new") page.newCount += row.n;
+    if (row.reaction) page.byReaction[row.reaction] = (page.byReaction[row.reaction] ?? 0) + row.n;
+    page.last = Math.max(page.last, row.last);
+  }
+  for (const row of (newest?.results ?? []) as unknown as (FeedbackRow & {
+    path: string | null;
+  })[]) {
+    pages.get(`${row.project_id} ${row.path ?? "/"}`)?.notes.push(toFeedback(row));
+  }
+  return [...pages.values()]
+    .sort((a, b) => b.total - a.total || b.last - a.last)
+    .slice(0, PAGES_MAX)
+    .map(({ last, ...page }) => ({ ...page, lastNoteAt: new Date(last).toISOString() }));
 }
 
 const DAY = 24 * 60 * 60 * 1000;

@@ -23,7 +23,8 @@ const SHOWS: Show[] = ["all", "unread", "done", "archived"];
  * Home, laid out like a mail app: your sites in a sidebar on the left, the
  * notes in the middle, and the open note on the right. Picking a site filters
  * the notes to it. What's picked lives in the URL (?site=, ?note=, ?show=), so
- * links and the back button work.
+ * links and the back button work. ?page=<path> narrows the notes to one page
+ * (from "Show more" when they're grouped by page).
  *
  * The middle shows one of four things, and the sidebar always stays:
  * - the notes (the usual case)
@@ -38,6 +39,7 @@ export function SitesPage() {
   const sites = projects.data?.data ?? [];
   const site = sites.find((s) => s.id === params.get("site"));
   const show = SHOWS.find((s) => s === params.get("show")) ?? "all";
+  const page = params.get("page");
   const adding = params.has("new") || (projects.isSuccess && sites.length === 0);
   const settings = site !== undefined && params.get("view") === "settings";
   const account = params.get("view") === "account";
@@ -103,8 +105,12 @@ export function SitesPage() {
         sites={sites}
         site={site}
         show={show}
+        page={page}
         openId={params.get("note")}
         onShow={(next) => update({ show: next === "all" ? null : next, note: null })}
+        // A page belongs to one site: its notes show under that site.
+        onPickPage={(picked) => update({ site: picked.projectId, page: picked.path, note: null })}
+        onClearPage={() => update({ page: null, note: null })}
         onOpen={onOpen}
       />
     );
@@ -138,7 +144,8 @@ function Sidebar({
 }) {
   const [params] = useSearchParams();
   const allUnread = sites.reduce((n, s) => n + s.summary.newCount, 0);
-  // Switching site keeps the view (?show=) but closes the open note.
+  // Switching site keeps the view (?show=) but closes the open note and lets
+  // go of a picked page.
   const hrefFor = (siteId: string | null) => {
     const next = new URLSearchParams();
     if (siteId) next.set("site", siteId);

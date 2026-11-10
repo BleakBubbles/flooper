@@ -4,6 +4,7 @@ import type {
   Feedback,
   NoteSort,
   NotificationSettings,
+  PageGroup,
   Project,
   ProjectWithSummary,
   UpdateProjectInput,
@@ -80,15 +81,25 @@ export const api = {
     dir: "asc" | "desc";
     /** Just this site. */
     projectId?: string;
+    /** Just this page's notes (a path). */
+    page?: string;
     cursor?: string;
     limit?: number;
   }) => {
     const qs = new URLSearchParams({ sort: opts.sort, dir: opts.dir });
     if (opts.projectId) qs.set("projectId", opts.projectId);
+    if (opts.page) qs.set("page", opts.page);
     if (opts.status) qs.set("status", opts.status);
     if (opts.cursor) qs.set("cursor", opts.cursor);
     if (opts.limit) qs.set("limit", String(opts.limit));
     return request<Paginated<Feedback>>("GET", `/v1/feedback?${qs}`);
+  },
+  /** The notes grouped by page, busiest first: every site's, or just one site's. */
+  listPages: (opts: { projectId?: string; status?: FeedbackStatus }) => {
+    const qs = new URLSearchParams();
+    if (opts.projectId) qs.set("projectId", opts.projectId);
+    if (opts.status) qs.set("status", opts.status);
+    return request<{ data: PageGroup[] }>("GET", `/v1/pages?${qs}`);
   },
   /** Every site's new notes, or just one site's. */
   markAllRead: (projectId?: string) =>
@@ -117,8 +128,24 @@ export const keys = {
   counts: (projectId: string) => ["feedback", projectId, "counts"] as const,
   note: (projectId: string, id: string) => ["feedback", projectId, "note", id] as const,
   // The home screen's notes from every site. Invalidate ["feedback", ALL_SITES] after a change.
-  allFeedback: (status: FeedbackStatus | undefined, sort: string, projectId?: string) =>
-    ["feedback", ALL_SITES, projectId ?? "every-site", status ?? "all", sort] as const,
+  allFeedback: (
+    status: FeedbackStatus | undefined,
+    sort: string,
+    projectId?: string,
+    page?: string,
+  ) =>
+    [
+      "feedback",
+      ALL_SITES,
+      projectId ?? "every-site",
+      status ?? "all",
+      sort,
+      ...(page ? [page] : []),
+    ] as const,
+  // The notes grouped by page. Under "feedback" too, so any change to a note
+  // refreshes the groups.
+  pages: (projectId?: string, status?: FeedbackStatus) =>
+    ["feedback", ALL_SITES, "pages", projectId ?? "every-site", status ?? "all"] as const,
 };
 
 export const ALL_SITES = "all-sites";

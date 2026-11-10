@@ -330,6 +330,102 @@ describe("portal API", () => {
     expect(theirs).toEqual({ status: "new" });
   });
 
+  it("groups notes by page, busiest first, and filters the list to one page", async () => {
+    const cookie = await loginAsDev();
+    const site = await createProject(cookie);
+    const other = await createProject(cookie);
+    const notes: [typeof site, string, string][] = [
+      [site, "/checkout", "bug"],
+      [site, "/checkout", "bug"],
+      [site, "/checkout", "idea"],
+      [site, "/pricing", "love"],
+      [other, "/checkout", "confused"],
+    ];
+    let ip = 60;
+    for (const [s, path, reaction] of notes) {
+      const res = await json(
+        "POST",
+        `/api/v1/ingest/${s.publicKey}/feedback`,
+        submission({ reaction, context: { ...submission().context, url: `${SITE}${path}`, path } }),
+        { Origin: SITE, "CF-Connecting-IP": `198.51.100.${ip++}` },
+      );
+      expect(res.status).toBe(202);
+    }
+    // Someone else's page never shows up.
+    await env.DB.prepare(
+      `INSERT INTO users (id, github_id, login, created_at) VALUES ('usr_v', 93, 'v', 0);`,
+    ).run();
+    await env.DB.prepare(
+      `INSERT INTO projects (id, owner_id, name, public_key, created_at) VALUES ('prj_v', 'usr_v', 'V', 'pk_v', 0);`,
+    ).run();
+    await env.DB.prepare(
+      `INSERT INTO feedback (id, project_id, message, page_url, context, idempotency_key, created_at)
+       VALUES ('fb_v', 'prj_v', 'theirs', 'https://v.example/', '{"path":"/secret"}', 'k', 0);`,
+    ).run();
+
+    type PageSummary = {
+      projectId: string;
+      path: string;
+      total: number;
+      newCount: number;
+      byReaction: Record<string, number>;
+      notes: { id: string; reaction: string; status: string }[];
+    };
+    const pages = async (qs = "") =>
+      (
+        (await (await request(`/api/v1/pages${qs}`, { headers: { Cookie: cookie } })).json()) as {
+          data: PageSummary[];
+        }
+      ).data;
+
+    // One site: its two pages, busiest first, with reactions and unread counts.
+    expect(await pages(`?projectId=${site.id}`)).toMatchObject([
+      { path: "/checkout", total: 3, newCount: 3, byReaction: { bug: 2, idea: 1 } },
+      { path: "/pricing", total: 1, newCount: 1, byReaction: { love: 1 } },
+    ]);
+    // Each page carries its newest notes, at most three.
+    const [checkoutPage] = await pages(`?projectId=${site.id}`);
+    expect(checkoutPage?.notes.map((n) => n.reaction)).toEqual(["idea", "bug", "bug"]);
+
+    // Every site: the same path on two sites is two pages; never another user's.
+    const all = await pages();
+    expect(all.filter((p) => p.path === "/checkout" && p.projectId === other.id)).toHaveLength(1);
+    expect(all.map((p) => p.path)).not.toContain("/secret");
+    expect(await pages("?projectId=prj_v")).toEqual([]);
+
+    // The notes list, filtered to one page of one site.
+    const list = async (qs: string) =>
+      (
+        (await (
+          await request(`/api/v1/feedback?${qs}`, { headers: { Cookie: cookie } })
+        ).json()) as { data: { id: string; reaction: string }[] }
+      ).data;
+    const checkout = await list(`projectId=${site.id}&page=${encodeURIComponent("/checkout")}`);
+    expect(checkout.map((n) => n.reaction).sort()).toEqual(["bug", "bug", "idea"]);
+
+    // Archived notes leave the page's counts, like they leave the list.
+    await json(
+      "PATCH",
+      `/api/v1/feedback/${checkout[0]?.id}`,
+      { status: "archived" },
+      { Cookie: cookie },
+    );
+    expect((await pages(`?projectId=${site.id}`))[0]).toMatchObject({ total: 2 });
+
+    // Like the list, the groups follow the Show filter.
+    const archived = await pages(`?projectId=${site.id}&status=archived`);
+    expect(archived).toMatchObject([{ path: "/checkout", total: 1 }]);
+    expect(archived[0]?.notes.map((n) => n.status)).toEqual(["archived"]);
+    await json(
+      "PATCH",
+      `/api/v1/feedback/${checkout[1]?.id}`,
+      { status: "seen" },
+      { Cookie: cookie },
+    );
+    const unread = await pages(`?projectId=${site.id}&status=new`);
+    expect(unread.find((p) => p.path === "/checkout")).toMatchObject({ total: 1, newCount: 1 });
+  });
+
   it("deletes a site with its notes, but only the owner's", async () => {
     const cookie = await loginAsDev();
     const project = await createProject(cookie);
