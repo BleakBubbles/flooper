@@ -103,6 +103,11 @@ describe("POST /api/v1/ingest/:publicKey/feedback", () => {
 
   it("rate limits a single visitor, readably", async () => {
     const { path } = await setup();
+    // The limit counts per clock minute (a fixed window). Near the end of one,
+    // wait for the next, so the burst below doesn't straddle two windows and
+    // get a fresh count halfway (which once failed this test on CI).
+    const msLeft = 60_000 - (Date.now() % 60_000);
+    if (msLeft < 3_000) await new Promise((resolve) => setTimeout(resolve, msLeft + 50));
     const statuses: number[] = [];
     let last: Response | undefined;
     for (let i = 0; i < 12; i++) {
