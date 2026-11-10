@@ -684,15 +684,15 @@ function ColumnHeaders({
   return (
     <div className={showSite ? "note-row notes-columns" : "note-row notes-columns no-site"}>
       <div className="note-open">
-        {/* The same dot and icon slots as a row (invisible), so the labels line up. */}
-        <span className="note-site">
+        {/* The same slots as a row (the dot's invisible), so the labels line up. */}
+        <span className="note-lead">
           <span className="note-dot" aria-hidden="true" />
-          {showSite && header("site", <GlobeIcon />, "Site")}
         </span>
         <span className="note-text">
           <span className="note-emoji">{header("reaction", <SmileIcon />, "Reaction")}</span>
           {header("note", "Note", "Note")}
         </span>
+        {showSite && <span className="note-site">{header("site", <GlobeIcon />, "Site")}</span>}
         <span className="note-page">{header("page", "Page", "Page")}</span>
         <span className="note-time">{header("time", "When", "When")}</span>
       </div>
@@ -776,10 +776,11 @@ function EmptyNotes({ show, q, onClear }: { show: Show; q: string; onClear: () =
  * One note: its site, what it says, the page, and when. Clicking opens it;
  * hovering (or focusing) swaps the time for quick actions.
  *
- * The site is just its icon (the name in a tooltip, and for screen readers):
- * the first column is where the eye lands, and a run of notes from one site
- * would otherwise lead every row with the same words. Phones, where the site
- * sits on its own line above the note, still show the name.
+ * The row leads with the unread dot and what the note says; the site sits
+ * with the page, as "where". It's just its icon (the name in a tooltip, and
+ * for screen readers), so a run of notes from one site doesn't repeat the
+ * same words. Phones, where the site sits on its own line above the note,
+ * still show the name.
  */
 function NoteRow({
   note,
@@ -810,15 +811,9 @@ function NoteRow({
   return (
     <div className={classes.filter(Boolean).join(" ")}>
       <button type="button" className="note-open" onClick={onOpen} aria-expanded={isOpen}>
-        <span className="note-site">
+        <span className="note-lead">
           <span className="note-dot" aria-hidden="true" />
           {isNew && <span className="sr-only">Unread: </span>}
-          {showSite && site && (
-            <span className="note-site-icon" data-tooltip={site.name}>
-              <SiteIcon site={site} />
-              <span className="note-site-name">{site.name}</span>
-            </span>
-          )}
         </span>
         <span className="note-text">
           <span className="note-emoji">
@@ -830,6 +825,18 @@ function NoteRow({
           </span>
           <span>{headline(note)}</span>
         </span>
+        {/* Where: the site, then the page, together. Under a page's header the
+            site is already said, so the cell stays (for the columns) but empty. */}
+        {showSite && (
+          <span className="note-site">
+            {site && (
+              <span className="note-site-icon" data-tooltip={site.name}>
+                <SiteIcon site={site} />
+                <span className="note-site-name">{site.name}</span>
+              </span>
+            )}
+          </span>
+        )}
         <span className="note-page mono small">{note.context.path}</span>
         <time className="note-time" dateTime={note.createdAt}>
           {timeAgo(note.createdAt, { short: true })}
