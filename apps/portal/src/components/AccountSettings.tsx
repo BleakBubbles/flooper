@@ -98,16 +98,17 @@ function DeleteAccount({ user }: { user: User }) {
           first if you want them.
         </p>
         <p className="muted small">
-          GitHub keeps listing Flooper as an app you've authorized until you{" "}
+          {/* True: GitHub's token is used once at sign-in and never kept. */}
+          Flooper doesn't keep access to your GitHub account. GitHub still lists it among your{" "}
           <a
             className="text-link"
             href="https://github.com/settings/applications"
             target="_blank"
             rel="noreferrer"
           >
-            revoke it there
+            authorized apps
           </a>
-          .
+          ; you can remove it there too.
         </p>
       </div>
       <div className="setting-control">
