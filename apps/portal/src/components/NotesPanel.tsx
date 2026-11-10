@@ -8,7 +8,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { type ReactNode, useEffect } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { api, keys } from "../api";
 import { usePref } from "../prefs";
 import { sortNotes } from "../sortNotes";
