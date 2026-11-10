@@ -1124,9 +1124,8 @@ pre,
   margin: 0;
   padding: 0;
 }
-/* A row: one button that opens the note (lined up like a table: site, note,
-   page, time), and quick actions that show on hover: just before the time on
-   standard screens, in its place on smaller ones. */
+/* A row: one button that opens the note (lined up like a table: note, site,
+   page, time), and quick actions that show on hover in the time's place. */
 .note-row {
   position: relative;
   border-bottom: 1px solid var(--divider);
@@ -1263,9 +1262,20 @@ pre,
   top: 50%;
   right: 12px;
   translate: 0 -50%;
+  /* Over the time (and the end of the page), like Gmail: the row's own
+     background, fading in from the left so nothing is cut off sharply. */
+  padding-left: 20px;
+  background: linear-gradient(to right, transparent, var(--row-bg, var(--surface)) 20px);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.12s ease;
+}
+/* What the actions blend into: the row's background in each state. */
+.note-row:hover {
+  --row-bg: var(--surface-raised);
+}
+.note-row.open {
+  --row-bg: var(--segment);
 }
 .note-row:hover .note-actions,
 .note-row:focus-within .note-actions,
@@ -1292,14 +1302,14 @@ pre,
     display: none;
   }
 }
-/* Standard screens have room for both. The time is always at the far right,
-   anchoring the row, and the actions get their own space just before it. */
+/* Standard screens have room for both. The time is at the far right, with the
+   page right beside it; on hover the actions take the time's place. */
 @media (min-width: 1360px) {
   .note-open {
-    grid-template-columns: 7px 20px minmax(0, 1fr) 18px minmax(0, 120px) 88px 72px;
+    grid-template-columns: 7px 20px minmax(0, 1fr) 18px minmax(0, 120px) 72px;
   }
   .note-row.no-site .note-open {
-    grid-template-columns: 7px 20px minmax(0, 1fr) minmax(0, 120px) 88px 72px;
+    grid-template-columns: 7px 20px minmax(0, 1fr) minmax(0, 120px) 72px;
   }
   /* The reaction and the note become columns of their own. */
   .note-text {
@@ -1308,25 +1318,12 @@ pre,
   .note-text > span:last-child {
     min-width: 0;
   }
-  /* The last column, past the actions' space. */
-  .note-time {
-    grid-column: -2;
-  }
-  /* The row's padding, the time and the gap before it. */
-  .note-actions {
-    right: 106px;
-  }
-  .note-row:hover .note-time,
-  .note-row:focus-within .note-time,
-  .note-row.open .note-time {
-    visibility: visible;
-  }
   @container (max-width: 820px) {
     .note-open {
-      grid-template-columns: 7px 20px minmax(0, 1fr) 18px 88px 72px;
+      grid-template-columns: 7px 20px minmax(0, 1fr) 18px 72px;
     }
     .note-row.no-site .note-open {
-      grid-template-columns: 7px 20px minmax(0, 1fr) 88px 72px;
+      grid-template-columns: 7px 20px minmax(0, 1fr) 72px;
     }
   }
 }
