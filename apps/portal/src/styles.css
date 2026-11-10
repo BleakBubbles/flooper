@@ -173,13 +173,29 @@ pre,
   padding-inline: 24px;
 }
 .header-inner {
-  display: flex;
-  flex-wrap: wrap;
+  /* Logo, search in the middle, account: the outer columns share the rest
+     equally, so the search is centred on the page whatever their widths. */
+  display: grid;
+  grid-template-columns: 1fr minmax(0, 480px) 1fr;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 16px;
   /* 36px logo + 18px above and below: the same header as the landing page's. */
   padding-block: 18px;
+}
+.header-end {
+  justify-self: end;
+}
+/* Phones: the logo alone, so the search gets the room. */
+@media (max-width: 640px) {
+  .header-inner {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 12px;
+    padding-inline: 16px;
+  }
+  .header .brand {
+    font-size: 0;
+    gap: 0;
+  }
 }
 .brand {
   display: flex;
@@ -1852,4 +1868,218 @@ pre,
 .menu-list .theme-picker .icon-button[aria-pressed="true"]::after {
   content: attr(data-tooltip);
   color: var(--bg);
+}
+
+/* Toasts: one at a time, bottom center, after an action ("Archived · Undo").
+   Inverted colors, so it stands out in either theme. */
+.toasts {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  translate: -50% 0;
+  z-index: 50;
+  pointer-events: none;
+}
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 6px 6px 16px;
+  border-radius: 10px;
+  background: var(--fg);
+  color: var(--bg);
+  box-shadow: var(--menu-shadow);
+  font-size: 14px;
+  white-space: nowrap;
+  pointer-events: auto;
+  animation: toast-in 160ms ease-out;
+}
+.toast span {
+  margin-right: 8px;
+}
+.toast button {
+  padding: 5px 10px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.toast .toast-undo {
+  font-weight: 600;
+  color: light-dark(#f9a8d4, #be185d);
+}
+.toast button:hover {
+  background: color-mix(in srgb, var(--bg) 15%, transparent);
+}
+.toast .toast-close {
+  padding: 5px 8px;
+  opacity: 0.7;
+  font-size: 16px;
+  line-height: 1;
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: none;
+  }
+}
+
+/* Search, centred in the app's header (see Layout). */
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  height: 36px;
+  padding: 0 8px 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--muted);
+  cursor: text;
+}
+.search-box:focus-within {
+  border-color: var(--border-strong);
+  color: var(--fg);
+}
+.search-box input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: none;
+  color: var(--fg);
+  font: inherit;
+  font-size: 14px;
+}
+.search-box input::-webkit-search-cancel-button {
+  display: none;
+}
+/* Clears the search; in the "/" hint's place while there's text. */
+.search-clear {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--segment);
+  color: var(--muted);
+  font: inherit;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+.search-clear:hover {
+  color: var(--fg);
+  background: var(--border-strong);
+}
+/* The "/" hint, like a key on the keyboard. */
+kbd,
+.search-key {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1;
+}
+/* No keyboard on touch screens, so no "/" hint. */
+@media (hover: none) {
+  .search-key {
+    display: none;
+  }
+}
+/* A button that reads as a link, inside a sentence. */
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+}
+.link-button:hover {
+  text-decoration: underline;
+}
+/* A link with its icon after the words ("Clear search ×"). */
+.link-button.with-icon-after {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  vertical-align: bottom;
+}
+
+/* The keyboard's place in the list (j/k), while no note is open: an accent
+   edge, like the open note's, without its tint. */
+.note-row.cursor .note-open {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+/* The keyboard shortcuts cheat sheet ("?"). */
+.shortcuts {
+  width: min(440px, calc(100vw - 32px));
+  max-height: calc(100vh - 64px);
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--fg);
+  box-shadow: var(--menu-shadow);
+}
+.shortcuts::backdrop {
+  background: rgba(0, 0, 0, 0.4);
+}
+.shortcuts-inner {
+  padding: 16px 20px 20px;
+}
+.shortcuts-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+.shortcuts-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+.shortcuts-group {
+  margin: 14px 0 6px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+.shortcuts dl {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+}
+.shortcuts dl > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 4px 0;
+}
+.shortcuts dt {
+  color: var(--fg-2);
+}
+.shortcuts dd {
+  display: flex;
+  gap: 4px;
+  margin: 0;
 }

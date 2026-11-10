@@ -83,12 +83,15 @@ export const api = {
     projectId?: string;
     /** Just this page's notes (a path). */
     page?: string;
+    /** Search. */
+    q?: string;
     cursor?: string;
     limit?: number;
   }) => {
     const qs = new URLSearchParams({ sort: opts.sort, dir: opts.dir });
     if (opts.projectId) qs.set("projectId", opts.projectId);
     if (opts.page) qs.set("page", opts.page);
+    if (opts.q) qs.set("q", opts.q);
     if (opts.status) qs.set("status", opts.status);
     if (opts.cursor) qs.set("cursor", opts.cursor);
     if (opts.limit) qs.set("limit", String(opts.limit));
@@ -103,7 +106,12 @@ export const api = {
   },
   /** Every site's new notes, or just one site's. */
   markAllRead: (projectId?: string) =>
-    request<{ updated: number }>("POST", "/v1/feedback/mark-all-read", { projectId }),
+    request<{ updated: number; ids: string[] }>("POST", "/v1/feedback/mark-all-read", {
+      projectId,
+    }),
+  /** Several notes to one status (undoing "Mark all as read"). */
+  setStatuses: (ids: string[], status: FeedbackStatus) =>
+    request<{ updated: number }>("POST", "/v1/feedback/status", { ids, status }),
   feedbackCounts: (projectId: string) =>
     request<FeedbackCounts>("GET", `/v1/projects/${projectId}/feedback/counts`),
   getFeedback: (id: string) => request<Feedback>("GET", `/v1/feedback/${id}`),
@@ -133,6 +141,7 @@ export const keys = {
     sort: string,
     projectId?: string,
     page?: string,
+    q?: string,
   ) =>
     [
       "feedback",
@@ -140,7 +149,8 @@ export const keys = {
       projectId ?? "every-site",
       status ?? "all",
       sort,
-      ...(page ? [page] : []),
+      page ?? "every-page",
+      q ?? "",
     ] as const,
   // The notes grouped by page. Under "feedback" too, so any change to a note
   // refreshes the groups.
