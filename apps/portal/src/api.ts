@@ -67,6 +67,8 @@ export const api = {
   updateProject: (id: string, input: UpdateProjectInput) =>
     request<Project>("PATCH", `/v1/projects/${id}`, input),
   deleteProject: (id: string) => request<void>("DELETE", `/v1/projects/${id}`),
+  /** Delete my account; `confirm` is the GitHub username, typed by the user. */
+  deleteAccount: (confirm: string) => request<void>("DELETE", "/v1/me", { confirm }),
 
   listFeedback: (projectId: string, opts: { status?: FeedbackStatus; cursor?: string }) => {
     const qs = new URLSearchParams();

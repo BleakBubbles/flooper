@@ -2,6 +2,7 @@ import type { Paginated } from "@flooper/shared";
 import {
   bulkStatusSchema,
   createProjectSchema,
+  deleteAccountSchema,
   type Feedback,
   listAllFeedbackQuerySchema,
   listFeedbackQuerySchema,
@@ -13,6 +14,7 @@ import {
   updateProjectSchema,
 } from "@flooper/shared/schemas";
 import { Hono } from "hono";
+import { notesCsv } from "../db/export";
 import {
   countFeedback,
   deleteForever,
@@ -36,12 +38,12 @@ import {
   toProject,
   updateProject,
 } from "../db/projects";
-import { toUser, updateNotificationSettings } from "../db/users";
+import { deleteUser, toUser, updateNotificationSettings } from "../db/users";
 import type { AuthedEnv } from "../env";
 import { decodeCursor, encodeCursor } from "../lib/cursor";
-import { notFound } from "../lib/errors";
+import { ApiError, notFound } from "../lib/errors";
 import { parseJsonBody, parseQuery } from "../lib/validate";
-import { requireUser, setSignedInHint } from "../middleware/auth";
+import { clearSessionCookie, requireUser, setSignedInHint } from "../middleware/auth";
 
 /**
  * The API the portal uses. Everything here requires a logged-in user, and
@@ -57,6 +59,34 @@ portal.use(requireUser);
 portal.get("/me", (c) => {
   setSignedInHint(c);
   return c.json(toUser(c.get("user")));
+});
+
+// Delete my account: every site, every note, every session. The user types
+// their GitHub username to confirm, so a stray request can't do it.
+portal.delete("/me", async (c) => {
+  const user = c.get("user");
+  const { confirm } = await parseJsonBody(c, deleteAccountSchema);
+  if (confirm.trim().toLowerCase() !== user.login.toLowerCase()) {
+    throw new ApiError(422, "validation_failed", "Type your GitHub username to confirm", {
+      confirm: ["That isn't your GitHub username"],
+    });
+  }
+  await deleteUser(c.env.DB, user.id);
+  clearSessionCookie(c);
+  return c.body(null, 204);
+});
+
+// Export notes as CSV: every site's, or one site's (?projectId=). Streamed.
+portal.get("/export.csv", async (c) => {
+  const projectId = c.req.query("projectId") || undefined;
+  const date = new Date().toISOString().slice(0, 10);
+  return new Response(notesCsv(c.env.DB, c.get("user").id, projectId), {
+    headers: {
+      "Content-Type": "text/csv; charset=utf-8",
+      "Content-Disposition": `attachment; filename="flooper-notes-${date}.csv"`,
+      "Cache-Control": "no-store",
+    },
+  });
 });
 
 // The daily digest: on or off, and where it goes.

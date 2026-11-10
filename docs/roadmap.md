@@ -18,8 +18,7 @@ as volume grows:
 
 ### App polish
 
-Batches 1 and 2 are done (see below). Next, batch 3, account trust: export
-notes as CSV, and delete your account. Open question: whether dark mode goes
+Batches 1–3 are done (see below). Open question: whether dark mode goes
 pure black like the landing page.
 
 ## Later
@@ -91,6 +90,10 @@ code splitting, aggregation queries, and designing for data that drifts.
 
 ## Done
 
+- **Export and delete account, 2026-11-10.** In Your settings: download every
+  note (all sites or one) as a CSV, with formula-looking cells defused; and
+  delete your account (type your GitHub username), which removes every site,
+  note and session. The digest's checkbox now uses the app's own checkbox.
 - **Selecting several notes, 2026-11-10.** A checkbox over each row's unread
   dot (on hover, and on every row while selecting); Shift-click for a range;
   select all from the selection bar or the column header. The selection bar
