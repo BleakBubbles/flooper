@@ -24,8 +24,8 @@ const CLAIMS: Claim[] = [
         <path d="M17.488 15H9" />
       </>
     ),
-    title: "Small on purpose",
-    line: "Under 10 kB over the wire. CI fails the build if it grows past that.",
+    title: "Small",
+    line: "Under 10 kB over the wire.",
     host: "yoursite.com",
   },
   {
@@ -36,8 +36,8 @@ const CLAIMS: Claim[] = [
         <path d="m9 12 2 2 4-4" />
       </>
     ),
-    title: "Can't touch your CSS",
-    line: "It lives in a shadow root, and resets everything at the door.",
+    title: "Separate",
+    line: "Runs in a shadow root, isolated from your styles.",
     host: "yoursite.com",
   },
   {
@@ -50,8 +50,8 @@ const CLAIMS: Claim[] = [
         <rect width="8" height="5" x="14" y="6" rx="1" />
       </>
     ),
-    title: "Only works on your sites",
-    line: "Someone copies your snippet onto their site? Their notes get a 403.",
+    title: "Secure",
+    line: "Only accepts notes from sites you allow.",
     host: "copycat.example",
   },
   {
@@ -62,8 +62,8 @@ const CLAIMS: Claim[] = [
         <path d="M16 21h1a2 2 0 0 0 2-2v-5c0-1.1.9-2 2-2a2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1" />
       </>
     ),
-    title: "A JS API when you want one",
-    line: "Tell it who's signed in, or open it from your own button.",
+    title: "Scriptable",
+    line: "Identify users, or open it from your own button.",
     host: "yoursite.com",
   },
 ];
@@ -217,11 +217,23 @@ function NetworkPanel({ blocked }: { blocked: boolean }) {
     ? [
         { name: "checkout", status: "200", type: "document", size: "8.1 kB" },
         { name: "flooper.js", status: "200", type: "script", size: "9.7 kB" },
-        { name: "feedback", status: "403", type: "fetch", size: "188 B", picked: true },
+        {
+          name: "feedback",
+          status: "403",
+          type: "fetch",
+          size: "188 B",
+          picked: true,
+        },
       ]
     : [
         { name: "checkout", status: "200", type: "document", size: "14.2 kB" },
-        { name: "flooper.js", status: "200", type: "script", size: "9.7 kB", picked: true },
+        {
+          name: "flooper.js",
+          status: "200",
+          type: "script",
+          size: "9.7 kB",
+          picked: true,
+        },
         { name: "feedback", status: "201", type: "fetch", size: "312 B" },
       ];
   return (
