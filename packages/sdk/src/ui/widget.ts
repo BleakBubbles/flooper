@@ -19,6 +19,7 @@ const REACTION_LABELS: Record<Reaction, string> = {
 
 export interface WidgetOptions {
   position: "bottom-right" | "bottom-left";
+  launcher: boolean;
   theme: "auto" | "light" | "dark";
   title: string;
   /** The Flooper instance's home page, for the "Powered by" link. */
@@ -124,6 +125,7 @@ export class Widget {
     if (/^https?:\/\//.test(options.homeUrl)) home.href = options.homeUrl;
     else home.removeAttribute("href");
 
+    this.el.launcher.hidden = !options.launcher;
     this.el.launcher.addEventListener("click", () => this.toggle());
     for (const button of this.el.reactions) {
       button.addEventListener("click", () =>

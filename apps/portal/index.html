@@ -7,6 +7,15 @@
     <meta name="description" content="A tiny, chill feedback widget for indie websites." />
     <meta name="theme-color" content="#000000" />
 
+    <!-- The theme picked in the account menu (see src/theme.ts), applied before
+         the first paint so the page never flashes the other one. -->
+    <script>
+      try {
+        const theme = JSON.parse(localStorage.getItem("flooper:theme"));
+        if (theme === "light" || theme === "dark") document.documentElement.dataset.theme = theme;
+      } catch {}
+    </script>
+
     <!-- Fonts: Instrument Sans for text, Geist Mono for paths and code. -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

@@ -1,51 +1,37 @@
 /* Design tokens. Light is the warm "wall of notes" palette; dark borrows the
-   "ink" direction. Components use only these variables, never raw colors. */
+   "ink" direction. Components use only these variables, never raw colors.
+   Each color is light-dark(light, dark): the page's color-scheme picks one.
+   It follows the system unless you pick Light or Dark in the account menu,
+   which sets data-theme on <html> (see index.html and theme.ts). */
 :root {
-  --bg: #f4f4f1;
-  --surface: #ffffff;
-  --surface-raised: #fafaf8;
-  --toolbar: #fbfbf9;
-  --border: #e3e3de;
-  --border-strong: #dcdcd6;
-  --divider: #efefea;
-  --segment: #efefea;
-  --fg: #1a1a1a;
-  --fg-2: #3d3d39;
-  --muted: #6b6b66;
-  --faint: #c9c9c3;
-  --accent: #be185d;
-  --accent-fg: #ffffff;
-  --danger: #b91c1c;
-  --ok: #15803d;
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
-  --menu-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+  --bg: light-dark(#f4f4f1, #0b0b0c);
+  --surface: light-dark(#ffffff, #141416);
+  --surface-raised: light-dark(#fafaf8, #111113);
+  --toolbar: light-dark(#fbfbf9, #18181b);
+  --border: light-dark(#e3e3de, #26262a);
+  --border-strong: light-dark(#dcdcd6, #2f2f34);
+  --divider: light-dark(#efefea, #1f1f23);
+  --segment: light-dark(#efefea, #1f1f23);
+  --fg: light-dark(#1a1a1a, #ededed);
+  --fg-2: light-dark(#3d3d39, #c4c4ca);
+  --muted: light-dark(#6b6b66, #8b8b93);
+  --faint: light-dark(#c9c9c3, #4a4a50);
+  --accent: light-dark(#be185d, #f472b6);
+  --accent-fg: light-dark(#ffffff, #0b0b0c);
+  --danger: light-dark(#b91c1c, #f87171);
+  --ok: light-dark(#15803d, #4ade80);
+  --shadow: 0 1px 2px light-dark(rgba(0, 0, 0, 0.06), transparent);
+  --menu-shadow: 0 10px 30px light-dark(rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.5));
   --font: "Instrument Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --radius: 14px;
+  color-scheme: light dark;
+}
+:root[data-theme="light"] {
   color-scheme: light;
 }
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0b0b0c;
-    --surface: #141416;
-    --surface-raised: #111113;
-    --toolbar: #18181b;
-    --border: #26262a;
-    --border-strong: #2f2f34;
-    --divider: #1f1f23;
-    --segment: #1f1f23;
-    --fg: #ededed;
-    --fg-2: #c4c4ca;
-    --muted: #8b8b93;
-    --faint: #4a4a50;
-    --accent: #f472b6;
-    --accent-fg: #0b0b0c;
-    --danger: #f87171;
-    --ok: #4ade80;
-    --shadow: none;
-    --menu-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-    color-scheme: dark;
-  }
+:root[data-theme="dark"] {
+  color-scheme: dark;
 }
 
 * {
@@ -943,6 +929,60 @@ pre,
     display: block;
   }
 }
+/* The sidebar's collapse button, at its foot; wide screens only. */
+.sidebar-toggle {
+  margin-top: 8px;
+  color: var(--muted);
+}
+@media (max-width: 899px) {
+  .sidebar-toggle {
+    display: none;
+  }
+}
+/* Collapsed (wide screens): a strip of icons. Names are kept for screen
+   readers and shown on hover; an unread count becomes a dot on the icon. */
+@media (min-width: 900px) {
+  .home-layout.sidebar-collapsed {
+    grid-template-columns: 40px minmax(0, 1fr);
+  }
+  .sidebar-collapsed .sidebar-label,
+  .sidebar-collapsed .sidebar-row > .menu {
+    display: none;
+  }
+  .sidebar-collapsed .sidebar-name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .sidebar-collapsed .sidebar-item,
+  .sidebar-collapsed .sidebar-row .sidebar-item,
+  .sidebar-collapsed .sidebar-add {
+    position: relative;
+    justify-content: center;
+    padding: 11px 0;
+  }
+  .sidebar-collapsed .sidebar-list {
+    margin-top: 10px;
+  }
+  .sidebar-collapsed .sidebar-item .badge {
+    position: absolute;
+    top: 6px;
+    right: 5px;
+    width: 8px;
+    height: 8px;
+    padding: 0;
+    overflow: hidden;
+    color: transparent;
+    box-shadow: 0 0 0 2px var(--bg);
+  }
+}
+@media (min-width: 1360px) {
+  .home-layout.sidebar-collapsed {
+    grid-template-columns: 40px minmax(0, 1fr) 420px;
+  }
+}
 /* On phones the sidebar would hold just "All sites", so it steps aside. */
 @media (max-width: 899px) {
   .sidebar.no-sites {
@@ -1774,4 +1814,42 @@ pre,
 }
 .page-more:hover {
   color: var(--fg);
+}
+
+/* Theme: System, Light or Dark, in the account menu. */
+.theme-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 2px 4px 2px 10px;
+}
+.theme-picker {
+  /* Fills the row beside "Theme", so each button is a comfortable target. */
+  flex: 1;
+  display: flex;
+  gap: 2px;
+  min-width: 0;
+  margin: 0;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.theme-picker .icon-button {
+  flex: 1;
+  width: auto;
+  height: 32px;
+}
+.theme-picker .icon-button svg {
+  width: 18px;
+  height: 18px;
+}
+.theme-picker .icon-button[aria-pressed="true"] {
+  background: var(--segment);
+  color: var(--fg);
+}
+/* The menu marks a picked option with a check; these show it with the
+   highlight instead, and keep their tooltip saying what they are. */
+.menu-list .theme-picker .icon-button[aria-pressed="true"]::after {
+  content: attr(data-tooltip);
+  color: var(--bg);
 }

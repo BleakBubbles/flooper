@@ -1,16 +1,17 @@
 import type { ProjectWithSummary } from "@flooper/shared/schemas";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { type MouseEvent, type ReactNode, useCallback } from "react";
+import { type MouseEvent, type ReactNode, useCallback, useEffect } from "react";
 import { Link, useSearchParams } from "react-router";
 import { api, keys } from "../api";
 import { AccountSettings } from "../components/AccountSettings";
 import { ErrorState } from "../components/ErrorState";
-import { GearIcon, InboxIcon, MailOpenIcon, MoreIcon } from "../components/icons";
+import { GearIcon, InboxIcon, MailOpenIcon, MoreIcon, SidebarIcon } from "../components/icons";
 import { Menu } from "../components/Menu";
 import { NotesPanel, type Show } from "../components/NotesPanel";
 import { SetupPanel } from "../components/SetupPanel";
 import { SiteIcon } from "../components/SiteIcon";
 import { SiteSettings } from "../components/SiteSettings";
+import { usePref } from "../prefs";
 import { usePageTitle } from "../usePageTitle";
 
 /** What a click away from the open note must not land on. */
@@ -43,6 +44,23 @@ export function SitesPage() {
   const adding = params.has("new") || (projects.isSuccess && sites.length === 0);
   const settings = site !== undefined && params.get("view") === "settings";
   const account = params.get("view") === "account";
+  // Collapsed to a strip of site icons (wide screens only), remembered.
+  const [collapsed, setCollapsed] = usePref<boolean>(
+    "sidebar-collapsed",
+    false,
+    (v): v is boolean => typeof v === "boolean",
+  );
+  // "[" toggles it, as in Linear and Notion, unless you're typing.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "[" || event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target as HTMLElement;
+      if (target.closest("input, textarea, select, [contenteditable]")) return;
+      setCollapsed(!collapsed);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [collapsed, setCollapsed]);
   usePageTitle(
     ...(adding
       ? ["Add a site"]
@@ -120,8 +138,14 @@ export function SitesPage() {
     // biome-ignore lint/a11y/useKeyWithClickEvents: click-away is a convenience for pointers; Escape closes the note from the keyboard.
     <main className="page home" onClick={closeOnEmptyClick}>
       <h1 className="sr-only">{adding ? "Add a site" : site ? site.name : "All sites"}</h1>
-      <div className="home-layout">
-        <Sidebar sites={sites} current={adding ? undefined : site} adding={adding} />
+      <div className={collapsed ? "home-layout sidebar-collapsed" : "home-layout"}>
+        <Sidebar
+          sites={sites}
+          current={adding ? undefined : site}
+          adding={adding}
+          collapsed={collapsed}
+          onToggle={() => setCollapsed(!collapsed)}
+        />
         {middle}
       </div>
     </main>
@@ -131,16 +155,21 @@ export function SitesPage() {
 /**
  * The sites, like a mail app's folders: "All sites" first, then each site
  * with its unread count (nothing when there's nothing unread) and a ⋯ menu,
- * then "Add a site".
+ * then "Add a site". On wide screens it collapses to a strip of icons, with
+ * a dot for unread notes and each name on hover.
  */
 function Sidebar({
   sites,
   current,
   adding,
+  collapsed,
+  onToggle,
 }: {
   sites: ProjectWithSummary[];
   current: ProjectWithSummary | undefined;
   adding: boolean;
+  collapsed: boolean;
+  onToggle: () => void;
 }) {
   const [params] = useSearchParams();
   const allUnread = sites.reduce((n, s) => n + s.summary.newCount, 0);
@@ -161,6 +190,7 @@ function Sidebar({
         to={hrefFor(null)}
         className="sidebar-item all"
         aria-current={current || adding ? undefined : "page"}
+        title={collapsed ? "All sites" : undefined}
       >
         <span className="sidebar-main">
           <span className="site-icon" aria-hidden="true">
@@ -190,6 +220,7 @@ function Sidebar({
               to={hrefFor(s.id)}
               className="sidebar-item"
               aria-current={s.id === current?.id ? "page" : undefined}
+              title={collapsed ? s.name : undefined}
             >
               <span className="sidebar-main">
                 <SiteIcon site={s} />
@@ -203,10 +234,25 @@ function Sidebar({
       </ul>
       {/* With no sites yet, adding one is the whole middle of the page. */}
       {sites.length > 0 && (
-        <Link to="/?new" className="sidebar-add" aria-current={adding ? "page" : undefined}>
-          <span aria-hidden="true">+</span> Add a site
+        <Link
+          to="/?new"
+          className="sidebar-add"
+          aria-current={adding ? "page" : undefined}
+          title={collapsed ? "Add a site" : undefined}
+        >
+          <span aria-hidden="true">+</span> <span className="sidebar-name">Add a site</span>
         </Link>
       )}
+      <button
+        type="button"
+        className="icon-button sidebar-toggle"
+        onClick={onToggle}
+        aria-label={collapsed ? "Expand the sidebar" : "Collapse the sidebar"}
+        aria-keyshortcuts="["
+        data-tooltip={collapsed ? "Expand  [" : "Collapse  ["}
+      >
+        <SidebarIcon />
+      </button>
     </nav>
   );
 }

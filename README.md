@@ -31,6 +31,8 @@ snippet before `</body>`:
 ```
 
 Add `data-flooper-ignore` to anything visitors shouldn't be able to point at.
+To open it from your own button instead of the floating one, add
+`data-launcher="false"` and call `Flooper.open()`.
 
 ## Development
 

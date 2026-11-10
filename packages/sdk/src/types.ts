@@ -8,6 +8,11 @@ export interface FlooperOptions {
   apiUrl?: string;
   /** Which corner the button sits in. Default: `"bottom-right"`. */
   position?: "bottom-right" | "bottom-left";
+  /**
+   * Show the floating button. Default `true`. Set `false` to open the widget
+   * only from your own button, with `open()`.
+   */
+  launcher?: boolean;
   /** Default `"auto"` follows the visitor's light/dark preference. */
   theme?: "auto" | "light" | "dark";
   /** The heading shown at the top of the panel. */
