@@ -217,23 +217,11 @@ function NetworkPanel({ blocked }: { blocked: boolean }) {
     ? [
         { name: "checkout", status: "200", type: "document", size: "8.1 kB" },
         { name: "flooper.js", status: "200", type: "script", size: "9.7 kB" },
-        {
-          name: "feedback",
-          status: "403",
-          type: "fetch",
-          size: "188 B",
-          picked: true,
-        },
+        { name: "feedback", status: "403", type: "fetch", size: "188 B", picked: true },
       ]
     : [
         { name: "checkout", status: "200", type: "document", size: "14.2 kB" },
-        {
-          name: "flooper.js",
-          status: "200",
-          type: "script",
-          size: "9.7 kB",
-          picked: true,
-        },
+        { name: "flooper.js", status: "200", type: "script", size: "9.7 kB", picked: true },
         { name: "feedback", status: "201", type: "fetch", size: "312 B" },
       ];
   return (
