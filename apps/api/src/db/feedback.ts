@@ -22,6 +22,7 @@ export interface FeedbackRow {
   metadata: string | null;
   idempotency_key: string;
   created_at: number;
+  deleted_at: number | null;
 }
 
 /**
@@ -70,7 +71,9 @@ export async function insertFeedback(
 /** How many notes the project has in each status. One grouped query, not four. */
 export async function countFeedback(db: D1Database, projectId: string): Promise<FeedbackCounts> {
   const { results } = await db
-    .prepare("SELECT status, COUNT(*) AS n FROM feedback WHERE project_id = ? GROUP BY status")
+    .prepare(
+      "SELECT status, COUNT(*) AS n FROM feedback WHERE project_id = ? AND deleted_at IS NULL GROUP BY status",
+    )
     .bind(projectId)
     .all<{ status: FeedbackStatus; n: number }>();
   const counts: FeedbackCounts = { new: 0, seen: 0, done: 0, archived: 0, total: 0, latest: null };
@@ -82,7 +85,7 @@ export async function countFeedback(db: D1Database, projectId: string): Promise<
     // Served by the (project_id, created_at) index, so this is one row read.
     const latest = await db
       .prepare(
-        "SELECT created_at, page_url FROM feedback WHERE project_id = ? ORDER BY created_at DESC LIMIT 1",
+        "SELECT created_at, page_url FROM feedback WHERE project_id = ? AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 1",
       )
       .bind(projectId)
       .first<{ created_at: number; page_url: string }>();
@@ -126,6 +129,8 @@ export async function listFeedback(
     page?: string;
     /** Search: the message, the page or the picked element's text contains this. */
     q?: string;
+    /** The deleted notes ("Recently deleted") instead of the others. */
+    deleted?: boolean;
     /** Leave archived notes out when no status is asked for. */
     hideArchived?: boolean;
     sort?: NoteSort;
@@ -134,7 +139,8 @@ export async function listFeedback(
     limit: number;
   },
 ): Promise<{ rows: SortedFeedbackRow[]; hasMore: boolean }> {
-  const where: string[] = [];
+  // Deleted notes only show in "Recently deleted", whatever their status.
+  const where: string[] = [opts.deleted ? "f.deleted_at IS NOT NULL" : "f.deleted_at IS NULL"];
   const params: (string | number)[] = [];
   if ("ownerId" in scope) {
     where.push("p.owner_id = ?");
@@ -157,7 +163,9 @@ export async function listFeedback(
     );
     params.push(like, like, like);
   }
-  if (opts.status) {
+  if (opts.deleted) {
+    // Every deleted note, whatever its status.
+  } else if (opts.status) {
     where.push("f.status = ?");
     params.push(opts.status);
   } else if (opts.hideArchived) {
@@ -210,7 +218,7 @@ export async function listPageGroups(
   ownerId: string,
   opts: { projectId?: string; status?: FeedbackStatus } = {},
 ): Promise<PageGroup[]> {
-  const where = ["p.owner_id = ?"];
+  const where = ["p.owner_id = ?", "f.deleted_at IS NULL"];
   const params: string[] = [ownerId];
   if (opts.projectId) {
     where.push("f.project_id = ?");
@@ -306,14 +314,16 @@ export async function summarizeProjects(
   const [counts, days] = await db.batch<Record<string, string | number | null>>([
     db
       .prepare(
-        `SELECT project_id, status, reaction, COUNT(*) AS n, MAX(created_at) AS last
-         FROM feedback WHERE ${owned} GROUP BY project_id, status, reaction`,
+        `SELECT project_id, status, reaction, deleted_at IS NOT NULL AS gone,
+                COUNT(*) AS n, MAX(created_at) AS last
+         FROM feedback WHERE ${owned} GROUP BY project_id, status, reaction, gone`,
       )
       .bind(ownerId),
     db
       .prepare(
         `SELECT project_id, CAST((created_at - ?) / ${DAY} AS INTEGER) AS day, COUNT(*) AS n
-         FROM feedback WHERE ${owned} AND created_at >= ? GROUP BY project_id, day`,
+         FROM feedback WHERE ${owned} AND created_at >= ? AND deleted_at IS NULL
+         GROUP BY project_id, day`,
       )
       .bind(since, ownerId, since),
   ]);
@@ -330,6 +340,10 @@ export async function summarizeProjects(
   for (const row of counts?.results ?? []) {
     const s = get(row.project_id as string);
     const n = row.n as number;
+    if (row.gone) {
+      s.deleted += n;
+      continue;
+    }
     s.total += n;
     if (row.status === "archived") s.archived += n;
     if (row.status === "done") s.done += n;
@@ -357,6 +371,7 @@ export function emptySummary(): ProjectSummary {
     total: 0,
     done: 0,
     archived: 0,
+    deleted: 0,
     lastNoteAt: null,
     activity: Array(ACTIVITY_DAYS).fill(0),
   };
@@ -376,7 +391,8 @@ export async function markAllSeen(
   const { results } = await db
     .prepare(
       `UPDATE feedback SET status = 'seen'
-       WHERE status = 'new' AND project_id IN (SELECT id FROM projects WHERE owner_id = ?)${oneSite}
+       WHERE status = 'new' AND deleted_at IS NULL
+         AND project_id IN (SELECT id FROM projects WHERE owner_id = ?)${oneSite}
        RETURNING id`,
     )
     .bind(...(projectId ? [ownerId, projectId] : [ownerId]))
@@ -397,10 +413,61 @@ export async function setStatuses(
   const result = await db
     .prepare(
       `UPDATE feedback SET status = ?
-       WHERE id IN (SELECT value FROM json_each(?))
+       WHERE id IN (SELECT value FROM json_each(?)) AND deleted_at IS NULL
          AND project_id IN (SELECT id FROM projects WHERE owner_id = ?)`,
     )
     .bind(status, JSON.stringify(ids), ownerId)
+    .run();
+  return result.meta.changes ?? 0;
+}
+
+/** How long a deleted note stays in "Recently deleted". */
+export const DELETED_KEPT_MS = 30 * DAY;
+
+/**
+ * Delete notes (into "Recently deleted"), or restore them (`at` null), but
+ * only the owner's. Returns how many changed.
+ */
+export async function setDeleted(
+  db: D1Database,
+  ownerId: string,
+  ids: string[],
+  at: number | null,
+): Promise<number> {
+  const result = await db
+    .prepare(
+      `UPDATE feedback SET deleted_at = ?
+       WHERE id IN (SELECT value FROM json_each(?))
+         AND ${at === null ? "deleted_at IS NOT NULL" : "deleted_at IS NULL"}
+         AND project_id IN (SELECT id FROM projects WHERE owner_id = ?)`,
+    )
+    .bind(at, JSON.stringify(ids), ownerId)
+    .run();
+  return result.meta.changes ?? 0;
+}
+
+/** "Delete forever": only notes already deleted, and only the owner's. */
+export async function deleteForever(
+  db: D1Database,
+  ownerId: string,
+  ids: string[],
+): Promise<number> {
+  const result = await db
+    .prepare(
+      `DELETE FROM feedback
+       WHERE id IN (SELECT value FROM json_each(?)) AND deleted_at IS NOT NULL
+         AND project_id IN (SELECT id FROM projects WHERE owner_id = ?)`,
+    )
+    .bind(JSON.stringify(ids), ownerId)
+    .run();
+  return result.meta.changes ?? 0;
+}
+
+/** The daily job: notes deleted more than 30 days ago go for good. */
+export async function purgeDeleted(db: D1Database, now = Date.now()): Promise<number> {
+  const result = await db
+    .prepare("DELETE FROM feedback WHERE deleted_at IS NOT NULL AND deleted_at < ?")
+    .bind(now - DELETED_KEPT_MS)
     .run();
   return result.meta.changes ?? 0;
 }
@@ -449,6 +516,7 @@ export function toFeedback(row: FeedbackRow): Feedback {
     visitor: parseOrNull(row.visitor),
     metadata: parseOrNull(row.metadata),
     createdAt: new Date(row.created_at).toISOString(),
+    deletedAt: row.deleted_at === null ? null : new Date(row.deleted_at).toISOString(),
   };
 }
 

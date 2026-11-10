@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
+import { purgeDeleted } from "../src/db/feedback";
 import { BASE, createProject, json, loginAsDev, request, SITE, submission } from "./helpers";
 
 describe("portal API", () => {
@@ -157,6 +158,7 @@ describe("portal API", () => {
       total: 0,
       done: 0,
       archived: 0,
+      deleted: 0,
       lastNoteAt: null,
       activity: Array(14).fill(0),
     });
@@ -489,6 +491,115 @@ describe("portal API", () => {
     expect(((await undo.json()) as { updated: number }).updated).toBe(3);
     const theirs = await env.DB.prepare("SELECT status FROM feedback WHERE id = 'fb_u'").first();
     expect(theirs).toEqual({ status: "seen" });
+  });
+
+  it("deletes notes into Recently deleted, restores them, and purges them after 30 days", async () => {
+    const cookie = await loginAsDev();
+    const site = await createProject(cookie);
+    let ip = 100;
+    for (const message of ["keep me", "spam spam", "typo"]) {
+      await json(
+        "POST",
+        `/api/v1/ingest/${site.publicKey}/feedback`,
+        submission({ message, context: { ...submission().context, url: `${SITE}/x`, path: "/x" } }),
+        { Origin: SITE, "CF-Connecting-IP": `198.51.100.${ip++}` },
+      );
+    }
+    type Note = { id: string; message: string; status: string; deletedAt: string | null };
+    const list = async (qs = "") =>
+      (
+        (await (
+          await request(`/api/v1/feedback?projectId=${site.id}${qs}`, {
+            headers: { Cookie: cookie },
+          })
+        ).json()) as { data: Note[] }
+      ).data;
+    const byMessage = Object.fromEntries((await list()).map((n) => [n.message, n]));
+    const spam = byMessage["spam spam"] as Note;
+    const typo = byMessage.typo as Note;
+    await json("PATCH", `/api/v1/feedback/${typo.id}`, { status: "done" }, { Cookie: cookie });
+
+    // Deleted: out of the list, the counts, the page groups, search and mark-all-read.
+    const del = await json(
+      "POST",
+      "/api/v1/feedback/delete",
+      { ids: [spam.id, typo.id] },
+      { Cookie: cookie },
+    );
+    expect(((await del.json()) as { updated: number }).updated).toBe(2);
+    expect((await list()).map((n) => n.message)).toEqual(["keep me"]);
+    expect(await list("&q=spam")).toEqual([]);
+    const counts = await (
+      await request(`/api/v1/projects/${site.id}/feedback/counts`, { headers: { Cookie: cookie } })
+    ).json();
+    expect(counts).toMatchObject({ total: 1 });
+    const pages = (await (
+      await request(`/api/v1/pages?projectId=${site.id}`, { headers: { Cookie: cookie } })
+    ).json()) as { data: { total: number }[] };
+    expect(pages.data[0]?.total).toBe(1);
+    const sites = (await (
+      await request("/api/v1/projects", { headers: { Cookie: cookie } })
+    ).json()) as { data: { id: string; summary: { total: number; deleted: number } }[] };
+    expect(sites.data.find((s) => s.id === site.id)?.summary).toMatchObject({
+      total: 1,
+      deleted: 2,
+    });
+    const read = await json(
+      "POST",
+      "/api/v1/feedback/mark-all-read",
+      { projectId: site.id },
+      { Cookie: cookie },
+    );
+    expect(((await read.json()) as { ids: string[] }).ids).toHaveLength(1);
+
+    // ...but listed in Recently deleted, whatever their status.
+    const gone = await list("&deleted=1");
+    expect(gone.map((n) => n.message).sort()).toEqual(["spam spam", "typo"]);
+    expect(gone.every((n) => n.deletedAt !== null)).toBe(true);
+
+    // Restored, with the status it had.
+    await json("POST", "/api/v1/feedback/restore", { ids: [typo.id] }, { Cookie: cookie });
+    expect((await list()).find((n) => n.id === typo.id)).toMatchObject({
+      status: "done",
+      deletedAt: null,
+    });
+
+    // Delete forever: only notes already deleted, and only your own.
+    await env.DB.prepare(
+      `INSERT INTO users (id, github_id, login, created_at) VALUES ('usr_t', 91, 't', 0);`,
+    ).run();
+    await env.DB.prepare(
+      `INSERT INTO projects (id, owner_id, name, public_key, created_at) VALUES ('prj_t', 'usr_t', 'T', 'pk_t', 0);`,
+    ).run();
+    await env.DB.prepare(
+      `INSERT INTO feedback (id, project_id, message, page_url, context, idempotency_key, created_at, deleted_at)
+       VALUES ('fb_t', 'prj_t', 'theirs', 'https://t.example/', '{}', 'k', 0, 1);`,
+    ).run();
+    const theirs = await json(
+      "POST",
+      "/api/v1/feedback/delete",
+      { ids: ["fb_t"] },
+      { Cookie: cookie },
+    );
+    expect(((await theirs.json()) as { updated: number }).updated).toBe(0);
+    const forever = await json(
+      "POST",
+      "/api/v1/feedback/delete-forever",
+      { ids: [spam.id, typo.id, "fb_t"] },
+      { Cookie: cookie },
+    );
+    expect(((await forever.json()) as { deleted: number }).deleted).toBe(1);
+    expect(await list("&deleted=1")).toEqual([]);
+    expect(await env.DB.prepare("SELECT id FROM feedback WHERE id = 'fb_t'").first()).toEqual({
+      id: "fb_t",
+    });
+
+    // The daily job removes notes deleted more than 30 days ago.
+    await json("POST", "/api/v1/feedback/delete", { ids: [typo.id] }, { Cookie: cookie });
+    expect(await purgeDeleted(env.DB, Date.now())).toBe(1); // fb_t, deleted at 1 (1970)
+    expect((await list("&deleted=1")).map((n) => n.id)).toEqual([typo.id]);
+    expect(await purgeDeleted(env.DB, Date.now() + 31 * 24 * 60 * 60 * 1000)).toBe(1);
+    expect(await list("&deleted=1")).toEqual([]);
   });
 
   it("deletes a site with its notes, but only the owner's", async () => {

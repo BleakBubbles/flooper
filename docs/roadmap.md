@@ -91,6 +91,10 @@ code splitting, aggregation queries, and designing for data that drifts.
 
 ## Done
 
+- **Deleting notes, 2026-11-10.** Delete in the open note (or `#`), with Undo;
+  "Recently deleted" in the Show menu, with Restore and Delete forever; and
+  notes deleted more than 30 days ago removed for good by the daily job. A
+  `deleted_at` column (migration 0004), so a restored note keeps its status.
 - **Inbox basics, 2026-11-10.** Undo (a toast with Undo, or `z`) after Done,
   Archive and Mark all as read; search over notes' text, pages and picked
   elements, centred in the header (`/`, in the URL as `?q=`); and Gmail-style

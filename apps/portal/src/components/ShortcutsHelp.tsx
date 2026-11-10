@@ -20,6 +20,7 @@ const SHORTCUTS: { group: string; keys: [string[], string][] }[] = [
       [["e"], "Archive"],
       [["d"], "Mark done"],
       [["u"], "Mark read or unread"],
+      [["#"], "Delete"],
       [["z"], "Undo"],
     ],
   },

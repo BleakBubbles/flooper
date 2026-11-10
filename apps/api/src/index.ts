@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { purgeDeleted } from "./db/feedback";
 import { resendSender, runDigests } from "./digest";
 import type { AppEnv, Bindings } from "./env";
 import { ApiError, notFound } from "./lib/errors";
@@ -57,7 +58,13 @@ app.onError((err, c) => {
 export default {
   fetch: app.fetch,
   // The daily digest (see `triggers` in wrangler.jsonc).
+  // Once a day (see `triggers` in wrangler.jsonc): the digests, and notes
+  // deleted more than 30 days ago go for good.
   scheduled(_controller, env, ctx) {
-    ctx.waitUntil(runDigests(env, Date.now(), resendSender(env)));
+    const now = Date.now();
+    ctx.waitUntil(runDigests(env, now, resendSender(env)));
+    ctx.waitUntil(
+      purgeDeleted(env.DB, now).then((purged) => log("info", "deleted notes purged", { purged })),
+    );
   },
 } satisfies ExportedHandler<Bindings>;

@@ -29,16 +29,17 @@ import {
   MailIcon,
   MailOpenIcon,
   SmileIcon,
+  TrashIcon,
   XIcon,
 } from "./icons";
 import { Menu } from "./Menu";
-import { REACTION_LABELS, StatusActions } from "./NoteActions";
+import { DeletedActions, REACTION_LABELS, StatusActions } from "./NoteActions";
 import { PageHeader } from "./PageHeader";
 import { SiteIcon } from "./SiteIcon";
 import { showToast } from "./Toasts";
 
 /** Which notes the list shows. "all" is everything but archived. */
-export type Show = "all" | "unread" | "done" | "archived";
+export type Show = "all" | "unread" | "done" | "archived" | "deleted";
 /** A column the list is sorted by, or null for the default (newest first). */
 type Sort = { by: NoteSort; dir: "asc" | "desc" } | null;
 type NotePages = InfiniteData<Paginated<Feedback>, string | undefined>;
@@ -81,6 +82,8 @@ const SHOWS: {
     icon: <ArchiveIcon />,
     status: "archived",
   },
+  // Deleted notes, kept 30 days: restore them, or delete them for good.
+  { value: "deleted", label: "Recently deleted", icon: <TrashIcon /> },
 ];
 /**
  * The notes list: from every site, or from `site` when one is picked in the
@@ -101,7 +104,7 @@ export function NotesPanel({
   show,
   page,
   q,
-  openId,
+  openId: urlOpenId,
   onShow,
   onSearch,
   onPickPage,
@@ -124,6 +127,19 @@ export function NotesPanel({
   onOpen: (id: string | null) => void;
 }) {
   const queryClient = useQueryClient();
+  // When a note leaves the list (deleted, say), the next one opens in the same
+  // update, here, rather than when the URL's ?note= catches up a moment later:
+  // otherwise the list would collapse, then the next note expand (a flash).
+  const [pendingOpen, setPendingOpen] = useState<{ id: string | null } | null>(null);
+  const openId = pendingOpen ? pendingOpen.id : urlOpenId;
+  useEffect(() => {
+    if (pendingOpen && urlOpenId === pendingOpen.id) setPendingOpen(null);
+  }, [pendingOpen, urlOpenId]);
+  /** Opens a note now, and in the URL as soon as it catches up. */
+  const openNow = (id: string | null) => {
+    setPendingOpen({ id });
+    onOpen(id);
+  };
   const withPane = useMediaQuery(PANE_QUERY);
   // The order (and grouping by page) is remembered in this browser.
   const [sort, setSort] = usePref<Sort>("notes-sort", null, isSort);
@@ -131,7 +147,8 @@ export function NotesPanel({
   const active = sort && !(site && sort.by === "site") ? sort : null;
   // Sorting by Page groups the notes under their pages (busiest first, "desc"),
   // unless one page is picked already: then it's just that page's notes.
-  const grouped = active?.by === "page" && !page && !q;
+  const deletedView = show === "deleted";
+  const grouped = active?.by === "page" && !page && !q && !deletedView;
   const listSort = active?.by === "page" ? null : active;
   const sorted = listSort ?? NEWEST_FIRST;
   /**
@@ -147,7 +164,7 @@ export function NotesPanel({
   const showing = SHOWS.find((s) => s.value === show) ?? (SHOWS[0] as (typeof SHOWS)[number]);
   const listQuery = (sort: { by: NoteSort; dir: "asc" | "desc" }, enabled: boolean) => ({
     queryKey: keys.allFeedback(
-      showing.status,
+      deletedView ? "deleted" : showing.status,
       `${sort.by}-${sort.dir}`,
       site?.id,
       page ?? undefined,
@@ -161,6 +178,7 @@ export function NotesPanel({
         projectId: site?.id,
         page: page ?? undefined,
         q: q || undefined,
+        deleted: deletedView,
         cursor: pageParam,
         limit: PAGE_SIZE,
       }),
@@ -200,6 +218,7 @@ export function NotesPanel({
     unread,
     done: sum((s) => s.summary.done),
     archived: sum((s) => s.summary.archived),
+    deleted: sum((s) => s.summary.deleted),
   }[show];
   // Busiest first from the server; flipped here for quietest first.
   const busiestFirst = groups.data?.data ?? [];
@@ -244,6 +263,11 @@ export function NotesPanel({
   // The note the keyboard is on: the open one, else a highlighted row.
   const [cursorId, setCursorId] = useState<string | null>(null);
   const currentId = openId ?? (shown.some((n) => n.id === cursorId) ? cursorId : null);
+  /** The note after this one in the list (or before, at the end): where to go next. */
+  const nextAfter = (id: string) => {
+    const i = shown.findIndex((n) => n.id === id);
+    return shown[i + 1] ?? shown[i - 1];
+  };
 
   /**
    * Change this list's copy of the notes, dropping any `keep` returns false
@@ -273,7 +297,11 @@ export function NotesPanel({
             },
         );
   const belongs = (note: Feedback) =>
-    showing.status ? note.status === showing.status : note.status !== "archived";
+    deletedView
+      ? note.deletedAt !== null
+      : showing.status
+        ? note.status === showing.status
+        : note.status !== "archived";
   /** The sidebar's counts come from the sites list. */
   const refreshCounts = () => void queryClient.invalidateQueries({ queryKey: keys.projects });
 
@@ -370,6 +398,64 @@ export function NotesPanel({
     },
   });
 
+  /**
+   * Takes notes out of this list at once, in the same frame as the click, so
+   * the list never shows the next note open beside the one going away. Again
+   * after in-flight reloads are cancelled, in case one put it back.
+   */
+  const dropNow = (ids: string[]) =>
+    updateList(
+      (n) => n,
+      (n) => !ids.includes(n.id),
+    );
+  const dropFromList = async (ids: string[]) => {
+    const previous = queryClient.getQueryData(queryKey);
+    const drop = () =>
+      updateList(
+        (n) => n,
+        (n) => !ids.includes(n.id),
+      );
+    drop();
+    await queryClient.cancelQueries({ queryKey });
+    drop();
+    return previous;
+  };
+  // Delete: into "Recently deleted", with Undo.
+  const removeNote = useMutation({
+    mutationFn: (id: string) => api.deleteNotes([id]),
+    onMutate: async (id) => ({ previous: await dropFromList([id]) }),
+    onError: (_err, _id, context) => {
+      if (context?.previous) queryClient.setQueryData(queryKey, context.previous);
+    },
+    onSuccess: (_res, id) =>
+      showToast({
+        message: "Deleted",
+        undo: () => void api.restoreNotes([id]).then(refreshAll, refreshAll),
+      }),
+    onSettled: refreshAll,
+  });
+  // From "Recently deleted": back where it was, or gone for good.
+  const restoreNote = useMutation({
+    mutationFn: (id: string) => api.restoreNotes([id]),
+    onMutate: async (id) => ({ previous: await dropFromList([id]) }),
+    onSuccess: () => showToast({ message: "Restored" }),
+    onSettled: refreshAll,
+  });
+  const deleteForever = useMutation({
+    mutationFn: (id: string) => api.deleteNotesForever([id]),
+    onMutate: async (id) => ({ previous: await dropFromList([id]) }),
+    onSuccess: () => showToast({ message: "Deleted forever" }),
+    onSettled: refreshAll,
+  });
+  /** Delete for good, after a confirmation: there's no undo. */
+  const confirmDeleteForever = (id: string) => {
+    if (window.confirm("Delete this note forever? This can't be undone.")) {
+      dropNow([id]);
+      deleteForever.mutate(id);
+      if (openId === id) openNow(null);
+    }
+  };
+
   const detail = (note: Feedback) => {
     const from = sitesById.get(note.projectId);
     return (
@@ -386,6 +472,18 @@ export function NotesPanel({
         }
         onClose={() => onOpen(null)}
         onStatus={(next) => setStatus.mutate({ id: note.id, status: next, previous: note.status })}
+        onDelete={() => {
+          const after = nextAfter(note.id);
+          dropNow([note.id]);
+          removeNote.mutate(note.id);
+          openNow(after?.id ?? null);
+        }}
+        onRestore={() => {
+          dropNow([note.id]);
+          restoreNote.mutate(note.id);
+          openNow(null);
+        }}
+        onDeleteForever={() => confirmDeleteForever(note.id)}
       />
     );
   };
@@ -441,6 +539,13 @@ export function NotesPanel({
         case "d":
           finish("done");
           break;
+        case "#":
+          if (!current || deletedView) return;
+          dropNow([current.id]);
+          removeNote.mutate(current.id);
+          if (openId) openNow(nextAfter(current.id)?.id ?? null);
+          else setCursorId(nextAfter(current.id)?.id ?? null);
+          break;
         case "u":
           if (!current) return;
           setStatus.mutate({
@@ -468,6 +573,8 @@ export function NotesPanel({
         isOpen={note.id === openId}
         onOpen={() => onOpen(note.id === openId ? null : note.id)}
         onStatus={(next) => setStatus.mutate({ id: note.id, status: next, previous: note.status })}
+        onRestore={() => restoreNote.mutate(note.id)}
+        onDeleteForever={() => confirmDeleteForever(note.id)}
       />
       {/* Without room for the pane, the note opens right here, under its row. */}
       {!withPane && note.id === openId && <div className="note-inline">{detail(note)}</div>}
@@ -768,6 +875,7 @@ function EmptyNotes({ show, q, onClear }: { show: Show; q: string; onClear: () =
     unread: "You're all caught up. Nothing unread.",
     done: "Nothing marked done yet.",
     archived: "Nothing archived.",
+    deleted: "Nothing here. Deleted notes stay for 30 days, then they're gone for good.",
   }[show];
   return <p className="notes-empty muted">{text}</p>;
 }
@@ -790,6 +898,8 @@ function NoteRow({
   isCursor,
   onOpen,
   onStatus,
+  onRestore,
+  onDeleteForever,
 }: {
   note: Feedback;
   site: ProjectWithSummary | undefined;
@@ -799,6 +909,8 @@ function NoteRow({
   isCursor: boolean;
   onOpen: () => void;
   onStatus: (status: FeedbackStatus) => void;
+  onRestore: () => void;
+  onDeleteForever: () => void;
 }) {
   const isNew = note.status === "new";
   const classes = [
@@ -843,7 +955,11 @@ function NoteRow({
         </time>
       </button>
       <div className="note-actions">
-        <StatusActions status={note.status} onStatus={onStatus} />
+        {note.deletedAt ? (
+          <DeletedActions onRestore={onRestore} onDeleteForever={onDeleteForever} />
+        ) : (
+          <StatusActions status={note.status} onStatus={onStatus} />
+        )}
       </div>
     </div>
   );

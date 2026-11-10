@@ -85,6 +85,8 @@ export const api = {
     page?: string;
     /** Search. */
     q?: string;
+    /** "Recently deleted" instead. */
+    deleted?: boolean;
     cursor?: string;
     limit?: number;
   }) => {
@@ -92,6 +94,7 @@ export const api = {
     if (opts.projectId) qs.set("projectId", opts.projectId);
     if (opts.page) qs.set("page", opts.page);
     if (opts.q) qs.set("q", opts.q);
+    if (opts.deleted) qs.set("deleted", "1");
     if (opts.status) qs.set("status", opts.status);
     if (opts.cursor) qs.set("cursor", opts.cursor);
     if (opts.limit) qs.set("limit", String(opts.limit));
@@ -109,6 +112,15 @@ export const api = {
     request<{ updated: number; ids: string[] }>("POST", "/v1/feedback/mark-all-read", {
       projectId,
     }),
+  /** Delete notes into "Recently deleted". */
+  deleteNotes: (ids: string[]) =>
+    request<{ updated: number }>("POST", "/v1/feedback/delete", { ids }),
+  /** Bring deleted notes back. */
+  restoreNotes: (ids: string[]) =>
+    request<{ updated: number }>("POST", "/v1/feedback/restore", { ids }),
+  /** Delete notes for good (only ones already deleted). */
+  deleteNotesForever: (ids: string[]) =>
+    request<{ deleted: number }>("POST", "/v1/feedback/delete-forever", { ids }),
   /** Several notes to one status (undoing "Mark all as read"). */
   setStatuses: (ids: string[], status: FeedbackStatus) =>
     request<{ updated: number }>("POST", "/v1/feedback/status", { ids, status }),
@@ -137,7 +149,7 @@ export const keys = {
   note: (projectId: string, id: string) => ["feedback", projectId, "note", id] as const,
   // The home screen's notes from every site. Invalidate ["feedback", ALL_SITES] after a change.
   allFeedback: (
-    status: FeedbackStatus | undefined,
+    status: FeedbackStatus | "deleted" | undefined,
     sort: string,
     projectId?: string,
     page?: string,
