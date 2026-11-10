@@ -10,6 +10,7 @@ import {
 } from "@tanstack/react-query";
 import { type ReactNode, useEffect, useState } from "react";
 import { api, keys } from "../api";
+import { isTyping } from "../keys";
 import { usePref } from "../prefs";
 import { sortNotes } from "../sortNotes";
 import { timeAgo } from "../time";
@@ -397,10 +398,9 @@ export function NotesPanel({
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.metaKey || event.ctrlKey || event.altKey) return;
-      const target = event.target as HTMLElement;
-      if (target.closest("input, textarea, select, [contenteditable], dialog")) return;
+      if (isTyping(event, ", dialog")) return;
       // Enter on a focused button or link is that button's own click.
-      if (event.key === "Enter" && target.closest("button, a")) return;
+      if (event.key === "Enter" && (event.target as Element).closest("button, a")) return;
       const index = shown.findIndex((n) => n.id === currentId);
       const current = index >= 0 ? shown[index] : undefined;
       const move = (by: number) => {

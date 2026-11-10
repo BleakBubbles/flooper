@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { isTyping } from "../keys";
 
 /** The keyboard shortcuts, as the cheat sheet lists them. */
 const SHORTCUTS: { group: string; keys: [string[], string][] }[] = [
@@ -48,8 +49,7 @@ export function ShortcutsHelp() {
     };
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== "?" || event.metaKey || event.ctrlKey || event.altKey) return;
-      const target = event.target as HTMLElement;
-      if (target.closest("input, textarea, select, [contenteditable]")) return;
+      if (isTyping(event)) return;
       event.preventDefault();
       open();
     };

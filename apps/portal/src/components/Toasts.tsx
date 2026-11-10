@@ -1,4 +1,5 @@
 import { useEffect, useSyncExternalStore } from "react";
+import { isTyping } from "../keys";
 
 // Small messages at the bottom of the screen after an action, with an Undo
 // where it can be taken back ("Marked done · Undo"). One at a time: a new one
@@ -60,8 +61,7 @@ export function Toasts() {
     if (!toast?.undo) return;
     const undo = toast.undo;
     const onKey = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement;
-      if (target.closest("input, textarea, select, [contenteditable]")) return;
+      if (isTyping(event)) return;
       const plain = event.key === "z" && !event.metaKey && !event.ctrlKey && !event.altKey;
       const command = event.key === "z" && (event.metaKey || event.ctrlKey) && !event.shiftKey;
       if (!plain && !command) return;
