@@ -39,9 +39,11 @@
     // backstop against floods the per-visitor rate limit can't catch.
     "NOTES_PER_SITE_PER_DAY": "1000",
     // Links in emails point here. Emails come from EMAIL_FROM (a domain
-    // verified with the email provider; see docs/operations.md).
+    // verified with the email provider; see docs/operations.md), and replies
+    // go to REPLY_TO, an address that receives mail (Cloudflare Email Routing).
     "PUBLIC_URL": "http://localhost:5173",
-    "EMAIL_FROM": "Flooper <notes@flooper.app>"
+    "EMAIL_FROM": "Flooper <notes@flooper.app>",
+    "REPLY_TO": "Flooper <hello@flooper.app>"
   },
 
   // The daily digest, 13:00 UTC (morning in the Americas, afternoon in Europe).
@@ -63,7 +65,8 @@
         "TRUSTED_ORIGINS": "",
         "NOTES_PER_SITE_PER_DAY": "1000",
         "PUBLIC_URL": "https://flooper.app",
-        "EMAIL_FROM": "Flooper <notes@flooper.app>"
+        "EMAIL_FROM": "Flooper <notes@flooper.app>",
+        "REPLY_TO": "Flooper <hello@flooper.app>"
       },
       "triggers": { "crons": ["0 13 * * *"] },
       "d1_databases": [

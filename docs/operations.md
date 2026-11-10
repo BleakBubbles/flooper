@@ -62,7 +62,17 @@ Emails go through [Resend](https://resend.com). To switch sending on:
    ```
 
 Without the key, digests are written to the logs instead of sent, which is how
-it runs locally. Emails come from `EMAIL_FROM` (`Flooper <notes@flooper.app>`).
+it runs locally. Emails come from `EMAIL_FROM` (`Flooper <notes@flooper.app>`),
+and replies go to `REPLY_TO` (`Flooper <hello@flooper.app>`).
+
+Neither address is a mailbox. **Cloudflare Email Routing** (the `flooper.app`
+zone → Email → Email Routing) forwards both to the owner's personal inbox, so
+replies, bounces and verification codes arrive. Its MX and SPF records sit on
+the bare domain; Resend's sending records are on `send.flooper.app`, so the
+two don't overlap. If `REPLY_TO` changes, make sure the new address receives
+mail first, or replies will bounce. To reply _as_ Flooper from Gmail, add the
+address under Settings → Accounts → "Send mail as", using Resend's SMTP
+(`smtp.resend.com`, port 465, user `resend`, password: a sending-only API key).
 Resend's free plan sends 100 emails a day; each run sends to at most 100 users
 (`USERS_PER_RUN` in `apps/api/src/digest.ts`), so raise both together.
 
