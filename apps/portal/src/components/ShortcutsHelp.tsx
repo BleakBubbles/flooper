@@ -25,6 +25,15 @@ const SHORTCUTS: { group: string; keys: [string[], string][] }[] = [
     ],
   },
   {
+    group: "Selecting",
+    keys: [
+      [["x"], "Select the note"],
+      [["Shift", "j"], "Select the next one too"],
+      [["Shift", "k"], "Select the previous one too"],
+      [["Esc"], "Clear the selection"],
+    ],
+  },
+  {
     group: "Help",
     keys: [[["?"], "Show these shortcuts"]],
   },

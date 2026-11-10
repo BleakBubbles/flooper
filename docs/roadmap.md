@@ -91,6 +91,13 @@ code splitting, aggregation queries, and designing for data that drifts.
 
 ## Done
 
+- **Selecting several notes, 2026-11-10.** A checkbox over each row's unread
+  dot (on hover, and on every row while selecting); Shift-click for a range;
+  select all from the selection bar or the column header. The selection bar
+  offers Mark read, Mark unread, Done, Archive and Delete (Restore and Delete
+  forever in Recently deleted), with one Undo per batch that puts each note
+  back as it was. Keys: `x`, `Shift`+`j`/`k`, `Esc`, and `e` `d` `u` `#` act on
+  the selection. Not on touch screens yet.
 - **Deleting notes, 2026-11-10.** Delete in the open note (or `#`), with Undo;
   "Recently deleted" in the Show menu, with Restore and Delete forever; and
   notes deleted more than 30 days ago removed for good by the daily job. A
