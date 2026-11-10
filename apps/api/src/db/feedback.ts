@@ -124,6 +124,8 @@ export async function listFeedback(
     status?: FeedbackStatus;
     /** Just the notes left on this page path. */
     page?: string;
+    /** Search: the message, the page or the picked element's text contains this. */
+    q?: string;
     /** Leave archived notes out when no status is asked for. */
     hideArchived?: boolean;
     sort?: NoteSort;
@@ -145,6 +147,15 @@ export async function listFeedback(
   if (opts.page !== undefined) {
     where.push(`${PAGE_PATH} = ?`);
     params.push(opts.page);
+  }
+  if (opts.q) {
+    // A plain substring, not a pattern: % and _ in what was typed are literal.
+    const like = `%${opts.q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+    where.push(
+      `(f.message LIKE ? ESCAPE '\\' OR ${PAGE_PATH} LIKE ? ESCAPE '\\'
+        OR json_extract(f.target, '$.text') LIKE ? ESCAPE '\\')`,
+    );
+    params.push(like, like, like);
   }
   if (opts.status) {
     where.push("f.status = ?");
@@ -353,20 +364,43 @@ export function emptySummary(): ProjectSummary {
 
 /**
  * "Mark all as read": every new note across the owner's sites becomes seen,
- * or just one site's when `projectId` is given (and is theirs).
+ * or just one site's when `projectId` is given (and is theirs). Returns the
+ * notes it changed, so the app can undo it.
  */
 export async function markAllSeen(
   db: D1Database,
   ownerId: string,
   projectId?: string,
-): Promise<number> {
+): Promise<string[]> {
   const oneSite = projectId ? " AND project_id = ?" : "";
-  const result = await db
+  const { results } = await db
     .prepare(
       `UPDATE feedback SET status = 'seen'
-       WHERE status = 'new' AND project_id IN (SELECT id FROM projects WHERE owner_id = ?)${oneSite}`,
+       WHERE status = 'new' AND project_id IN (SELECT id FROM projects WHERE owner_id = ?)${oneSite}
+       RETURNING id`,
     )
     .bind(...(projectId ? [ownerId, projectId] : [ownerId]))
+    .all<{ id: string }>();
+  return results.map((r) => r.id);
+}
+
+/**
+ * Several notes to one status at once, but only the owner's. The ids go in
+ * as one JSON array, so there's no limit on bound parameters.
+ */
+export async function setStatuses(
+  db: D1Database,
+  ownerId: string,
+  ids: string[],
+  status: FeedbackStatus,
+): Promise<number> {
+  const result = await db
+    .prepare(
+      `UPDATE feedback SET status = ?
+       WHERE id IN (SELECT value FROM json_each(?))
+         AND project_id IN (SELECT id FROM projects WHERE owner_id = ?)`,
+    )
+    .bind(status, JSON.stringify(ids), ownerId)
     .run();
   return result.meta.changes ?? 0;
 }

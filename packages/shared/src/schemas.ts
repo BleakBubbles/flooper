@@ -108,6 +108,8 @@ export const listAllFeedbackQuerySchema = listFeedbackQuerySchema.extend({
   projectId: z.string().max(64).optional(),
   /** Just the notes left on this page (its path, as in `context.path`). */
   page: z.string().max(2048).optional(),
+  /** Search: notes whose message, page or picked element's text contains this. */
+  q: z.string().trim().min(1).max(200).optional(),
 });
 
 /**
@@ -123,6 +125,12 @@ export const listPagesQuerySchema = z.object({
 /** "Mark all as read": every site's new notes, or just one site's. */
 export const markAllReadSchema = z.object({
   projectId: z.string().max(64).optional(),
+});
+
+/** Several notes to one status at once (undoing "Mark all as read", say). */
+export const bulkStatusSchema = z.object({
+  ids: z.array(z.string().max(64)).min(1).max(5000),
+  status: z.enum(FEEDBACK_STATUSES),
 });
 
 export type CreateProjectInput = z.input<typeof createProjectSchema>;

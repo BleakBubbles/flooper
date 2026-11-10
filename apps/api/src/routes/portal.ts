@@ -1,5 +1,6 @@
 import type { Paginated } from "@flooper/shared";
 import {
+  bulkStatusSchema,
   createProjectSchema,
   type Feedback,
   listAllFeedbackQuerySchema,
@@ -19,6 +20,7 @@ import {
   listPageGroups,
   markAllSeen,
   type SortedFeedbackRow,
+  setStatuses,
   summarizeProjects,
   toFeedback,
   updateFeedbackStatus,
@@ -138,7 +140,14 @@ portal.get("/pages", async (c) => {
 // "Mark all as read" on the home screen.
 portal.post("/feedback/mark-all-read", async (c) => {
   const { projectId } = await parseJsonBody(c, markAllReadSchema);
-  const updated = await markAllSeen(c.env.DB, c.get("user").id, projectId);
+  const ids = await markAllSeen(c.env.DB, c.get("user").id, projectId);
+  return c.json({ updated: ids.length, ids });
+});
+
+// Several notes to one status (undoing "Mark all as read").
+portal.post("/feedback/status", async (c) => {
+  const { ids, status } = await parseJsonBody(c, bulkStatusSchema);
+  const updated = await setStatuses(c.env.DB, c.get("user").id, ids, status);
   return c.json({ updated });
 });
 

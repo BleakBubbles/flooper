@@ -11,6 +11,7 @@ import { NotesPanel, type Show } from "../components/NotesPanel";
 import { SetupPanel } from "../components/SetupPanel";
 import { SiteIcon } from "../components/SiteIcon";
 import { SiteSettings } from "../components/SiteSettings";
+import { showToast } from "../components/Toasts";
 import { usePref } from "../prefs";
 import { usePageTitle } from "../usePageTitle";
 
@@ -41,6 +42,7 @@ export function SitesPage() {
   const site = sites.find((s) => s.id === params.get("site"));
   const show = SHOWS.find((s) => s === params.get("show")) ?? "all";
   const page = params.get("page");
+  const q = params.get("q") ?? "";
   const adding = params.has("new") || (projects.isSuccess && sites.length === 0);
   const settings = site !== undefined && params.get("view") === "settings";
   const account = params.get("view") === "account";
@@ -83,6 +85,8 @@ export function SitesPage() {
     [setParams],
   );
   const onOpen = useCallback((id: string | null) => update({ note: id }), [update]);
+  // Stable, so the search box's typing delay isn't restarted by every render.
+  const onSearch = useCallback((next: string) => update({ q: next || null, note: null }), [update]);
 
   /**
    * Clicking an empty spot closes the open note, like clicking away from a
@@ -124,11 +128,13 @@ export function SitesPage() {
         site={site}
         show={show}
         page={page}
+        q={q}
         openId={params.get("note")}
         onShow={(next) => update({ show: next === "all" ? null : next, note: null })}
         // A page belongs to one site: its notes show under that site.
         onPickPage={(picked) => update({ site: picked.projectId, page: picked.path, note: null })}
         onClearPage={() => update({ page: null, note: null })}
+        onSearch={onSearch}
         onOpen={onOpen}
       />
     );
@@ -260,12 +266,20 @@ function Sidebar({
 /** A site's ⋯ menu in the sidebar: read everything, or open its settings. */
 function SiteMenu({ site }: { site: ProjectWithSummary }) {
   const queryClient = useQueryClient();
+  const refresh = () => {
+    void queryClient.invalidateQueries({ queryKey: ["feedback"] });
+    void queryClient.invalidateQueries({ queryKey: keys.projects });
+  };
   const markAllRead = useMutation({
     mutationFn: () => api.markAllRead(site.id),
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: ["feedback"] });
-      void queryClient.invalidateQueries({ queryKey: keys.projects });
+    onSuccess: ({ ids }) => {
+      if (ids.length === 0) return;
+      showToast({
+        message: `Marked ${ids.length} ${ids.length === 1 ? "note" : "notes"} on ${site.name} as read`,
+        undo: () => void api.setStatuses(ids, "new").then(refresh, refresh),
+      });
     },
+    onSettled: refresh,
   });
 
   return (

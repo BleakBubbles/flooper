@@ -18,9 +18,7 @@ as volume grows:
 
 ### App polish
 
-Batch 1 is done (see below). Next, batch 2, the inbox basics: undo after
-Done, Archive and Mark all as read; search over notes and pages; keyboard
-shortcuts (j/k, Enter, e, d, u, /, ?). Then batch 3, account trust: export
+Batches 1 and 2 are done (see below). Next, batch 3, account trust: export
 notes as CSV, and delete your account. Open question: whether dark mode goes
 pure black like the landing page.
 
@@ -93,6 +91,12 @@ code splitting, aggregation queries, and designing for data that drifts.
 
 ## Done
 
+- **Inbox basics, 2026-11-10.** Undo (a toast with Undo, or `z`) after Done,
+  Archive and Mark all as read; search over notes' text, pages and picked
+  elements, centred in the header (`/`, in the URL as `?q=`); and Gmail-style
+  keyboard shortcuts (j/k, Enter, Esc, e, d, u), listed under `?` and in the
+  account menu. New API: `q` on `GET /v1/feedback`, `POST /v1/feedback/status`
+  for several notes at once, and mark-all-read returns the notes it changed.
 - **App quick wins, 2026-11-10.** A System / Light / Dark switch in the account
   menu (applied before the first paint, so no flash); a sidebar that collapses
   to a strip of site icons with unread dots (`[` toggles it); the list's sort,

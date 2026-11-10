@@ -1,14 +1,15 @@
 import type { FlooperInstance } from "@flooper/sdk";
 import type { User } from "@flooper/shared/schemas";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { type ReactNode, useEffect, useRef } from "react";
-import { Link, Outlet } from "react-router";
+import { type ReactNode, useCallback, useEffect, useRef } from "react";
+import { Link, Outlet, useNavigate, useSearchParams } from "react-router";
 import { ApiRequestError, api, keys } from "../api";
 import { LoginPage } from "../pages/LoginPage";
 import { type Theme, useTheme } from "../theme";
 import { ErrorState } from "./ErrorState";
 import {
   InfoIcon,
+  KeyboardIcon,
   LogOutIcon,
   MailIcon,
   MessageIcon,
@@ -17,6 +18,9 @@ import {
   SunIcon,
 } from "./icons";
 import { Menu } from "./Menu";
+import { SearchBox } from "./SearchBox";
+import { openShortcuts, ShortcutsHelp } from "./ShortcutsHelp";
+import { Toasts } from "./Toasts";
 
 /** Flooper's own site on Flooper, where "Send feedback" notes land. */
 const FLOOPER_KEY = import.meta.env.DEV ? "pk_dev_playground" : "pk_nrszdxgx2qsh5qq1992mwsmc";
@@ -47,11 +51,13 @@ export function Layout() {
     <>
       <Header user={me.data} />
       <Outlet />
+      <Toasts />
+      <ShortcutsHelp />
     </>
   );
 }
 
-/** The logo (home) on the left, your account on the right. */
+/** The logo (home) on the left, search in the middle, your account on the right. */
 function Header({ user }: { user: User }) {
   return (
     <header className="header">
@@ -60,10 +66,34 @@ function Header({ user }: { user: User }) {
           <img src="/logo.svg" alt="" width={36} height={36} />
           Flooper
         </Link>
-        <AccountMenu user={user} />
+        <HeaderSearch />
+        <span className="header-end">
+          <AccountMenu user={user} />
+        </span>
       </div>
     </header>
   );
+}
+
+/**
+ * Search over the notes, in the URL (?q=) so back, reload and links keep it.
+ * Searching from settings or setup goes back to the notes, in the same site.
+ */
+function HeaderSearch() {
+  const [params] = useSearchParams();
+  const navigate = useNavigate();
+  const q = params.get("q") ?? "";
+  const onSearch = useCallback(
+    (next: string) => {
+      const at = new URLSearchParams(window.location.search);
+      for (const key of ["q", "note", "view", "new"]) at.delete(key);
+      if (next) at.set("q", next);
+      const qs = at.toString();
+      navigate(qs ? `/?${qs}` : "/", { replace: window.location.pathname === "/" && !!q });
+    },
+    [navigate, q],
+  );
+  return <SearchBox value={q} onSearch={onSearch} />;
 }
 
 /** Your avatar; its menu says who you're signed in as, and logs you out. */
@@ -110,6 +140,12 @@ function AccountMenu({ user }: { user: User }) {
           About Flooper
         </span>
       </Link>
+      <button type="button" onClick={openShortcuts}>
+        <span className="with-icon">
+          <KeyboardIcon />
+          Keyboard shortcuts
+        </span>
+      </button>
       <button type="button" onClick={openFeedback}>
         <span className="with-icon">
           <MessageIcon />

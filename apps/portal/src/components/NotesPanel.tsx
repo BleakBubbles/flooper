@@ -8,7 +8,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { type ReactNode, useEffect } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { api, keys } from "../api";
 import { usePref } from "../prefs";
 import { sortNotes } from "../sortNotes";
@@ -28,11 +28,13 @@ import {
   MailIcon,
   MailOpenIcon,
   SmileIcon,
+  XIcon,
 } from "./icons";
 import { Menu } from "./Menu";
 import { REACTION_LABELS, StatusActions } from "./NoteActions";
 import { PageHeader } from "./PageHeader";
 import { SiteIcon } from "./SiteIcon";
+import { showToast } from "./Toasts";
 
 /** Which notes the list shows. "all" is everything but archived. */
 export type Show = "all" | "unread" | "done" | "archived";
@@ -97,8 +99,10 @@ export function NotesPanel({
   site,
   show,
   page,
+  q,
   openId,
   onShow,
+  onSearch,
   onPickPage,
   onClearPage,
   onOpen,
@@ -109,8 +113,11 @@ export function NotesPanel({
   show: Show;
   /** Just this page's notes (a path), if one was picked from its group. */
   page: string | null;
+  /** The search, if any: then it's a plain list of the notes that match. */
+  q: string;
   openId: string | null;
   onShow: (show: Show) => void;
+  onSearch: (q: string) => void;
   onPickPage: (page: PageGroup) => void;
   onClearPage: () => void;
   onOpen: (id: string | null) => void;
@@ -123,7 +130,7 @@ export function NotesPanel({
   const active = sort && !(site && sort.by === "site") ? sort : null;
   // Sorting by Page groups the notes under their pages (busiest first, "desc"),
   // unless one page is picked already: then it's just that page's notes.
-  const grouped = active?.by === "page" && !page;
+  const grouped = active?.by === "page" && !page && !q;
   const listSort = active?.by === "page" ? null : active;
   const sorted = listSort ?? NEWEST_FIRST;
   /**
@@ -143,6 +150,7 @@ export function NotesPanel({
       `${sort.by}-${sort.dir}`,
       site?.id,
       page ?? undefined,
+      q || undefined,
     ),
     queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
       api.listAllFeedback({
@@ -151,6 +159,7 @@ export function NotesPanel({
         dir: sort.dir,
         projectId: site?.id,
         page: page ?? undefined,
+        q: q || undefined,
         cursor: pageParam,
         limit: PAGE_SIZE,
       }),
@@ -223,18 +232,17 @@ export function NotesPanel({
   const loaded = sortHere && listSort ? sortNotes(fetched, listSort, sitesById) : fetched;
   // From the sites' counts, which can lag a moment behind; never below zero.
   // They count whole sites, so with one page picked there's no count to give.
-  const left = page ? 0 : Math.max(0, total - loaded.length);
+  const left = page || q ? 0 : Math.max(0, total - loaded.length);
   const open = loaded.find((n) => n.id === openId);
 
-  // Esc closes the open note.
-  useEffect(() => {
-    if (!openId) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onOpen(null);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [openId, onOpen]);
+  // The notes as they're shown, top to bottom (folded pages' notes left out),
+  // for moving through them with the keyboard.
+  const shown = grouped
+    ? pageGroups.filter((g) => !folded.has(groupKey(g))).flatMap((g) => g.notes)
+    : loaded;
+  // The note the keyboard is on: the open one, else a highlighted row.
+  const [cursorId, setCursorId] = useState<string | null>(null);
+  const currentId = openId ?? (shown.some((n) => n.id === cursorId) ? cursorId : null);
 
   /**
    * Change this list's copy of the notes, dropping any `keep` returns false
@@ -246,7 +254,10 @@ export function NotesPanel({
           queryKey,
           (data) =>
             data && {
-              data: data.data.map((g) => ({ ...g, notes: g.notes.map(change).filter(keep) })),
+              data: data.data.map((g) => ({
+                ...g,
+                notes: g.notes.map(change).filter(keep),
+              })),
             },
         )
       : queryClient.setQueryData<NotePages>(
@@ -268,9 +279,34 @@ export function NotesPanel({
   // Quick actions and the open note's buttons. Optimistic: the row changes (or
   // leaves the list) at once, and everything resyncs when the server answers.
   // The open note stays put, so it doesn't vanish while you're reading it.
+  /** After an undo: the notes may come back into this list, so reload it. */
+  const refreshAll = () => {
+    void queryClient.invalidateQueries({ queryKey: ["feedback"] });
+    refreshCounts();
+  };
+  // Done and Archive take a note out of the list, so they can be undone.
+  const UNDOABLE: Partial<Record<FeedbackStatus, string>> = {
+    done: "Marked done",
+    archived: "Archived",
+  };
   const setStatus = useMutation({
-    mutationFn: ({ id, status: next }: { id: string; status: FeedbackStatus }) =>
-      api.updateFeedback(id, next),
+    mutationFn: ({
+      id,
+      status: next,
+    }: {
+      id: string;
+      status: FeedbackStatus;
+      /** What it was, for Undo. */
+      previous: FeedbackStatus;
+    }) => api.updateFeedback(id, next),
+    onSuccess: (_updated, { id, status: next, previous }) => {
+      const message = UNDOABLE[next];
+      if (!message || previous === next) return;
+      showToast({
+        message,
+        undo: () => void api.updateFeedback(id, previous).then(refreshAll, refreshAll),
+      });
+    },
     onMutate: async ({ id, status: next }) => {
       await queryClient.cancelQueries({ queryKey });
       const previous = queryClient.getQueryData(queryKey);
@@ -285,7 +321,10 @@ export function NotesPanel({
     },
     onSettled: () => {
       // Other views (another site, Done, Archived) reload when next shown.
-      void queryClient.invalidateQueries({ queryKey: ["feedback"], refetchType: "none" });
+      void queryClient.invalidateQueries({
+        queryKey: ["feedback"],
+        refetchType: "none",
+      });
       refreshCounts();
     },
   });
@@ -298,7 +337,10 @@ export function NotesPanel({
         (n) => (n.id === updated.id ? updated : n),
         () => true,
       );
-      void queryClient.invalidateQueries({ queryKey: ["feedback"], refetchType: "none" });
+      void queryClient.invalidateQueries({
+        queryKey: ["feedback"],
+        refetchType: "none",
+      });
       refreshCounts();
     },
   });
@@ -307,6 +349,13 @@ export function NotesPanel({
   // Follows the view: every site's notes, or just the picked site's.
   const markAllRead = useMutation({
     mutationFn: () => api.markAllRead(site?.id),
+    onSuccess: ({ ids }) => {
+      if (ids.length === 0) return;
+      showToast({
+        message: `Marked ${ids.length} ${ids.length === 1 ? "note" : "notes"} as read`,
+        undo: () => void api.setStatuses(ids, "new").then(refreshAll, refreshAll),
+      });
+    },
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey });
       updateList(
@@ -335,21 +384,90 @@ export function NotesPanel({
           }
         }
         onClose={() => onOpen(null)}
-        onStatus={(next) => setStatus.mutate({ id: note.id, status: next })}
+        onStatus={(next) => setStatus.mutate({ id: note.id, status: next, previous: note.status })}
       />
     );
   };
 
   /** A note's row. Under a page's header, which shows the site already, without its icon. */
+  // Keyboard shortcuts, like Gmail's (the full list is under "?"):
+  // j/k move (opening the next note when one is open), Enter or o opens,
+  // Esc closes, e archives, d marks done, u toggles read.
+  // Re-attached each render, so it always sees the current list.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target as HTMLElement;
+      if (target.closest("input, textarea, select, [contenteditable], dialog")) return;
+      // Enter on a focused button or link is that button's own click.
+      if (event.key === "Enter" && target.closest("button, a")) return;
+      const index = shown.findIndex((n) => n.id === currentId);
+      const current = index >= 0 ? shown[index] : undefined;
+      const move = (by: number) => {
+        const next = shown[index < 0 ? 0 : Math.min(shown.length - 1, Math.max(0, index + by))];
+        if (!next) return;
+        if (openId) onOpen(next.id);
+        else setCursorId(next.id);
+        document.querySelector(`[data-note="${next.id}"]`)?.scrollIntoView({ block: "nearest" });
+      };
+      /** Done or archive: then on to the next note, like Gmail. */
+      const finish = (status: FeedbackStatus) => {
+        if (!current) return;
+        const after = shown[index + 1] ?? shown[index - 1];
+        setStatus.mutate({ id: current.id, status, previous: current.status });
+        if (openId) onOpen(after?.id ?? null);
+        else setCursorId(after?.id ?? null);
+      };
+      switch (event.key) {
+        case "j":
+          move(1);
+          break;
+        case "k":
+          move(-1);
+          break;
+        case "Enter":
+        case "o":
+          if (!current || openId) return;
+          onOpen(current.id);
+          break;
+        case "Escape":
+          if (!openId) return;
+          setCursorId(openId);
+          onOpen(null);
+          break;
+        case "e":
+          finish("archived");
+          break;
+        case "d":
+          finish("done");
+          break;
+        case "u":
+          if (!current) return;
+          setStatus.mutate({
+            id: current.id,
+            status: current.status === "new" ? "seen" : "new",
+            previous: current.status,
+          });
+          break;
+        default:
+          return;
+      }
+      event.preventDefault();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
   const row = (note: Feedback, inGroup = false) => (
-    <li key={note.id}>
+    <li key={note.id} data-note={note.id}>
       <NoteRow
         note={note}
         site={inGroup ? undefined : sitesById.get(note.projectId)}
         showSite={!site}
+        isCursor={!openId && note.id === currentId}
         isOpen={note.id === openId}
         onOpen={() => onOpen(note.id === openId ? null : note.id)}
-        onStatus={(next) => setStatus.mutate({ id: note.id, status: next })}
+        onStatus={(next) => setStatus.mutate({ id: note.id, status: next, previous: note.status })}
       />
       {/* Without room for the pane, the note opens right here, under its row. */}
       {!withPane && note.id === openId && <div className="note-inline">{detail(note)}</div>}
@@ -474,7 +592,9 @@ export function NotesPanel({
             <ErrorState error={listing.error} onRetry={() => listing.refetch()} />
           </div>
         )}
-        {listing.isSuccess && loaded.length === 0 && <EmptyNotes show={show} />}
+        {listing.isSuccess && loaded.length === 0 && (
+          <EmptyNotes show={show} q={q} onClear={() => onSearch("")} />
+        )}
 
         {grouped ? (
           pageGroups.map((group) => (
@@ -631,7 +751,18 @@ function PageGroupSection({
 
 /** What an empty list says, for each view. A site with no notes yet points to its setup. */
 /** A site with no notes at all shows its setup steps instead of this. */
-function EmptyNotes({ show }: { show: Show }) {
+function EmptyNotes({ show, q, onClear }: { show: Show; q: string; onClear: () => void }) {
+  if (q) {
+    return (
+      <p className="notes-empty muted">
+        No notes match “{q}”.{" "}
+        <button type="button" className="link-button with-icon-after" onClick={onClear}>
+          Clear search
+          <XIcon />
+        </button>
+      </p>
+    );
+  }
   const text = {
     all: "No notes yet. They'll show up here as your sites get them.",
     unread: "You're all caught up. Nothing unread.",
@@ -655,6 +786,7 @@ function NoteRow({
   site,
   showSite,
   isOpen,
+  isCursor,
   onOpen,
   onStatus,
 }: {
@@ -662,6 +794,8 @@ function NoteRow({
   site: ProjectWithSummary | undefined;
   showSite: boolean;
   isOpen: boolean;
+  /** Where the keyboard is (j/k), while no note is open. */
+  isCursor: boolean;
   onOpen: () => void;
   onStatus: (status: FeedbackStatus) => void;
 }) {
@@ -671,6 +805,7 @@ function NoteRow({
     isNew ? "" : "read",
     showSite ? "" : "no-site",
     isOpen ? "open" : "",
+    isCursor ? "cursor" : "",
   ];
   return (
     <div className={classes.filter(Boolean).join(" ")}>

@@ -426,6 +426,71 @@ describe("portal API", () => {
     expect(unread.find((p) => p.path === "/checkout")).toMatchObject({ total: 1, newCount: 1 });
   });
 
+  it("searches notes, and undoes mark-all-read with a bulk status change", async () => {
+    const cookie = await loginAsDev();
+    const site = await createProject(cookie);
+    const notes: [string, string][] = [
+      ["The pay button does nothing", "/checkout"],
+      ["Love the colors", "/"],
+      ["50% off code fails", "/pricing"],
+    ];
+    let ip = 80;
+    for (const [message, path] of notes) {
+      await json(
+        "POST",
+        `/api/v1/ingest/${site.publicKey}/feedback`,
+        submission({ message, context: { ...submission().context, url: `${SITE}${path}`, path } }),
+        { Origin: SITE, "CF-Connecting-IP": `198.51.100.${ip++}` },
+      );
+    }
+    const search = async (q: string) =>
+      (
+        (await (
+          await request(`/api/v1/feedback?projectId=${site.id}&q=${encodeURIComponent(q)}`, {
+            headers: { Cookie: cookie },
+          })
+        ).json()) as { data: { message: string }[] }
+      ).data.map((n) => n.message);
+
+    // The message, case-insensitively; the page; and % taken literally.
+    expect(await search("PAY BUTTON")).toEqual(["The pay button does nothing"]);
+    expect(await search("/pricing")).toEqual(["50% off code fails"]);
+    expect(await search("50%")).toEqual(["50% off code fails"]);
+    expect(await search("%")).toEqual(["50% off code fails"]);
+    expect(await search("nothing like this")).toEqual([]);
+
+    // Mark all as read says which notes it changed...
+    const res = await json(
+      "POST",
+      "/api/v1/feedback/mark-all-read",
+      { projectId: site.id },
+      { Cookie: cookie },
+    );
+    const { ids } = (await res.json()) as { ids: string[] };
+    expect(ids).toHaveLength(3);
+
+    // ...so it can be undone, but only for the owner's notes.
+    await env.DB.prepare(
+      `INSERT INTO users (id, github_id, login, created_at) VALUES ('usr_u', 92, 'u', 0);`,
+    ).run();
+    await env.DB.prepare(
+      `INSERT INTO projects (id, owner_id, name, public_key, created_at) VALUES ('prj_u', 'usr_u', 'U', 'pk_u', 0);`,
+    ).run();
+    await env.DB.prepare(
+      `INSERT INTO feedback (id, project_id, status, message, page_url, context, idempotency_key, created_at)
+       VALUES ('fb_u', 'prj_u', 'seen', 'theirs', 'https://u.example/', '{}', 'k', 0);`,
+    ).run();
+    const undo = await json(
+      "POST",
+      "/api/v1/feedback/status",
+      { ids: [...ids, "fb_u"], status: "new" },
+      { Cookie: cookie },
+    );
+    expect(((await undo.json()) as { updated: number }).updated).toBe(3);
+    const theirs = await env.DB.prepare("SELECT status FROM feedback WHERE id = 'fb_u'").first();
+    expect(theirs).toEqual({ status: "seen" });
+  });
+
   it("deletes a site with its notes, but only the owner's", async () => {
     const cookie = await loginAsDev();
     const project = await createProject(cookie);

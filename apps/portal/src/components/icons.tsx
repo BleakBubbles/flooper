@@ -88,6 +88,37 @@ export const SidebarIcon = () => (
   </Icon>
 );
 
+/** "Keyboard shortcuts": a keyboard. */
+export const KeyboardIcon = () => (
+  <Icon>
+    <path d="M10 8h.01" />
+    <path d="M12 12h.01" />
+    <path d="M14 8h.01" />
+    <path d="M16 12h.01" />
+    <path d="M18 8h.01" />
+    <path d="M6 8h.01" />
+    <path d="M7 16h10" />
+    <path d="M8 12h.01" />
+    <rect width="20" height="16" x="2" y="4" rx="2" />
+  </Icon>
+);
+
+/** Clear or close: an x. */
+export const XIcon = () => (
+  <Icon size={14}>
+    <path d="M18 6 6 18" />
+    <path d="m6 6 12 12" />
+  </Icon>
+);
+
+/** Search: a magnifying glass. */
+export const SearchIcon = () => (
+  <Icon>
+    <circle cx="11" cy="11" r="8" />
+    <path d="m21 21-4.3-4.3" />
+  </Icon>
+);
+
 /** "All notes": an inbox tray. */
 export const InboxIcon = () => (
   <Icon>
