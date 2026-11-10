@@ -1,7 +1,7 @@
 {
   "name": "flooper",
   "private": true,
-  "description": "A tiny, chill feedback widget for indie websites.",
+  "description": "A tiny feedback widget for your websites.",
   "license": "MIT",
   "packageManager": "pnpm@10.16.1",
   "engines": {
