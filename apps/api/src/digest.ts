@@ -201,6 +201,8 @@ export function resendSender(env: Bindings): Sender {
       },
       body: JSON.stringify({
         from: env.EMAIL_FROM,
+        // Replies reach a person (hello@), not the automated sender.
+        ...(env.REPLY_TO ? { reply_to: env.REPLY_TO } : {}),
         to: [email.to],
         subject: email.subject,
         text: email.text,
