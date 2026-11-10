@@ -1,7 +1,9 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { api, keys } from "../api";
+import { GithubButton } from "../components/GithubButton";
+import "./landing.css";
 
 /** Why the last GitHub login didn't work. The API's callback sets ?login_error=. */
 const LOGIN_ERRORS: Record<string, string> = {
@@ -10,6 +12,11 @@ const LOGIN_ERRORS: Record<string, string> = {
   failed: "GitHub login didn't work. Try again in a moment.",
 };
 
+/**
+ * Logging in, on the landing page's black, with its big GitHub button; the
+ * logo above, as on most login pages, and links back to the landing page.
+ * Also shown in place of the app when a session runs out.
+ */
 export function LoginPage({ sessionExpired = false }: { sessionExpired?: boolean }) {
   const queryClient = useQueryClient();
   const devLogin = useMutation({
@@ -34,25 +41,26 @@ export function LoginPage({ sessionExpired = false }: { sessionExpired?: boolean
       : null;
 
   return (
-    <div className="login">
-      <img src="/logo.svg" alt="" width={72} height={72} />
-      <h1>Flooper</h1>
-      <p className="muted">Little notes from the people who visit your site.</p>
-      {notice && (
-        <p className="login-notice" role="alert">
-          {notice}
-        </p>
-      )}
-      {/* A plain link, not fetch: OAuth is a sequence of full-page redirects. */}
-      <a className="btn primary" href="/api/auth/github">
-        Continue with GitHub
-      </a>
-      {import.meta.env.DEV && (
-        <button type="button" className="btn" onClick={() => devLogin.mutate()}>
-          Continue as dev user
-        </button>
-      )}
-      {devLogin.isError && <p className="error">{devLogin.error.message}</p>}
+    <div className="landing login-page">
+      <main className="login">
+        <Link to="/" className="login-logo" aria-label="Flooper home">
+          <img src="/logo.svg" alt="" width={64} height={64} />
+        </Link>
+        <h1>Log in to Flooper</h1>
+        {notice && (
+          <p className="login-notice" role="alert">
+            {notice}
+          </p>
+        )}
+        <GithubButton />
+        {import.meta.env.DEV && (
+          <button type="button" className="btn outline big" onClick={() => devLogin.mutate()}>
+            Continue as dev user
+          </button>
+        )}
+        {devLogin.isError && <p className="error">{devLogin.error.message}</p>}
+        <p className="fine">Flooper only reads your GitHub profile and email address.</p>
+      </main>
     </div>
   );
 }
