@@ -127,6 +127,15 @@ export const GearIcon = () => (
   </Icon>
 );
 
+/** The site column's header: a globe, for "which website". */
+export const GlobeIcon = () => (
+  <Icon size={14}>
+    <circle cx="12" cy="12" r="10" />
+    <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
+    <path d="M2 12h20" />
+  </Icon>
+);
+
 /** The reaction column's header: a face, for "how they felt". */
 export const SmileIcon = () => (
   <Icon size={14}>

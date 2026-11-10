@@ -21,6 +21,7 @@ import {
   CheckIcon,
   CollapseAllIcon,
   ExpandAllIcon,
+  GlobeIcon,
   InboxIcon,
   MailIcon,
   MailOpenIcon,
@@ -320,11 +321,12 @@ export function NotesPanel({
     );
   };
 
-  const row = (note: Feedback) => (
+  /** A note's row. Under a page's header, which shows the site already, without its icon. */
+  const row = (note: Feedback, inGroup = false) => (
     <li key={note.id}>
       <NoteRow
         note={note}
-        site={sitesById.get(note.projectId)}
+        site={inGroup ? undefined : sitesById.get(note.projectId)}
         showSite={!site}
         isOpen={note.id === openId}
         onOpen={() => onOpen(note.id === openId ? null : note.id)}
@@ -468,11 +470,11 @@ export function NotesPanel({
               all={allNotes}
               onMore={() => onPickPage(group)}
             >
-              {group.notes.map(row)}
+              {group.notes.map((note) => row(note, true))}
             </PageGroupSection>
           ))
         ) : (
-          <ul className="notes-list">{loaded.map(row)}</ul>
+          <ul className="notes-list">{loaded.map((note) => row(note))}</ul>
         )}
 
         {/* Notes come 50 at a time; the rest load on request. */}
@@ -528,7 +530,10 @@ function ColumnHeaders({
     return (
       <button
         type="button"
-        className={on ? "column-button on" : "column-button"}
+        // Icon labels (site, reaction) sit centered over their column's icons.
+        className={["column-button", on && "on", typeof label === "string" ? "" : "icon-only"]
+          .filter(Boolean)
+          .join(" ")}
         onClick={() => onSort(by)}
         aria-label={`${name}: ${state}. Click to change.`}
       >
@@ -543,8 +548,7 @@ function ColumnHeaders({
         {/* The same dot and icon slots as a row (invisible), so the labels line up. */}
         <span className="note-site">
           <span className="note-dot" aria-hidden="true" />
-          {showSite && <span className="site-icon" aria-hidden="true" />}
-          {showSite && header("site", "Site", "Site")}
+          {showSite && header("site", <GlobeIcon />, "Site")}
         </span>
         <span className="note-text">
           <span className="note-emoji">{header("reaction", <SmileIcon />, "Reaction")}</span>
@@ -621,6 +625,11 @@ function EmptyNotes({ show }: { show: Show }) {
 /**
  * One note: its site, what it says, the page, and when. Clicking opens it;
  * hovering (or focusing) swaps the time for quick actions.
+ *
+ * The site is just its icon (the name in a tooltip, and for screen readers):
+ * the first column is where the eye lands, and a run of notes from one site
+ * would otherwise lead every row with the same words. Phones, where the site
+ * sits on its own line above the note, still show the name.
  */
 function NoteRow({
   note,
@@ -651,10 +660,10 @@ function NoteRow({
           <span className="note-dot" aria-hidden="true" />
           {isNew && <span className="sr-only">Unread: </span>}
           {showSite && site && (
-            <>
+            <span className="note-site-icon" data-tooltip={site.name}>
               <SiteIcon site={site} />
               <span className="note-site-name">{site.name}</span>
-            </>
+            </span>
           )}
         </span>
         <span className="note-text">
