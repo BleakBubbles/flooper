@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { isTyping } from "../keys";
 import { SearchIcon } from "./icons";
 
 /**
@@ -24,8 +25,7 @@ export function SearchBox({ value, onSearch }: { value: string; onSearch: (q: st
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== "/" || event.metaKey || event.ctrlKey || event.altKey) return;
-      const target = event.target as HTMLElement;
-      if (target.closest("input, textarea, select, [contenteditable]")) return;
+      if (isTyping(event)) return;
       event.preventDefault();
       input.current?.focus();
       input.current?.select();

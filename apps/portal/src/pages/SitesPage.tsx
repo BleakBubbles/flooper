@@ -12,6 +12,7 @@ import { SetupPanel } from "../components/SetupPanel";
 import { SiteIcon } from "../components/SiteIcon";
 import { SiteSettings } from "../components/SiteSettings";
 import { showToast } from "../components/Toasts";
+import { isTyping } from "../keys";
 import { usePref } from "../prefs";
 import { usePageTitle } from "../usePageTitle";
 
@@ -56,8 +57,7 @@ export function SitesPage() {
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== "[" || event.metaKey || event.ctrlKey || event.altKey) return;
-      const target = event.target as HTMLElement;
-      if (target.closest("input, textarea, select, [contenteditable]")) return;
+      if (isTyping(event)) return;
       setCollapsed(!collapsed);
     };
     window.addEventListener("keydown", onKey);
