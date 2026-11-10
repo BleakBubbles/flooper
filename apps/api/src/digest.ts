@@ -63,7 +63,8 @@ export async function runDigests(env: Bindings, now: number, send: Sender): Prom
     const { results: notes } = await env.DB.prepare(
       `SELECT p.id AS site_id, p.name AS site_name, f.reaction, f.message, f.page_url
        FROM feedback f JOIN projects p ON p.id = f.project_id
-       WHERE p.owner_id = ? AND f.status = 'new' AND f.created_at > ? AND f.created_at <= ?
+       WHERE p.owner_id = ? AND f.status = 'new' AND f.deleted_at IS NULL
+         AND f.created_at > ? AND f.created_at <= ?
        ORDER BY p.created_at, f.created_at DESC`,
     )
       .bind(user.id, since, now)

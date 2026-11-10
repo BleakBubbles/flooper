@@ -110,6 +110,8 @@ export const listAllFeedbackQuerySchema = listFeedbackQuerySchema.extend({
   page: z.string().max(2048).optional(),
   /** Search: notes whose message, page or picked element's text contains this. */
   q: z.string().trim().min(1).max(200).optional(),
+  /** "1": the notes deleted in the last 30 days instead ("Recently deleted"). */
+  deleted: z.literal("1").optional(),
 });
 
 /**
@@ -125,6 +127,11 @@ export const listPagesQuerySchema = z.object({
 /** "Mark all as read": every site's new notes, or just one site's. */
 export const markAllReadSchema = z.object({
   projectId: z.string().max(64).optional(),
+});
+
+/** Several notes at once: to delete, restore, or delete for good. */
+export const noteIdsSchema = z.object({
+  ids: z.array(z.string().max(64)).min(1).max(5000),
 });
 
 /** Several notes to one status at once (undoing "Mark all as read", say). */
@@ -183,6 +190,8 @@ export interface ProjectSummary {
   done: number;
   /** Archived notes, which the home screen's list leaves out. */
   archived: number;
+  /** Notes deleted in the last 30 days ("Recently deleted"); not in `total`. */
+  deleted: number;
   lastNoteAt: string | null;
   /** Notes per day for the last 14 days, oldest first. The last entry is the last 24 hours. */
   activity: number[];
@@ -223,4 +232,6 @@ export interface Feedback {
   visitor: Visitor | null;
   metadata: Record<string, string | number | boolean> | null;
   createdAt: string;
+  /** When it was deleted, while it's in "Recently deleted"; null otherwise. */
+  deletedAt: string | null;
 }

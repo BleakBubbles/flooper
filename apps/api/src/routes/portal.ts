@@ -7,6 +7,7 @@ import {
   listFeedbackQuerySchema,
   listPagesQuerySchema,
   markAllReadSchema,
+  noteIdsSchema,
   notificationSettingsSchema,
   updateFeedbackSchema,
   updateProjectSchema,
@@ -14,12 +15,14 @@ import {
 import { Hono } from "hono";
 import {
   countFeedback,
+  deleteForever,
   emptySummary,
   getFeedbackForOwner,
   listFeedback,
   listPageGroups,
   markAllSeen,
   type SortedFeedbackRow,
+  setDeleted,
   setStatuses,
   summarizeProjects,
   toFeedback,
@@ -124,6 +127,7 @@ portal.get("/feedback", async (c) => {
     { ownerId: c.get("user").id, projectId: query.projectId },
     {
       ...query,
+      deleted: query.deleted === "1",
       hideArchived: true,
       cursor: query.cursor ? decodeCursor(query.cursor) : undefined,
     },
@@ -142,6 +146,27 @@ portal.post("/feedback/mark-all-read", async (c) => {
   const { projectId } = await parseJsonBody(c, markAllReadSchema);
   const ids = await markAllSeen(c.env.DB, c.get("user").id, projectId);
   return c.json({ updated: ids.length, ids });
+});
+
+// Delete notes: out of the app at once, kept 30 days in "Recently deleted".
+portal.post("/feedback/delete", async (c) => {
+  const { ids } = await parseJsonBody(c, noteIdsSchema);
+  const updated = await setDeleted(c.env.DB, c.get("user").id, ids, Date.now());
+  return c.json({ updated });
+});
+
+// Bring deleted notes back (Undo, or Restore in "Recently deleted").
+portal.post("/feedback/restore", async (c) => {
+  const { ids } = await parseJsonBody(c, noteIdsSchema);
+  const updated = await setDeleted(c.env.DB, c.get("user").id, ids, null);
+  return c.json({ updated });
+});
+
+// "Delete forever", from "Recently deleted": gone for good.
+portal.post("/feedback/delete-forever", async (c) => {
+  const { ids } = await parseJsonBody(c, noteIdsSchema);
+  const deleted = await deleteForever(c.env.DB, c.get("user").id, ids);
+  return c.json({ deleted });
 });
 
 // Several notes to one status (undoing "Mark all as read").

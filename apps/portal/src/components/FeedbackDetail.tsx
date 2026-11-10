@@ -5,7 +5,7 @@ import { Link } from "react-router";
 import { pageUrl, showMeUrl } from "../feedbackLinks";
 import { fullDate, timeAgo } from "../time";
 import { CloseIcon } from "./icons";
-import { REACTION_LABELS, StatusActions } from "./NoteActions";
+import { DeletedActions, REACTION_LABELS, StatusActions } from "./NoteActions";
 
 /** How each status reads to a person. "seen" is shown as "read". */
 export const STATUS_LABELS: Record<FeedbackStatus, string> = {
@@ -25,6 +25,9 @@ export function FeedbackDetail({
   site,
   onClose,
   onStatus,
+  onDelete,
+  onRestore,
+  onDeleteForever,
 }: {
   feedback: Feedback;
   allowedOrigins: string[];
@@ -32,6 +35,9 @@ export function FeedbackDetail({
   site?: { name: string; href?: string };
   onClose?: () => void;
   onStatus: (status: FeedbackStatus) => void;
+  onDelete: () => void;
+  onRestore: () => void;
+  onDeleteForever: () => void;
 }) {
   const { context, target, visitor, metadata } = feedback;
   const showMe = showMeUrl(feedback, allowedOrigins);
@@ -61,7 +67,11 @@ export function FeedbackDetail({
           </div>
         </div>
         <div className="detail-actions">
-          <StatusActions status={feedback.status} onStatus={onStatus} />
+          {feedback.deletedAt ? (
+            <DeletedActions onRestore={onRestore} onDeleteForever={onDeleteForever} />
+          ) : (
+            <StatusActions status={feedback.status} onStatus={onStatus} onDelete={onDelete} />
+          )}
           {onClose && (
             <button
               type="button"

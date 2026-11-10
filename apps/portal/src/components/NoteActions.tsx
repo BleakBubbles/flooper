@@ -1,6 +1,14 @@
 import type { FeedbackStatus, Reaction } from "@flooper/shared";
 import type { ReactNode } from "react";
-import { ArchiveIcon, CheckIcon, MailIcon, MailOpenIcon, ReopenIcon } from "./icons";
+import {
+  ArchiveIcon,
+  CheckIcon,
+  MailIcon,
+  MailOpenIcon,
+  ReopenIcon,
+  RestoreIcon,
+  TrashIcon,
+} from "./icons";
 
 export const REACTION_LABELS: Record<Reaction, string> = {
   love: "Love it",
@@ -17,9 +25,12 @@ export const REACTION_LABELS: Record<Reaction, string> = {
 export function StatusActions({
   status,
   onStatus,
+  onDelete,
 }: {
   status: FeedbackStatus;
   onStatus: (status: FeedbackStatus) => void;
+  /** Shown in the open note only, so it's never one stray click away in the list. */
+  onDelete?: () => void;
 }) {
   const closed = status === "done" || status === "archived";
   return (
@@ -48,6 +59,31 @@ export function StatusActions({
           <ArchiveIcon />
         </IconButton>
       )}
+      {onDelete && (
+        <IconButton label="Delete" onClick={onDelete}>
+          <TrashIcon />
+        </IconButton>
+      )}
+    </div>
+  );
+}
+
+/** A note in "Recently deleted": bring it back, or delete it for good. */
+export function DeletedActions({
+  onRestore,
+  onDeleteForever,
+}: {
+  onRestore: () => void;
+  onDeleteForever: () => void;
+}) {
+  return (
+    <div className="row-actions">
+      <IconButton label="Restore" onClick={onRestore}>
+        <RestoreIcon />
+      </IconButton>
+      <IconButton label="Delete forever" onClick={onDeleteForever}>
+        <TrashIcon />
+      </IconButton>
     </div>
   );
 }

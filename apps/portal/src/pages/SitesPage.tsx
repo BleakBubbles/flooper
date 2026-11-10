@@ -20,7 +20,7 @@ import { usePageTitle } from "../usePageTitle";
 const INTERACTIVE_OR_NOTE =
   "a, button, input, textarea, select, label, summary, [role='menu'], .note-row, .reading-pane, .note-inline";
 
-const SHOWS: Show[] = ["all", "unread", "done", "archived"];
+const SHOWS: Show[] = ["all", "unread", "done", "archived", "deleted"];
 
 /**
  * Home, laid out like a mail app: your sites in a sidebar on the left, the
