@@ -8,7 +8,14 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { type ReactNode, useEffect, useState } from "react";
+import {
+  type MouseEvent,
+  type PointerEvent,
+  type ReactNode,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { api, keys } from "../api";
 import { isTyping } from "../keys";
 import { usePref } from "../prefs";
@@ -143,6 +150,9 @@ export function NotesPanel({
     onOpen(id);
   };
   const withPane = useMediaQuery(PANE_QUERY);
+  // Touch screens: no hover for the boxes, so a long press starts selecting,
+  // and while selecting a tap on a row selects it rather than opening it.
+  const touch = useMediaQuery("(hover: none)");
   // The order (and grouping by page) is remembered in this browser.
   const [sort, setSort] = usePref<Sort>("notes-sort", null, isSort);
   // One site's notes all have the same site, so sorting by it means nothing.
@@ -718,7 +728,12 @@ export function NotesPanel({
         isOpen={note.id === openId}
         isSelected={selected.has(note.id)}
         onSelect={(range) => toggleSelect(note.id, range)}
-        onOpen={() => onOpen(note.id === openId ? null : note.id)}
+        onOpen={() =>
+          touch && selecting
+            ? toggleSelect(note.id, false)
+            : onOpen(note.id === openId ? null : note.id)
+        }
+        onLongPress={() => toggleSelect(note.id, false)}
         onStatus={(next) => setStatus.mutate({ id: note.id, status: next, previous: note.status })}
         onRestore={() => restoreNote.mutate(note.id)}
         onDeleteForever={() => confirmDeleteForever(note.id)}
@@ -891,6 +906,19 @@ export function NotesPanel({
               showSite={!site}
               all={allNotes}
               onMore={() => onPickPage(group)}
+              selection={{
+                all: group.notes.length > 0 && group.notes.every((n) => selected.has(n.id)),
+                some: group.notes.some((n) => selected.has(n.id)),
+                onToggle: () => {
+                  const on = !group.notes.every((n) => selected.has(n.id));
+                  const next = new Set(selected);
+                  for (const n of group.notes) {
+                    if (on) next.add(n.id);
+                    else next.delete(n.id);
+                  }
+                  setSelected(next);
+                },
+              }}
             >
               {group.notes.map((note) => row(note, true))}
             </PageGroupSection>
@@ -1006,9 +1034,12 @@ function PageGroupSection({
   showSite,
   all,
   onMore,
+  selection,
   children,
 }: {
   group: PageGroup;
+  /** The box on the header: select the page's notes shown here, or none. */
+  selection: { all: boolean; some: boolean; onToggle: () => void };
   folded: boolean;
   /** `all` when Alt was held: fold or unfold every page. */
   onToggle: (all: boolean) => void;
@@ -1021,13 +1052,22 @@ function PageGroupSection({
   const more = group.total - group.notes.length;
   return (
     <section className="page-group" aria-label={`Notes on ${group.path}`}>
-      <PageHeader
-        group={group}
-        site={showSite ? site : undefined}
-        all={all}
-        folded={folded}
-        onToggle={onToggle}
-      />
+      <div className="page-head">
+        <Checkbox
+          className="note-check"
+          checked={selection.all}
+          mixed={selection.some}
+          label={`Select the notes shown on ${group.path}`}
+          onToggle={selection.onToggle}
+        />
+        <PageHeader
+          group={group}
+          site={showSite ? site : undefined}
+          all={all}
+          folded={folded}
+          onToggle={onToggle}
+        />
+      </div>
       {!folded && (
         <>
           <ul className="notes-list">{children}</ul>
@@ -1085,6 +1125,7 @@ function NoteRow({
   isSelected,
   onSelect,
   onOpen,
+  onLongPress,
   onStatus,
   onRestore,
   onDeleteForever,
@@ -1099,11 +1140,35 @@ function NoteRow({
   /** `range`: Shift was held, to select every note from the last one picked. */
   onSelect: (range: boolean) => void;
   onOpen: () => void;
+  /** A long press on a touch screen: select instead of open. */
+  onLongPress: () => void;
   onStatus: (status: FeedbackStatus) => void;
   onRestore: () => void;
   onDeleteForever: () => void;
 }) {
   const isNew = note.status === "new";
+  // Long press (touch only): about half a second without moving.
+  const pressed = useRef(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const cancel = () => clearTimeout(timer.current);
+  const longPress = {
+    onPointerDown: (event: PointerEvent<HTMLButtonElement>) => {
+      if (event.pointerType !== "touch") return;
+      pressed.current = false;
+      timer.current = setTimeout(() => {
+        pressed.current = true;
+        navigator.vibrate?.(10);
+        onLongPress();
+      }, 450);
+    },
+    onPointerUp: cancel,
+    onPointerMove: cancel,
+    onPointerCancel: cancel,
+    // The phone's own long-press menu would cover the selection.
+    onContextMenu: (event: MouseEvent<HTMLButtonElement>) => {
+      if (pressed.current) event.preventDefault();
+    },
+  };
   const classes = [
     "note-row",
     isNew ? "" : "read",
@@ -1121,7 +1186,21 @@ function NoteRow({
         label={`Select: ${headline(note)}`}
         onToggle={onSelect}
       />
-      <button type="button" className="note-open" onClick={onOpen} aria-expanded={isOpen}>
+      <button
+        type="button"
+        className="note-open"
+        onClick={(event) => {
+          // A long press already selected the note; its click shouldn't open it too.
+          if (pressed.current) {
+            pressed.current = false;
+            event.preventDefault();
+            return;
+          }
+          onOpen();
+        }}
+        aria-expanded={isOpen}
+        {...longPress}
+      >
         <span className="note-lead">
           <span className="note-dot" aria-hidden="true" />
           {isNew && <span className="sr-only">Unread: </span>}
