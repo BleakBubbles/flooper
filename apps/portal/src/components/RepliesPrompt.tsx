@@ -34,7 +34,7 @@ export function RepliesPrompt({ sites }: { sites: Project[] }) {
     <section className="digest-prompt" aria-label="Replies">
       <ReplyIcon />
       <span className="digest-prompt-text">
-        <b>New: </b>Allow your visitors to request a reply by leaving their email?{" "}
+        <b>New: </b>Allow visitors to request a response from you?{" "}
         <span className="muted">Flooper will help you get back to them about their notes.</span>
       </span>
       <span className="digest-prompt-actions">
