@@ -27,6 +27,75 @@
   }
 }
 
+/* Pinned (DevtoolsShowcase's PINNED, keep the two in step): the section
+   holds still in the middle of the screen while you scroll through a stretch
+   of page as long as its claims, and that scrolling steps through them. */
+@media (min-width: 1000px) and (min-height: 720px) {
+  .dt-scroller {
+    height: calc(100vh + (var(--dt-steps) - 1) * 70vh);
+  }
+  .dt-pin {
+    position: sticky;
+    top: 0;
+    display: grid;
+    align-items: center;
+    height: 100vh;
+  }
+  /* Larger claims beside the window, centred on the screen. The two columns
+     end together: the window stretches to the claims' height (only by the
+     little they differ), giving it to DevTools. */
+  .dt-pin .dt-showcase {
+    /* About a third for the claims, so the window keeps its width on smaller screens. */
+    grid-template-columns: clamp(300px, 34%, 440px) 1fr;
+    gap: 64px;
+    align-items: stretch;
+  }
+  /* Starts level with the window, so the two come into view together. */
+  .dt-pin .dt-side {
+    gap: 28px;
+  }
+  .dt-pin .dt-side h2 {
+    font-size: 32px;
+  }
+  .dt-pin .dt-claims {
+    gap: 10px;
+  }
+  .dt-pin .dt-claim {
+    grid-template-columns: 44px 1fr;
+    column-gap: 18px;
+    padding: 20px 22px;
+    border-radius: 14px;
+  }
+  .dt-pin .dt-claim-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+  }
+  .dt-pin .dt-claim-icon svg {
+    width: 22px;
+    height: 22px;
+  }
+  .dt-pin .dt-claim strong {
+    font-size: 21px;
+  }
+  .dt-pin .dt-claim-line {
+    font-size: 16px;
+  }
+  .dt-pin .dt-window {
+    display: flex;
+    flex-direction: column;
+    font-size: 13px;
+  }
+  .dt-pin .dt-tools {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+  }
+  .dt-pin .dt-body {
+    flex: 1;
+  }
+}
+
 .dt-side {
   display: flex;
   flex-direction: column;
