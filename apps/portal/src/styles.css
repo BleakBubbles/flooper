@@ -1743,13 +1743,18 @@ select {
 .page-group + .page-group {
   border-top: 10px solid var(--bg);
 }
-.page-header {
-  /* Stays at the top while its page's notes scroll by. */
+/* The header and its select box, staying at the top while the page's notes
+   scroll by. */
+.page-head {
   position: sticky;
   top: 0;
   z-index: 2;
+}
+.page-header {
   display: grid;
-  grid-template-columns: 14px minmax(0, 1fr) auto auto;
+  /* The box's place (over the rows' unread dots), the page, its reactions,
+     its count, then the fold arrow at the far end. */
+  grid-template-columns: 7px minmax(0, 1fr) auto auto 14px;
   align-items: center;
   gap: 12px;
   width: 100%;
@@ -2227,10 +2232,29 @@ kbd,
 .note-row.selected {
   --row-bg: color-mix(in srgb, var(--accent) 8%, var(--surface));
 }
-/* No hover on touch screens: selecting is for mouse and keyboard. */
+/* A page's header shows its box like a row does: on hover, or while selecting. */
+.page-head .note-check.select-box {
+  z-index: 3;
+}
+.page-head:hover .note-check,
+.selecting .page-head .note-check {
+  opacity: 1;
+}
+/* Touch screens have no hover: the boxes appear once a long press has started
+   selecting, and stay while anything is selected. */
 @media (hover: none) {
   .note-check {
     display: none;
+  }
+  .selecting .note-row .note-check,
+  .selecting .page-head .note-check {
+    display: grid;
+  }
+  /* Holding a row to select it shouldn't pick its text instead. */
+  .note-open {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
   }
 }
 
@@ -2246,4 +2270,40 @@ kbd,
   display: flex;
   align-items: center;
   gap: 2px;
+}
+
+/* Phones: rows are two lines (dot, site and time; then the note), so the box
+   sits on the first line, where the dot is. Page headers put their reactions
+   on a second line, so the address keeps its room, and the selection bar
+   stays on one line. */
+@media (max-width: 640px) {
+  .note-row .note-check {
+    top: calc(12px + 11px);
+  }
+  .page-header {
+    grid-template-columns: 7px minmax(0, 1fr) auto 14px;
+    row-gap: 6px;
+  }
+  .page-header .page-reactions {
+    grid-column: 2 / -1;
+    grid-row: 2;
+  }
+  .page-head .note-check.select-box {
+    top: calc(11px + 11px);
+  }
+  /* The site's icon is there; the path is what tells pages apart. */
+  .page-host {
+    display: none;
+  }
+  .selection-bar {
+    flex-wrap: nowrap;
+    gap: 4px;
+  }
+  .selection-count {
+    min-width: 0;
+    white-space: nowrap;
+  }
+  .selection-actions .icon-button {
+    width: 30px;
+  }
 }

@@ -1,7 +1,7 @@
 import type { ProjectWithSummary } from "@flooper/shared/schemas";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type MouseEvent, type ReactNode, useCallback, useEffect } from "react";
-import { Link, useSearchParams } from "react-router";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
 import { api, keys } from "../api";
 import { AccountSettings } from "../components/AccountSettings";
 import { ErrorState } from "../components/ErrorState";
@@ -73,7 +73,7 @@ export function SitesPage() {
 
   /** Change some URL parameters, keeping the rest (null removes one). */
   const update = useCallback(
-    (changes: Record<string, string | null>) =>
+    (changes: Record<string, string | null>, options?: { replace?: boolean; state?: unknown }) =>
       setParams((prev) => {
         const next = new URLSearchParams(prev);
         for (const [key, value] of Object.entries(changes)) {
@@ -81,10 +81,28 @@ export function SitesPage() {
           else next.set(key, value);
         }
         return next;
-      }),
+      }, options),
     [setParams],
   );
-  const onOpen = useCallback((id: string | null) => update({ note: id }), [update]);
+  const location = useLocation();
+  const navigate = useNavigate();
+  /**
+   * Opening, switching and closing notes, and the Back button. Opening a note
+   * from the list adds one step to the history (so Back closes it), marked as
+   * ours; moving to another note replaces that step; closing goes back over
+   * it rather than adding another. However many notes you read, one Back
+   * closes the note and the next goes where you were before.
+   */
+  const onOpen = useCallback(
+    (id: string | null) => {
+      const opened = (location.state as { openedNote?: boolean } | null)?.openedNote === true;
+      const current = new URLSearchParams(window.location.search).get("note");
+      if (!current && id) update({ note: id }, { state: { openedNote: true } });
+      else if (current && !id && opened) navigate(-1);
+      else update({ note: id }, { replace: true, state: location.state });
+    },
+    [update, navigate, location.state],
+  );
   // Stable, so the search box's typing delay isn't restarted by every render.
   const onSearch = useCallback((next: string) => update({ q: next || null, note: null }), [update]);
 
