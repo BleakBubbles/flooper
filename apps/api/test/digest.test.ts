@@ -124,6 +124,7 @@ describe("the daily digest", () => {
     expect(email.html).toContain("&lt;script&gt;");
     expect(email.html).not.toContain("<script>");
     expect(email.unsubscribeUrl).toMatch(/\/api\/unsubscribe\/.+/);
+    expect(email.text).toContain("Your email setting: Daily digest");
 
     // The next run has nothing new to say.
     const second = recorder();
@@ -190,6 +191,8 @@ describe("emails as notes arrive", () => {
     expect(await runInstantEmails(env, await later(), run.send, NO_GAP)).toBe(1);
     expect(run.sent[0]?.subject).toBe("New note on Test site: The menu covers the logo");
     expect(run.sent[0]?.text).toContain("A new note on Test site.");
+    expect(run.sent[0]?.text).toContain("Your email setting: All notes");
+    expect(run.sent[0]?.html).toContain("/?view=account");
     expect(run.sent[0]?.unsubscribeUrl).toMatch(/\/api\/unsubscribe\/.+/);
 
     const again = recorder();
