@@ -10,6 +10,7 @@ import {
   markAllReadSchema,
   noteIdsSchema,
   notificationSettingsSchema,
+  reorderProjectsSchema,
   replySchema,
   updateFeedbackSchema,
   updateProjectSchema,
@@ -38,6 +39,7 @@ import {
   deleteProject,
   getProjectForOwner,
   listProjects,
+  reorderProjects,
   toProject,
   updateProject,
 } from "../db/projects";
@@ -120,6 +122,13 @@ portal.post("/projects", async (c) => {
   const input = await parseJsonBody(c, createProjectSchema);
   const row = await createProject(c.env.DB, { ownerId: c.get("user").id, ...input });
   return c.json(toProject(row), 201);
+});
+
+// The sidebar's order, after a drag.
+portal.put("/projects/order", async (c) => {
+  const { ids } = await parseJsonBody(c, reorderProjectsSchema);
+  await reorderProjects(c.env.DB, c.get("user").id, ids);
+  return c.body(null, 204);
 });
 
 portal.get("/projects/:id", async (c) => {

@@ -1,6 +1,15 @@
 import type { ProjectWithSummary } from "@flooper/shared/schemas";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { type MouseEvent, type ReactNode, useCallback, useEffect } from "react";
+import {
+  type DragEvent,
+  type MouseEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
 import { api, keys } from "../api";
 import { AccountSettings } from "../components/AccountSettings";
@@ -197,6 +206,7 @@ function Sidebar({
 }) {
   const [params] = useSearchParams();
   const allUnread = sites.reduce((n, s) => n + s.summary.newCount, 0);
+  const { shown, dragging, rowProps, listProps } = useSiteOrder(sites);
   // Switching site keeps the view (?show=) but closes the open note and lets
   // go of a picked page.
   const hrefFor = (siteId: string | null) => {
@@ -226,11 +236,18 @@ function Sidebar({
       </Link>
       {/* With no sites yet, adding one is the big form beside this. */}
       {sites.length > 0 && <h2 className="sidebar-label">Your sites</h2>}
-      <ul className="sidebar-list">
-        {sites.map((s) => (
+      <ul className="sidebar-list" {...listProps}>
+        {shown.map((s) => (
           <li
             key={s.id}
-            className={s.id === current?.id ? "sidebar-row current" : "sidebar-row"}
+            className={[
+              "sidebar-row",
+              s.id === current?.id ? "current" : "",
+              s.id === dragging ? "dragging" : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+            {...rowProps(s.id)}
             // Right-click opens the same menu as the ⋯ button.
             onContextMenu={(event) => {
               const menu = event.currentTarget.querySelector<HTMLDetailsElement>("details.menu");
@@ -243,6 +260,9 @@ function Sidebar({
             <Link
               to={hrefFor(s.id)}
               className="sidebar-item"
+              // The row drags, not the link (which would drag its address).
+              draggable={false}
+              aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown"
               aria-current={s.id === current?.id ? "page" : undefined}
               title={collapsed ? s.name : undefined}
             >
@@ -279,6 +299,93 @@ function Sidebar({
       </button>
     </nav>
   );
+}
+
+/**
+ * Your own order for the sidebar: drag a site up or down (the others make
+ * room as you go, and it saves when you let go), or Alt+↑/↓ on a focused
+ * site. Dropping outside the list, or Esc, puts it back.
+ */
+function useSiteOrder(sites: ProjectWithSummary[]) {
+  const queryClient = useQueryClient();
+  const [dragging, setDragging] = useState<string | null>(null);
+  // While dragging: the order as it stands, before it's saved.
+  const [order, setOrder] = useState<string[] | null>(null);
+  // Whether it was let go over the list (Esc, or outside, puts it back).
+  const dropped = useRef(false);
+  const byId = new Map(sites.map((s) => [s.id, s]));
+  const ids = sites.map((s) => s.id);
+  const shown = (order ?? ids).flatMap((id) => byId.get(id) ?? []);
+
+  const save = (next: string[]) => {
+    if (next.join() === ids.join()) return;
+    queryClient.setQueryData<{ data: ProjectWithSummary[] }>(keys.projects, (old) =>
+      old ? { ...old, data: next.flatMap((id) => byId.get(id) ?? []) } : old,
+    );
+    void api
+      .reorderProjects(next)
+      .finally(() => void queryClient.invalidateQueries({ queryKey: keys.projects }));
+  };
+  const move = (list: string[], id: string, to: number) => {
+    const rest = list.filter((x) => x !== id);
+    rest.splice(Math.max(0, Math.min(to, rest.length)), 0, id);
+    return rest;
+  };
+
+  const rowProps = (id: string) =>
+    sites.length < 2
+      ? {}
+      : {
+          draggable: true,
+          onDragStart: (event: DragEvent<HTMLLIElement>) => {
+            event.dataTransfer.effectAllowed = "move";
+            // Firefox only starts a drag that carries some data.
+            event.dataTransfer.setData("text/plain", byId.get(id)?.name ?? id);
+            dropped.current = false;
+            setDragging(id);
+            setOrder(ids);
+          },
+          onDragOver: (event: DragEvent<HTMLLIElement>) => {
+            if (!dragging || !order) return;
+            event.preventDefault();
+            event.dataTransfer.dropEffect = "move";
+            if (id === dragging) return;
+            // Before or after this row: which half the pointer is over, along
+            // the list (down the sidebar, or across it on phones).
+            const box = event.currentTarget.getBoundingClientRect();
+            const list = event.currentTarget.parentElement;
+            const across = list ? getComputedStyle(list).flexDirection === "row" : false;
+            const after = across
+              ? event.clientX > box.left + box.width / 2
+              : event.clientY > box.top + box.height / 2;
+            const without = order.filter((x) => x !== dragging);
+            const next = move(order, dragging, without.indexOf(id) + (after ? 1 : 0));
+            if (next.join() !== order.join()) setOrder(next);
+          },
+          onDragEnd: () => {
+            if (order && dropped.current) save(order);
+            setDragging(null);
+            setOrder(null);
+          },
+          onKeyDown: (event: ReactKeyboardEvent<HTMLLIElement>) => {
+            if (!event.altKey || (event.key !== "ArrowUp" && event.key !== "ArrowDown")) return;
+            event.preventDefault();
+            save(move(ids, id, ids.indexOf(id) + (event.key === "ArrowUp" ? -1 : 1)));
+          },
+        };
+
+  // Dropped anywhere on the list (a site, or the gap between two) keeps it.
+  const listProps = {
+    onDragOver: (event: DragEvent<HTMLUListElement>) => {
+      if (dragging) event.preventDefault();
+    },
+    onDrop: (event: DragEvent<HTMLUListElement>) => {
+      event.preventDefault();
+      dropped.current = true;
+    },
+  };
+
+  return { shown, dragging, rowProps, listProps };
 }
 
 /** A site's ⋯ menu in the sidebar: read everything, or open its settings. */

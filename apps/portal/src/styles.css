@@ -898,6 +898,13 @@ select {
   align-items: center;
   border-radius: 8px;
 }
+.sidebar-row[draggable="true"] {
+  cursor: grab;
+}
+/* The site being dragged: a gap where it will land. */
+.sidebar-row.dragging {
+  opacity: 0.4;
+}
 .sidebar-row .sidebar-item {
   flex: 1;
   min-width: 0;
