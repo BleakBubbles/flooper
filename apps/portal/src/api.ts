@@ -131,6 +131,9 @@ export const api = {
   getFeedback: (id: string) => request<Feedback>("GET", `/v1/feedback/${id}`),
   updateFeedback: (id: string, status: FeedbackStatus) =>
     request<Feedback>("PATCH", `/v1/feedback/${id}`, { status }),
+  /** "Let them know?": email the visitor who asked to hear back, once. */
+  replyToNote: (id: string, message?: string) =>
+    request<Feedback>("POST", `/v1/feedback/${id}/reply`, { message }),
   /** The daily digest: on or off, and where it goes. */
   updateNotifications: (settings: NotificationSettings) =>
     request<User>("PUT", "/v1/me/notifications", settings),

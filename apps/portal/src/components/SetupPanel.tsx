@@ -108,6 +108,15 @@ export function SetupPanel({
           </div>
         </Step>
       </ol>
+      {site?.replyRequests && (
+        <p className="setup-note small muted">
+          After sending a note, visitors are asked if they want to hear back, so you can tell them
+          what came of it.{" "}
+          <Link to={`/?site=${site.id}&view=settings`} className="link">
+            Change in Site settings
+          </Link>
+        </p>
+      )}
     </section>
   );
 }

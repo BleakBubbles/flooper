@@ -24,6 +24,7 @@ export interface FeedbackRow {
   created_at: number;
   deleted_at: number | null;
   contact_email: string | null;
+  replied_at: number | null;
 }
 
 /**
@@ -516,6 +517,33 @@ export function getFeedbackForOwner(
     .first<FeedbackRow>();
 }
 
+/**
+ * Claim a note's one reply: stamps replied_at if the visitor left an address
+ * and nobody has replied yet. Returns the note, or null if it can't be
+ * replied to (so two clicks can't send two emails).
+ */
+export function claimReply(
+  db: D1Database,
+  id: string,
+  ownerId: string,
+  now = Date.now(),
+): Promise<FeedbackRow | null> {
+  return db
+    .prepare(
+      `UPDATE feedback SET replied_at = ?
+       WHERE id = ? AND contact_email IS NOT NULL AND replied_at IS NULL
+         AND project_id IN (SELECT id FROM projects WHERE owner_id = ?)
+       RETURNING *`,
+    )
+    .bind(now, id, ownerId)
+    .first<FeedbackRow>();
+}
+
+/** The email didn't go out: free the note's reply for another try. */
+export async function releaseReply(db: D1Database, id: string): Promise<void> {
+  await db.prepare("UPDATE feedback SET replied_at = NULL WHERE id = ?").bind(id).run();
+}
+
 /** Update a feedback item's status, but only if it belongs to one of the owner's projects. */
 export function updateFeedbackStatus(
   db: D1Database,
@@ -547,6 +575,7 @@ export function toFeedback(row: FeedbackRow): Feedback {
     createdAt: new Date(row.created_at).toISOString(),
     deletedAt: row.deleted_at === null ? null : new Date(row.deleted_at).toISOString(),
     contactEmail: row.contact_email ?? null,
+    repliedAt: row.replied_at ? new Date(row.replied_at).toISOString() : null,
   };
 }
 

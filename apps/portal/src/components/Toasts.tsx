@@ -1,4 +1,4 @@
-import { useEffect, useSyncExternalStore } from "react";
+import { type ReactNode, useEffect, useSyncExternalStore } from "react";
 import { isTyping } from "../keys";
 
 // Small messages at the bottom of the screen after an action, with an Undo
@@ -10,10 +10,19 @@ export interface Toast {
   message: string;
   /** Takes the action back. The toast closes when it's clicked. */
   undo?: () => void;
+  /** A follow-up, after Undo ("Marked done · Undo · Reply"). Closes the toast too. */
+  action?: {
+    label: string;
+    icon?: ReactNode;
+    run: () => void;
+    /** A key that does the same while the toast shows, ahead of the page's own shortcuts. */
+    key?: string;
+  };
 }
 
-/** How long a toast stays, in milliseconds. */
+/** How long a toast stays, in milliseconds; longer with a follow-up to take. */
 const SHOWN_FOR = 6000;
+const SHOWN_WITH_ACTION_FOR = 10000;
 
 let current: Toast | null = null;
 let nextId = 1;
@@ -50,9 +59,12 @@ export function Toasts() {
   // Fades after a while; a new toast starts its own clock.
   useEffect(() => {
     if (!toast) return;
-    const timer = setTimeout(() => {
-      if (current?.id === toast.id) dismissToast();
-    }, SHOWN_FOR);
+    const timer = setTimeout(
+      () => {
+        if (current?.id === toast.id) dismissToast();
+      },
+      toast.action ? SHOWN_WITH_ACTION_FOR : SHOWN_FOR,
+    );
     return () => clearTimeout(timer);
   }, [toast]);
 
@@ -73,6 +85,23 @@ export function Toasts() {
     return () => window.removeEventListener("keydown", onKey);
   }, [toast]);
 
+  // The follow-up's key. Listened for first (capture), so it beats the same
+  // key's usual meaning on the page while the toast is up.
+  useEffect(() => {
+    const action = toast?.action;
+    if (!action?.key) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== action.key || event.metaKey || event.ctrlKey || event.altKey) return;
+      if (isTyping(event, ", dialog")) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      dismissToast();
+      action.run();
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [toast]);
+
   return (
     <div className="toasts" aria-live="polite">
       {toast && (
@@ -88,6 +117,19 @@ export function Toasts() {
               }}
             >
               Undo
+            </button>
+          )}
+          {toast.action && (
+            <button
+              type="button"
+              className="toast-action"
+              onClick={() => {
+                dismissToast();
+                toast.action?.run();
+              }}
+            >
+              {toast.action.icon}
+              {toast.action.label}
             </button>
           )}
           <button type="button" className="toast-close" aria-label="Dismiss" onClick={dismissToast}>

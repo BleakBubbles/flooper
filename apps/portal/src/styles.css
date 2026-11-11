@@ -1279,6 +1279,10 @@ select {
   color: var(--muted);
 }
 .note-time {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
   font-size: 13px;
   text-align: right;
   white-space: nowrap;
@@ -1960,9 +1964,15 @@ select {
   font: inherit;
   cursor: pointer;
 }
-.toast .toast-undo {
+.toast .toast-undo,
+.toast .toast-action {
   font-weight: 600;
   color: light-dark(#f9a8d4, #be185d);
+}
+.toast .toast-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 .toast button:hover {
   background: color-mix(in srgb, var(--bg) 15%, transparent);
@@ -2306,4 +2316,110 @@ kbd,
   .selection-actions .icon-button {
     width: 30px;
   }
+}
+
+/* "Wants a reply": the visitor asked to hear back, and hasn't been told yet. */
+.reply-badge {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  color: var(--accent);
+}
+/* Anything to do with replying is pink, like the unread dot: it's someone
+   waiting on you. */
+.icon-button.reply-action {
+  color: var(--accent);
+}
+/* "Let them know?" reuses the shortcuts dialog's frame. */
+.reply-form {
+  /* The quote's line, which the reply arrow lines up under. */
+  --reply-line: color-mix(in srgb, var(--muted) 70%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.reply-form p {
+  margin: 0;
+}
+.reply-to {
+  color: var(--fg);
+  font-weight: 600;
+}
+/* The note and the reply as one thread, like an email: the note quoted on
+   top, your reply under a hairline. The whole card shows focus. */
+.reply-thread {
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  overflow: hidden;
+}
+.reply-thread:focus-within {
+  border-color: var(--fg-2);
+}
+/* The note(s) being answered: a few lines each, scrolling past three. */
+.reply-notes {
+  display: grid;
+  gap: 10px;
+  max-height: 220px;
+  margin: 0;
+  padding: 12px;
+  overflow-y: auto;
+  list-style: none;
+  background: var(--surface-raised);
+}
+.reply-note {
+  padding-left: 10px;
+  border-left: 2px solid var(--reply-line);
+}
+.reply-note-where {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+.reply-note-text {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+/* The reply: an arrow whose stem sits right under the quote's line. */
+.reply-compose {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--border);
+}
+.reply-arrow {
+  flex: none;
+  /* The stem (4/24 of the icon in) over the quote's 2px line. */
+  margin: 3px 0 0 -2px;
+  color: var(--accent);
+}
+.reply-compose textarea {
+  flex: 1;
+  min-height: 72px;
+  padding: 2px 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  resize: vertical;
+}
+.reply-compose textarea:focus-visible {
+  outline: none;
+}
+.reply-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+/* Under the setup steps: what the widget will also do, and where to change it. */
+.setup-note {
+  max-width: 760px;
+  margin: 4px 0 16px;
+  padding-inline: 18px;
 }

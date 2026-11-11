@@ -6,6 +6,7 @@ import { pageUrl, showMeUrl } from "../feedbackLinks";
 import { fullDate, timeAgo } from "../time";
 import { CloseIcon } from "./icons";
 import { DeletedActions, REACTION_LABELS, StatusActions } from "./NoteActions";
+import { wantsReply } from "./ReplyDialog";
 
 /** How each status reads to a person. "seen" is shown as "read". */
 export const STATUS_LABELS: Record<FeedbackStatus, string> = {
@@ -28,6 +29,7 @@ export function FeedbackDetail({
   onDelete,
   onRestore,
   onDeleteForever,
+  onReply,
 }: {
   feedback: Feedback;
   allowedOrigins: string[];
@@ -38,6 +40,8 @@ export function FeedbackDetail({
   onDelete: () => void;
   onRestore: () => void;
   onDeleteForever: () => void;
+  /** Reply: email the visitor who asked to hear back ("Let them know?"). */
+  onReply?: () => void;
 }) {
   const { context, target, visitor, metadata } = feedback;
   const showMe = showMeUrl(feedback, allowedOrigins);
@@ -70,7 +74,12 @@ export function FeedbackDetail({
           {feedback.deletedAt ? (
             <DeletedActions onRestore={onRestore} onDeleteForever={onDeleteForever} />
           ) : (
-            <StatusActions status={feedback.status} onStatus={onStatus} onDelete={onDelete} />
+            <StatusActions
+              status={feedback.status}
+              onStatus={onStatus}
+              onReply={onReply && wantsReply(feedback) ? onReply : undefined}
+              onDelete={onDelete}
+            />
           )}
           {onClose && (
             <button
@@ -140,10 +149,13 @@ export function FeedbackDetail({
           <span className={`status-pill ${feedback.status}`}>{STATUS_LABELS[feedback.status]}</span>
         </Fact>
         {feedback.contactEmail && (
-          <Fact label="Wants a reply">
+          <Fact label="Reply to">
             <a className="link" href={`mailto:${feedback.contactEmail}`}>
               {feedback.contactEmail}
             </a>
+            {feedback.repliedAt && (
+              <div className="muted small">Replied {timeAgo(feedback.repliedAt)}</div>
+            )}
           </Fact>
         )}
         {(visitor?.name || visitor?.email || visitor?.id) && (

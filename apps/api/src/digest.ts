@@ -6,14 +6,18 @@ import { log } from "./lib/log";
 // who turned it on gets one email about the notes that arrived since the last
 // one, grouped by site. Days without new notes send nothing.
 
-/** One digest email, ready to send. */
+/** One email, ready to send. */
 export interface Email {
   to: string;
   subject: string;
   text: string;
   html: string;
   /** For the List-Unsubscribe headers (one-click unsubscribe in mail apps). */
-  unsubscribeUrl: string;
+  unsubscribeUrl?: string;
+  /** Instead of EMAIL_FROM. */
+  from?: string;
+  /** Instead of REPLY_TO. */
+  replyTo?: string;
 }
 
 /** Sends one email; true if the provider accepted it. Injectable for tests. */
@@ -186,7 +190,7 @@ export function escapeHtml(text: string): string {
 export function resendSender(env: Bindings): Sender {
   return async (email) => {
     if (!env.RESEND_API_KEY) {
-      log("info", "digest (not sent: no RESEND_API_KEY)", {
+      log("info", "email (not sent: no RESEND_API_KEY)", {
         to: email.to,
         subject: email.subject,
         text: email.text,
@@ -200,21 +204,24 @@ export function resendSender(env: Bindings): Sender {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: env.EMAIL_FROM,
-        // Replies reach a person (hello@), not the automated sender.
-        ...(env.REPLY_TO ? { reply_to: env.REPLY_TO } : {}),
+        from: email.from ?? env.EMAIL_FROM,
+        // Replies reach a person (hello@, or the site's owner), not the
+        // automated sender.
+        ...((email.replyTo ?? env.REPLY_TO) ? { reply_to: email.replyTo ?? env.REPLY_TO } : {}),
         to: [email.to],
         subject: email.subject,
         text: email.text,
         html: email.html,
-        headers: {
-          "List-Unsubscribe": `<${email.unsubscribeUrl}>`,
-          "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-        },
+        ...(email.unsubscribeUrl && {
+          headers: {
+            "List-Unsubscribe": `<${email.unsubscribeUrl}>`,
+            "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+          },
+        }),
       }),
     });
     if (!res.ok) {
-      log("error", "resend refused the digest", { status: res.status, body: await res.text() });
+      log("error", "resend refused an email", { status: res.status, body: await res.text() });
     }
     return res.ok;
   };

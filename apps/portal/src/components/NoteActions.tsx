@@ -6,6 +6,7 @@ import {
   MailIcon,
   MailOpenIcon,
   ReopenIcon,
+  ReplyIcon,
   RestoreIcon,
   TrashIcon,
 } from "./icons";
@@ -18,23 +19,31 @@ export const REACTION_LABELS: Record<Reaction, string> = {
 };
 
 /**
- * Mark as read or unread, Mark done, Archive (or Reopen), as borderless icon
- * buttons with tooltips. Read and unread only apply to open notes: "new" is
- * unread, "seen" is read.
+ * Reply, Mark as read or unread, Mark done, Archive (or Reopen), as
+ * borderless icon buttons with tooltips. Read and unread only apply to open
+ * notes: "new" is unread, "seen" is read.
  */
 export function StatusActions({
   status,
   onStatus,
+  onReply,
   onDelete,
 }: {
   status: FeedbackStatus;
   onStatus: (status: FeedbackStatus) => void;
+  /** Only while the visitor is waiting to hear back. */
+  onReply?: () => void;
   /** Shown in the open note only, so it's never one stray click away in the list. */
   onDelete?: () => void;
 }) {
   const closed = status === "done" || status === "archived";
   return (
     <div className="row-actions">
+      {onReply && (
+        <IconButton label="Reply" onClick={onReply} className="reply-action">
+          <ReplyIcon />
+        </IconButton>
+      )}
       {status === "new" && (
         <IconButton label="Mark as read" onClick={() => onStatus("seen")}>
           <MailOpenIcon />
@@ -96,16 +105,18 @@ export function DeletedActions({
 function IconButton({
   label,
   onClick,
+  className,
   children,
 }: {
   label: string;
   onClick: () => void;
+  className?: string;
   children: ReactNode;
 }) {
   return (
     <button
       type="button"
-      className="icon-button"
+      className={className ? `icon-button ${className}` : "icon-button"}
       aria-label={label}
       data-tooltip={label}
       onClick={onClick}

@@ -18,6 +18,7 @@ import {
 } from "react";
 import { api, keys } from "../api";
 import { isTyping } from "../keys";
+import { headline } from "../noteText";
 import { usePref } from "../prefs";
 import { sortNotes } from "../sortNotes";
 import { timeAgo } from "../time";
@@ -36,6 +37,7 @@ import {
   InboxIcon,
   MailIcon,
   MailOpenIcon,
+  ReplyIcon,
   SmileIcon,
   TrashIcon,
   XIcon,
@@ -43,6 +45,8 @@ import {
 import { Menu } from "./Menu";
 import { DeletedActions, REACTION_LABELS, StatusActions } from "./NoteActions";
 import { PageHeader } from "./PageHeader";
+import { RepliesPrompt } from "./RepliesPrompt";
+import { ReplyDialog, wantsReply } from "./ReplyDialog";
 import { SelectionBar } from "./SelectionBar";
 import { SiteIcon } from "./SiteIcon";
 import { showToast } from "./Toasts";
@@ -274,6 +278,18 @@ export function NotesPanel({
     : loaded;
   // The note the keyboard is on: the open one, else a highlighted row.
   const [cursorId, setCursorId] = useState<string | null>(null);
+  /** "Let them know?": the notes being replied to, while the dialog is open. */
+  const [replyTo, setReplyTo] = useState<Feedback[] | null>(null);
+  /**
+   * Marking done doesn't stop you with a dialog: the toast offers Reply (or
+   * press r) for notes whose visitors asked to hear back.
+   */
+  const replyAction = (notes: Feedback[]) => ({
+    label: "Reply",
+    icon: <ReplyIcon size={14} />,
+    key: "r",
+    run: () => setReplyTo(notes),
+  });
   const currentId = openId ?? (shown.some((n) => n.id === cursorId) ? cursorId : null);
   // Selected notes, for acting on several at once. Cleared when the view
   // changes, so nothing hidden is ever acted on.
@@ -373,12 +389,14 @@ export function NotesPanel({
       /** What it was, for Undo. */
       previous: FeedbackStatus;
     }) => api.updateFeedback(id, next),
-    onSuccess: (_updated, { id, status: next, previous }) => {
+    onSuccess: (updated, { id, status: next, previous }) => {
       const message = UNDOABLE[next];
       if (!message || previous === next) return;
+      const asking = next === "done" && wantsReply(updated);
       showToast({
         message,
         undo: () => void api.updateFeedback(id, previous).then(refreshAll, refreshAll),
+        action: asking ? replyAction([updated]) : undefined,
       });
     },
     onMutate: async ({ id, status: next }) => {
@@ -521,18 +539,23 @@ export function NotesPanel({
     clearSelection();
     const before = new Map<FeedbackStatus, string[]>();
     for (const n of notes) before.set(n.status, [...(before.get(n.status) ?? []), n.id]);
+    const asking =
+      status === "done" ? notes.filter((n) => n.status !== "done" && wantsReply(n)) : [];
     void api
       .setStatuses(ids, status)
-      .then(() =>
+      .then(() => {
         showToast({
-          message: `${BULK_DONE[status]}: ${plural(ids.length)}`,
+          message:
+            `${BULK_DONE[status]}: ${plural(ids.length)}` +
+            (asking.length > 0 ? ` (${asking.length} asked to hear back)` : ""),
+          action: asking.length > 0 ? replyAction(asking) : undefined,
           undo: () =>
             void Promise.all([...before].map(([was, back]) => api.setStatuses(back, was))).then(
               refreshAll,
               refreshAll,
             ),
-        }),
-      )
+        });
+      })
       .finally(refreshAll);
   };
   const leaveList = (ids: string[]) => {
@@ -587,6 +610,7 @@ export function NotesPanel({
         }
         onClose={() => onOpen(null)}
         onStatus={(next) => setStatus.mutate({ id: note.id, status: next, previous: note.status })}
+        onReply={() => setReplyTo([note])}
         onDelete={() => {
           const after = nextAfter(note.id);
           dropNow([note.id]);
@@ -638,6 +662,10 @@ export function NotesPanel({
         const bulk: Record<string, () => void> = {
           e: () => bulkStatus("archived"),
           d: () => bulkStatus("done"),
+          r: () => {
+            const asking = selectedNotes.filter(wantsReply);
+            if (asking.length > 0) setReplyTo(asking);
+          },
           u: () => bulkStatus(selectedNotes.some((n) => n.status === "new") ? "seen" : "new"),
           "#": () => (deletedView ? undefined : bulkDelete()),
           Escape: clearSelection,
@@ -701,6 +729,10 @@ export function NotesPanel({
           if (openId) openNow(nextAfter(current.id)?.id ?? null);
           else setCursorId(nextAfter(current.id)?.id ?? null);
           break;
+        case "r":
+          if (!current || !wantsReply(current)) return;
+          setReplyTo([current]);
+          break;
         case "u":
           if (!current) return;
           setStatus.mutate({
@@ -735,6 +767,7 @@ export function NotesPanel({
         }
         onLongPress={() => toggleSelect(note.id, false)}
         onStatus={(next) => setStatus.mutate({ id: note.id, status: next, previous: note.status })}
+        onReply={() => setReplyTo([note])}
         onRestore={() => restoreNote.mutate(note.id)}
         onDeleteForever={() => confirmDeleteForever(note.id)}
       />
@@ -872,6 +905,20 @@ export function NotesPanel({
         )}
 
         <DigestPrompt />
+        <RepliesPrompt sites={site ? [site] : sites} />
+        <ReplyDialog
+          notes={replyTo}
+          siteOf={(note) => sitesById.get(note.projectId)}
+          onClose={() => setReplyTo(null)}
+          onSent={(updated) => {
+            const byId = new Map(updated.map((n) => [n.id, n]));
+            updateList(
+              (n) => byId.get(n.id) ?? n,
+              () => true,
+            );
+            refreshAll();
+          }}
+        />
         {withPane && loaded.length > 0 && (
           <ColumnHeaders
             showSite={!site}
@@ -1127,6 +1174,7 @@ function NoteRow({
   onOpen,
   onLongPress,
   onStatus,
+  onReply,
   onRestore,
   onDeleteForever,
 }: {
@@ -1143,6 +1191,7 @@ function NoteRow({
   /** A long press on a touch screen: select instead of open. */
   onLongPress: () => void;
   onStatus: (status: FeedbackStatus) => void;
+  onReply: () => void;
   onRestore: () => void;
   onDeleteForever: () => void;
 }) {
@@ -1228,24 +1277,28 @@ function NoteRow({
           </span>
         )}
         <span className="note-page mono small">{note.context.path}</span>
-        <time className="note-time" dateTime={note.createdAt}>
-          {timeAgo(note.createdAt, { short: true })}
-        </time>
+        {/* "Wants a reply" sits with the time, out of the way of the note's text. */}
+        <span className="note-time">
+          {wantsReply(note) && (
+            <span className="reply-badge" data-tooltip="Wants a reply">
+              <ReplyIcon size={14} />
+              <span className="sr-only">Wants a reply, </span>
+            </span>
+          )}
+          <time dateTime={note.createdAt}>{timeAgo(note.createdAt, { short: true })}</time>
+        </span>
       </button>
       <div className="note-actions">
         {note.deletedAt ? (
           <DeletedActions onRestore={onRestore} onDeleteForever={onDeleteForever} />
         ) : (
-          <StatusActions status={note.status} onStatus={onStatus} />
+          <StatusActions
+            status={note.status}
+            onStatus={onStatus}
+            onReply={wantsReply(note) ? onReply : undefined}
+          />
         )}
       </div>
     </div>
   );
-}
-
-/** What a note is about, in a line: its message, else the element, else the page. */
-function headline(note: Feedback): string {
-  if (note.message) return note.message;
-  if (note.target) return note.target.text ? `“${note.target.text}”` : note.target.selector;
-  return note.context.title ?? note.context.path;
 }
