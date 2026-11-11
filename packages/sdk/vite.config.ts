@@ -35,8 +35,8 @@ export default defineConfig({
 /**
  * Lucide's icons arrive as pretty-printed SVG strings. Squeeze them before they
  * ship: one line, no xmlns (HTML parsing puts <svg> in the SVG namespace
- * anyway), no width/height (widget.css sizes every svg.lucide) and just the
- * shared "lucide" class. A few hundred bytes the 10 KB budget can use.
+ * anyway), no width/height or fill/stroke (widget.css sizes and draws every
+ * svg.lucide) and just the shared "lucide" class. A few hundred bytes the 10 KB budget can use.
  */
 function compactIcons(): Plugin {
   return {
@@ -48,7 +48,8 @@ function compactIcons(): Plugin {
           svg
             .trim()
             .replace(/\s*\n\s*/g, " ")
-            .replace(/ (xmlns|width|height)="[^"]*"/g, "")
+            // widget.css draws every svg.lucide (fill, stroke and its width, caps, joins).
+            .replace(/ (xmlns|width|height|fill|stroke[a-z-]*)="[^"]*"/g, "")
             .replace(/class="lucide [^"]*"/, 'class="lucide"')
             .replace(/ ?(\/?>) ?/g, "$1"),
         ),

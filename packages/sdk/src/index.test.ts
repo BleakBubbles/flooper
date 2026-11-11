@@ -149,6 +149,40 @@ describe("init", () => {
     expect((root.querySelector(".reply") as HTMLElement).hidden).toBe(true);
   });
 
+  it("goes straight to pointing after 🐛 or 🤔, once per note, and Cancel keeps the reaction", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(JSON.stringify({ replies: false }))),
+    );
+    instance = init({ projectKey: "pk_test" });
+    const root = shadow();
+    const layer = root.querySelector(".pick-layer") as HTMLElement;
+    const react = (r: string) =>
+      root.querySelector<HTMLButtonElement>(`[data-reaction="${r}"]`)?.click();
+    root.querySelector<HTMLButtonElement>(".launcher")?.click();
+
+    // Not for praise or ideas.
+    react("love");
+    expect(layer.hidden).toBe(true);
+
+    react("bug");
+    await vi.waitFor(() => expect(layer.hidden).toBe(false));
+    expect(root.querySelector(".pick-label")?.textContent).toBe("Choose where the issue is");
+    root.querySelector<HTMLButtonElement>(".pick-cancel")?.click();
+    await vi.waitFor(() => expect(layer.hidden).toBe(true));
+    expect(root.querySelector('[data-reaction="bug"]')?.getAttribute("aria-pressed")).toBe("true");
+
+    // Once per note: cancelled, it doesn't start again.
+    react("confused");
+    expect(layer.hidden).toBe(true);
+
+    // The point button still works, with its own wording.
+    root.querySelector<HTMLButtonElement>(".point")?.click();
+    await vi.waitFor(() => expect(layer.hidden).toBe(false));
+    expect(root.querySelector(".pick-label")?.textContent).toBe("Selecting an element");
+    root.querySelector<HTMLButtonElement>(".pick-cancel")?.click();
+  });
+
   it("fills in the example message with → when the box is empty", () => {
     instance = init({ projectKey: "pk_test" });
     const root = shadow();

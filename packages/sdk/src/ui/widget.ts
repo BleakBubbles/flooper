@@ -45,16 +45,17 @@ export type SubmitHandler = (input: WidgetInput) => Promise<SubmitResult>;
  * wait, check their connection, or try again. (The developer gets the exact
  * server message in the console.)
  */
+const NOT_ON = "Notes aren't on for this site yet.";
 const FAILURE_MESSAGES: Partial<Record<SubmitErrorCode, string>> = {
-  network_error: "Couldn't connect. Check your connection and try again.",
-  rate_limited: "That's a lot of notes! Try again in a minute.",
-  site_limit_reached: "This site has had a lot of notes today. Try again tomorrow.",
-  paused: "Notes are paused for a little while. Try again later.",
-  origin_not_allowed: "Notes aren't switched on for this site yet.",
-  not_found: "Notes aren't switched on for this site yet.",
-  internal_error: "Something went wrong on our end. Try again?",
+  network_error: "Couldn't connect. Try again?",
+  rate_limited: "Too many notes. Try again in a minute.",
+  site_limit_reached: "Too many notes today. Try again tomorrow.",
+  paused: "Notes are paused. Try again later.",
+  origin_not_allowed: NOT_ON,
+  not_found: NOT_ON,
+  internal_error: "Something went wrong. Try again?",
 };
-const DEFAULT_FAILURE = "Couldn't send that note. Try again?";
+const DEFAULT_FAILURE = "Couldn't send that. Try again?";
 
 /**
  * The widget's UI and nothing else. It knows how to draw itself and collect
@@ -77,6 +78,7 @@ export class Widget {
     reactions: HTMLButtonElement[];
     notice: HTMLElement;
     point: HTMLButtonElement;
+    pickLabel: HTMLElement;
     chip: HTMLElement;
     chipText: HTMLButtonElement;
     chipLabel: HTMLElement;
@@ -93,6 +95,8 @@ export class Widget {
   /** The picked element itself, while it's still on the page. */
   private targetElement: Element | null = null;
   private sending = false;
+  /** Already went straight to pointing for this note (after 🐛 or 🤔). */
+  private pointed = false;
   private resetTimer: ReturnType<typeof setTimeout> | undefined;
   private readonly onOpen: (() => void) | undefined;
   private readonly onReply: WidgetOptions["onReply"];
@@ -124,6 +128,7 @@ export class Widget {
       reactions: [...this.root.querySelectorAll<HTMLButtonElement>(".reaction")],
       notice: $(".notice"),
       point: $(".point"),
+      pickLabel: $(".pick-label"),
       chip: $(".target-chip"),
       chipText: $(".target-text"),
       chipLabel: $(".target-label"),
@@ -245,8 +250,12 @@ export class Widget {
     }
   };
 
-  /** Hide the panel, let the visitor point at something, then come back. */
-  private async pickTarget(): Promise<void> {
+  /**
+   * Hide the panel, let the visitor point at something, then come back. From
+   * a reaction (`label` given), Cancel goes on to the note, not the button.
+   */
+  private async pickTarget(label?: string): Promise<void> {
+    this.el.pickLabel.textContent = label ?? "Selecting an element";
     this.el.panel.hidden = true;
     const picked = await this.picker.pick();
     this.el.panel.hidden = false;
@@ -255,7 +264,7 @@ export class Widget {
       this.targetElement = picked.element;
     }
     this.refresh();
-    (picked ? this.el.message : this.el.point).focus();
+    (picked || label ? this.el.message : this.el.point).focus();
   }
 
   /**
@@ -343,6 +352,16 @@ export class Widget {
   private pickReaction(reaction: Reaction): void {
     this.reaction = this.reaction === reaction ? undefined : reaction;
     this.refresh();
+    // Broken or confusing is usually about one thing on the page, so go
+    // straight to pointing at it: once per note, and Cancel keeps the reaction.
+    if (
+      (this.reaction === "bug" || this.reaction === "confused") &&
+      !this.target &&
+      !this.pointed
+    ) {
+      this.pointed = true;
+      void this.pickTarget("Choose where the issue is");
+    }
   }
 
   private refresh(): void {
@@ -395,6 +414,7 @@ export class Widget {
 
   private reset(): void {
     this.reaction = undefined;
+    this.pointed = false;
     this.target = undefined;
     this.targetElement = null;
     this.el.message.value = "";
@@ -478,7 +498,7 @@ function template(position: WidgetOptions["position"]): string {
 <div class="highlight" hidden><span class="highlight-label"></span></div>
 <div class="notice" role="status" hidden></div>
 <div class="pick-layer" hidden>
-  <div class="pick-bar" role="status">Selecting an element
+  <div class="pick-bar" role="status"><span class="pick-label"></span>
     <button type="button" class="btn small pick-cancel">Cancel</button>
   </div>
 </div>`;
