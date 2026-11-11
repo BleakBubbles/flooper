@@ -42,10 +42,10 @@ describe("Widget", () => {
   });
 
   it.each([
-    ["network_error", /Check your connection/],
+    ["network_error", /Couldn't connect/],
     ["rate_limited", /Try again in a minute/],
-    ["origin_not_allowed", /aren't switched on for this site/],
-    ["validation_failed", /Couldn't send that note/],
+    ["origin_not_allowed", /aren't on for this site/],
+    ["validation_failed", /Couldn't send that/],
   ] as const)("explains a %s failure and keeps the note", async (code, text) => {
     const root = await send({ ok: false, code, message: "server detail" });
     await vi.waitFor(() => expect(status(root)?.textContent).toMatch(text));
