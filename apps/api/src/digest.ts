@@ -187,10 +187,9 @@ export function buildDigest(
       : count === 1
         ? `A new note on ${where}.`
         : `${count} new notes in the last few minutes.`;
-  const why =
-    kind === "daily"
-      ? "You get this because you turned on the daily digest in Flooper."
-      : "You get this because you asked Flooper to email you as notes arrive.";
+  // The setting's own name in Your settings, so it's easy to find and change.
+  const setting = `Your email setting: ${kind === "daily" ? "Daily digest" : "All notes"}`;
+  const settingsUrl = `${base}/?view=account`;
 
   const text: string[] = [lead, ""];
   const html: string[] = [`<p style="margin:0 0 20px;font-size:16px">${escapeHtml(lead)}</p>`];
@@ -217,9 +216,11 @@ export function buildDigest(
     html.push("</ul>");
     text.push(`  ${link}`, "");
   }
-  text.push("", `Unsubscribe: ${unsubscribeUrl}`);
+  text.push("", setting, `Change: ${settingsUrl}`, `Unsubscribe: ${unsubscribeUrl}`);
+  const footerLink = (href: string, label: string) =>
+    `<a href="${escapeHtml(href)}" style="color:#8b8b85">${label}</a>`;
   html.push(
-    `<p style="margin:32px 0 0;font-size:13px;color:#8b8b85">${escapeHtml(why)} <a href="${escapeHtml(unsubscribeUrl)}" style="color:#8b8b85">Unsubscribe</a></p>`,
+    `<p style="margin:32px 0 0;font-size:13px;color:#8b8b85">${escapeHtml(setting)} · ${footerLink(settingsUrl, "Change")} · ${footerLink(unsubscribeUrl, "Unsubscribe")}</p>`,
   );
 
   return {
