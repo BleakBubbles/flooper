@@ -26,6 +26,7 @@ const COLUMNS = [
   "Visitor id",
   "Visitor name",
   "Visitor email",
+  "Wants a reply at",
   "Metadata",
 ] as const;
 
@@ -87,6 +88,7 @@ function toLine(row: ExportRow): string {
     visitor?.id,
     visitor?.name,
     visitor?.email,
+    row.contact_email,
     row.metadata,
   ]
     .map(csvCell)

@@ -23,6 +23,7 @@ export interface FeedbackRow {
   idempotency_key: string;
   created_at: number;
   deleted_at: number | null;
+  contact_email: string | null;
 }
 
 /**
@@ -34,13 +35,15 @@ export async function insertFeedback(
   db: D1Database,
   projectId: string,
   submission: FeedbackSubmission,
+  /** The visitor's "Email me when it's fixed" address, if the site allows it. */
+  contactEmail: string | null = null,
 ): Promise<{ id: string; duplicate: boolean }> {
   const inserted = await db
     .prepare(
       `INSERT INTO feedback
          (id, project_id, reaction, message, page_url, context, target, visitor, metadata,
-          idempotency_key, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          idempotency_key, created_at, contact_email)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT (project_id, idempotency_key) DO NOTHING
        RETURNING id`,
     )
@@ -56,6 +59,7 @@ export async function insertFeedback(
       jsonOrNull(submission.metadata),
       submission.idempotencyKey,
       Date.now(),
+      contactEmail,
     )
     .first<{ id: string }>();
   if (inserted) return { id: inserted.id, duplicate: false };
@@ -517,6 +521,7 @@ export function toFeedback(row: FeedbackRow): Feedback {
     metadata: parseOrNull(row.metadata),
     createdAt: new Date(row.created_at).toISOString(),
     deletedAt: row.deleted_at === null ? null : new Date(row.deleted_at).toISOString(),
+    contactEmail: row.contact_email ?? null,
   };
 }
 

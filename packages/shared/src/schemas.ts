@@ -56,6 +56,8 @@ export const feedbackSubmissionSchema = z
       .optional(),
     /** Honeypot: hidden from humans, so any value means a bot filled it in. */
     hp: z.string().max(500).optional(),
+    /** "Email me when it's fixed": kept only if the site offers replies. */
+    contactEmail: z.email().max(254).optional(),
   })
   .refine((f) => f.reaction !== undefined || (f.message !== undefined && f.message.length > 0), {
     message: "Send a reaction, a message, or both",
@@ -80,7 +82,17 @@ export const createProjectSchema = z.object({
   allowedOrigins: z.array(origin).max(LIMITS.allowedOriginsMax).default([]),
 });
 
-export const updateProjectSchema = createProjectSchema.partial();
+/**
+ * Changing a site: only what's sent changes. Spelled out rather than
+ * createProjectSchema.partial(), whose allowedOrigins default of [] would
+ * otherwise fill in, so renaming a site would erase its allowed origins.
+ */
+export const updateProjectSchema = z.object({
+  name: createProjectSchema.shape.name.optional(),
+  allowedOrigins: z.array(origin).max(LIMITS.allowedOriginsMax).optional(),
+  /** Whether the widget offers "Email me when it's fixed". */
+  replyRequests: z.boolean().optional(),
+});
 
 export const updateFeedbackSchema = z.object({
   status: z.enum(FEEDBACK_STATUSES),
@@ -180,6 +192,8 @@ export interface Project {
   name: string;
   publicKey: string;
   allowedOrigins: string[];
+  /** The widget offers "Email me when it's fixed", so visitors can hear back. */
+  replyRequests: boolean;
   createdAt: string;
 }
 
@@ -239,4 +253,6 @@ export interface Feedback {
   createdAt: string;
   /** When it was deleted, while it's in "Recently deleted"; null otherwise. */
   deletedAt: string | null;
+  /** The visitor asked to hear back about this note, at this address. */
+  contactEmail: string | null;
 }

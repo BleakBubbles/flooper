@@ -195,3 +195,63 @@ describe("POST /api/v1/ingest/:publicKey/feedback", () => {
     expect(res.status).toBe(413);
   });
 });
+
+describe('replies ("Email me when it\'s fixed")', () => {
+  it("tells the widget whether replies are on, new sites on, never revealing keys", async () => {
+    const { cookie, project } = await setup();
+    const config = async (key: string) =>
+      (await (
+        await request(`/api/v1/ingest/${key}/config`, { headers: { Origin: SITE } })
+      ).json()) as {
+        replies: boolean;
+      };
+    expect(project.replyRequests).toBe(true);
+    expect(await config(project.publicKey)).toEqual({ replies: true });
+    // Unknown keys get the same shape as a site with replies off.
+    expect(await config("pk_nope")).toEqual({ replies: false });
+
+    const off = await json(
+      "PATCH",
+      `/api/v1/projects/${project.id}`,
+      { replyRequests: false },
+      { Cookie: cookie },
+    );
+    expect(((await off.json()) as { replyRequests: boolean }).replyRequests).toBe(false);
+    expect(await config(project.publicKey)).toEqual({ replies: false });
+  });
+
+  it("keeps a visitor's address only while the site offers replies", async () => {
+    const { cookie, project, path } = await setup();
+    const send = async (message: string, ip: string) => {
+      const res = await json(
+        "POST",
+        path,
+        submission({ message, contactEmail: "visitor@example.com" }),
+        { Origin: SITE, "CF-Connecting-IP": ip },
+      );
+      expect(res.status).toBe(202);
+    };
+    await send("with replies on", "203.0.113.150");
+    await json(
+      "PATCH",
+      `/api/v1/projects/${project.id}`,
+      { replyRequests: false },
+      { Cookie: cookie },
+    );
+    await send("with replies off", "203.0.113.151");
+
+    const notes = (await (
+      await request(`/api/v1/projects/${project.id}/feedback`, { headers: { Cookie: cookie } })
+    ).json()) as { data: { message: string; contactEmail: string | null }[] };
+    const byMessage = Object.fromEntries(notes.data.map((n) => [n.message, n.contactEmail]));
+    expect(byMessage["with replies on"]).toBe("visitor@example.com");
+    expect(byMessage["with replies off"]).toBeNull();
+
+    // Not an address: refused, like any malformed field.
+    const bad = await json("POST", path, submission({ contactEmail: "not an email" }), {
+      Origin: SITE,
+      "CF-Connecting-IP": "203.0.113.152",
+    });
+    expect(bad.status).toBe(422);
+  });
+});

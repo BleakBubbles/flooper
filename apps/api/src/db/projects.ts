@@ -7,6 +7,7 @@ export interface ProjectRow {
   name: string;
   public_key: string;
   allowed_origins: string;
+  reply_requests: number;
   created_at: number;
 }
 
@@ -53,8 +54,9 @@ export async function createProject(
 ): Promise<ProjectRow> {
   const row = await db
     .prepare(
-      `INSERT INTO projects (id, owner_id, name, public_key, allowed_origins, created_at)
-       VALUES (?, ?, ?, ?, ?, ?)
+      // New sites offer "Email me when it's fixed" from the start.
+      `INSERT INTO projects (id, owner_id, name, public_key, allowed_origins, reply_requests, created_at)
+       VALUES (?, ?, ?, ?, ?, 1, ?)
        RETURNING *`,
     )
     .bind(
@@ -74,20 +76,22 @@ export async function updateProject(
   db: D1Database,
   id: string,
   ownerId: string,
-  patch: { name?: string; allowedOrigins?: string[] },
+  patch: { name?: string; allowedOrigins?: string[]; replyRequests?: boolean },
 ): Promise<ProjectRow | null> {
   // COALESCE keeps the current value for any field that wasn't sent.
   return db
     .prepare(
       `UPDATE projects SET
          name = COALESCE(?, name),
-         allowed_origins = COALESCE(?, allowed_origins)
+         allowed_origins = COALESCE(?, allowed_origins),
+         reply_requests = COALESCE(?, reply_requests)
        WHERE id = ? AND owner_id = ?
        RETURNING *`,
     )
     .bind(
       patch.name ?? null,
       patch.allowedOrigins ? JSON.stringify(patch.allowedOrigins) : null,
+      patch.replyRequests === undefined ? null : patch.replyRequests ? 1 : 0,
       id,
       ownerId,
     )
@@ -121,6 +125,7 @@ export function toProject(row: ProjectRow): Project {
     name: row.name,
     publicKey: row.public_key,
     allowedOrigins: allowedOrigins(row),
+    replyRequests: row.reply_requests === 1,
     createdAt: new Date(row.created_at).toISOString(),
   };
 }
