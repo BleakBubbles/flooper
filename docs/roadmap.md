@@ -18,8 +18,7 @@ as volume grows:
 
 ### App polish
 
-Batches 1–3 are done (see below). Open question: whether dark mode goes
-pure black like the landing page.
+Batches 1–3 are done (see below).
 
 ## Later
 
@@ -90,6 +89,9 @@ code splitting, aggregation queries, and designing for data that drifts.
 
 ## Done
 
+- **Digest bounces and spam reports, 2026-11-10.** Resend's webhook switches a
+  person's digest off when it bounces or is marked as spam (signed with Svix;
+  see docs/operations.md). The digest's replies go to hello@flooper.app.
 - **Export and delete account, 2026-11-10.** In Your settings: download every
   note (all sites or one) as a CSV, with formula-looking cells defused; and
   delete your account (type your GitHub username), which removes every site,

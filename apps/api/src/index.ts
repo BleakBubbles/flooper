@@ -10,6 +10,7 @@ import { auth } from "./routes/auth";
 import { ingest } from "./routes/ingest";
 import { portal } from "./routes/portal";
 import { unsubscribe } from "./routes/unsubscribe";
+import { webhooks } from "./routes/webhooks";
 
 // Request flow:
 //
@@ -27,6 +28,8 @@ app.get("/health", (c) => c.json({ ok: true }));
 
 app.route("/v1/ingest", ingest);
 app.route("/unsubscribe", unsubscribe);
+// Called by Resend, not a browser, so no origin check: the signature is the check.
+app.route("/webhooks", webhooks);
 
 app.use("/auth/*", requireTrustedOrigin);
 app.route("/auth", auth);
