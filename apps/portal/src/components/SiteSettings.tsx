@@ -148,16 +148,31 @@ function SiteNameForm({ project }: { project: Project }) {
 /** Saves as soon as it's ticked: there's nothing else to fill in. */
 function RepliesSwitch({ project }: { project: Project }) {
   const queryClient = useQueryClient();
+  // The box shows the site as the sidebar's list has it, so the list changes
+  // first: the box ticks at once and stays put while it saves. (Updating it
+  // only after saving left it showing the old list for a moment: a flicker
+  // as long as the reload.)
+  const setInList = (on: boolean) =>
+    queryClient.setQueryData<{ data: ProjectWithSummary[] }>(keys.projects, (old) =>
+      old
+        ? {
+            ...old,
+            data: old.data.map((p) =>
+              p.id === project.id ? { ...p, replyRequests: on, replyPrompt: false } : p,
+            ),
+          }
+        : old,
+    );
   const save = useMutation({
     mutationFn: (on: boolean) => api.updateProject(project.id, { replyRequests: on }),
-    onSuccess: (updated) => {
-      queryClient.setQueryData(keys.project(project.id), updated);
-      void queryClient.invalidateQueries({ queryKey: keys.projects });
+    onMutate: async (on) => {
+      await queryClient.cancelQueries({ queryKey: keys.projects });
+      setInList(on);
     },
+    onError: (_err, on) => setInList(!on),
+    onSuccess: (updated) => queryClient.setQueryData(keys.project(project.id), updated),
+    onSettled: () => void queryClient.invalidateQueries({ queryKey: keys.projects }),
   });
-  const checked = save.isPending
-    ? (save.variables ?? project.replyRequests)
-    : project.replyRequests;
 
   return (
     <div className="digest-form">
@@ -165,8 +180,7 @@ function RepliesSwitch({ project }: { project: Project }) {
         <input
           type="checkbox"
           className="select-box"
-          checked={checked}
-          disabled={save.isPending}
+          checked={project.replyRequests}
           onChange={(e) => save.mutate(e.target.checked)}
         />
         Ask visitors if they want to hear back

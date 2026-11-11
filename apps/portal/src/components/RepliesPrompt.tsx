@@ -1,4 +1,4 @@
-import type { Project } from "@flooper/shared/schemas";
+import type { Project, ProjectWithSummary } from "@flooper/shared/schemas";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, keys } from "../api";
 import { ReplyIcon } from "./icons";
@@ -12,13 +12,21 @@ import { ReplyIcon } from "./icons";
 export function RepliesPrompt({ sites }: { sites: Project[] }) {
   const queryClient = useQueryClient();
   const site = sites.find((s) => s.replyPrompt);
+  // Answered: gone at once (the site list changes first), not after a reload.
+  const setInList = (id: string, change: Partial<Project>) =>
+    queryClient.setQueryData<{ data: ProjectWithSummary[] }>(keys.projects, (old) =>
+      old ? { ...old, data: old.data.map((p) => (p.id === id ? { ...p, ...change } : p)) } : old,
+    );
   const answer = useMutation({
     mutationFn: ({ id, on }: { id: string; on: boolean }) =>
       api.updateProject(id, { replyRequests: on }),
-    onSuccess: (updated) => {
-      queryClient.setQueryData(keys.project(updated.id), updated);
-      void queryClient.invalidateQueries({ queryKey: keys.projects });
+    onMutate: async ({ id, on }) => {
+      await queryClient.cancelQueries({ queryKey: keys.projects });
+      setInList(id, { replyRequests: on, replyPrompt: false });
     },
+    onError: (_err, { id }) => setInList(id, { replyRequests: false, replyPrompt: true }),
+    onSuccess: (updated) => queryClient.setQueryData(keys.project(updated.id), updated),
+    onSettled: () => void queryClient.invalidateQueries({ queryKey: keys.projects }),
   });
   if (!site) return null;
 
