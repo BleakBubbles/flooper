@@ -139,6 +139,13 @@ export function FeedbackDetail({
         <Fact label="Status">
           <span className={`status-pill ${feedback.status}`}>{STATUS_LABELS[feedback.status]}</span>
         </Fact>
+        {feedback.contactEmail && (
+          <Fact label="Wants a reply">
+            <a className="link" href={`mailto:${feedback.contactEmail}`}>
+              {feedback.contactEmail}
+            </a>
+          </Fact>
+        )}
         {(visitor?.name || visitor?.email || visitor?.id) && (
           <Fact label="Visitor">
             {[visitor.name, visitor.email, visitor.id && `id ${visitor.id}`]

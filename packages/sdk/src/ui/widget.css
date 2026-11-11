@@ -28,8 +28,10 @@
   --launcher-shadow: var(--shadow);
   /* The portal's typeface, used only if the host page already loads it: the
      widget never fetches fonts onto someone else's site. */
-  --font: "Instrument Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  /* system-ui and ui-monospace already resolve to each platform's own fonts
+     (San Francisco, Segoe UI, Roboto...), so no need to list those too. */
+  --font: "Instrument Sans", system-ui, sans-serif;
+  --mono: "Geist Mono", ui-monospace, monospace;
 }
 @media (prefers-color-scheme: dark) {
   :host(:not([data-theme="light"])) {
@@ -100,10 +102,6 @@ svg.lucide {
   align-items: flex-start;
 }
 
-/* Hidden with launcher: false; the site opens the widget from its own button. */
-.launcher[hidden] {
-  display: none;
-}
 .launcher {
   width: 48px;
   height: 48px;
@@ -208,16 +206,19 @@ svg.lucide {
     0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
-textarea {
+textarea,
+.reply input {
   display: block;
   width: 100%;
-  min-height: 76px;
   padding: 8px 10px;
   border: 1px solid var(--border-strong);
   border-radius: 8px;
   background: var(--surface);
   color: var(--fg);
   font: inherit;
+}
+textarea {
+  min-height: 76px;
   resize: vertical;
 }
 /* We draw the placeholder ourselves (the "ghost") so the → keycap can sit right
@@ -276,14 +277,6 @@ textarea:focus + .ghost .autofill-hint {
   }
 }
 
-.hp {
-  position: absolute;
-  left: -10000px;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-}
-
 .footer {
   display: flex;
   align-items: center;
@@ -314,17 +307,21 @@ textarea:focus + .ghost .autofill-hint {
   font-weight: 600;
   cursor: pointer;
 }
-.btn:hover {
+.btn:enabled:hover {
   border-color: var(--fg-2);
-}
-.btn:disabled {
-  opacity: 0.5;
-  cursor: default;
 }
 .btn.primary {
   border-color: var(--fg);
   background: var(--fg);
   color: var(--bg);
+}
+/* A button with nothing to do yet draws as ghost (quiet and crisp, not a
+   faded solid block), as in the portal; it fills in once it's ready. */
+.btn:disabled {
+  border-color: var(--border);
+  background: none;
+  color: var(--muted);
+  cursor: default;
 }
 .btn svg.lucide {
   width: 16px;
@@ -336,22 +333,15 @@ textarea:focus + .ghost .autofill-hint {
   font-weight: 500;
 }
 
-/* The pick button: an outline icon button, square and as tall as Send, so the
+/* The pick button: an outline .btn, square and as tall as Send, so the
    footer reads as a pair of actions. */
 .point {
-  display: grid;
-  place-items: center;
   width: 36px;
   height: 36px;
   padding: 0;
-  border: 1px solid var(--border-strong);
-  border-radius: 8px;
-  background: var(--surface);
   color: var(--fg-2);
-  cursor: pointer;
 }
 .point:hover {
-  border-color: var(--fg-2);
   color: var(--fg);
 }
 /* Something's picked: the outline firms up, like a toggle that's on. */
@@ -555,6 +545,16 @@ textarea:focus + .ghost .autofill-hint {
   color: var(--muted);
 }
 
+/* After sending, on sites that offer replies: "Want to hear back?" */
+.reply {
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.reply input {
+  flex: 1;
+  min-width: 0;
+}
+
 /* A quiet credit under everything, so curious visitors can find Flooper. */
 .powered {
   display: block;
@@ -576,6 +576,7 @@ textarea:focus + .ghost .autofill-hint {
 
 button:focus-visible,
 textarea:focus-visible,
+input:focus-visible,
 a:focus-visible {
   outline: 2px solid var(--fg);
   outline-offset: 2px;

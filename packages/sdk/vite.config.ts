@@ -1,3 +1,4 @@
+import type { Plugin } from "vite";
 import { defineConfig } from "vitest/config";
 import pkg from "./package.json" with { type: "json" };
 
@@ -6,6 +7,7 @@ export default defineConfig({
     __SDK_VERSION__: JSON.stringify(pkg.version),
     __DEFAULT_API_URL__: JSON.stringify(process.env.FLOOPER_API_URL ?? "http://localhost:8787"),
   },
+  plugins: [compactIcons()],
   // `pnpm dev` serves index.html: a fake personal site for trying the widget.
   server: { port: 5174, strictPort: true },
   build: {
@@ -20,8 +22,37 @@ export default defineConfig({
     },
     target: "es2020",
     sourcemap: true,
+    // Terser over Vite's default (esbuild): slower, but it squeezes out a few
+    // hundred more bytes, and the widget has a 10 KB budget (scripts/check-size.mjs).
+    minify: "terser",
+    terserOptions: { compress: { passes: 2 }, format: { comments: false } },
   },
   test: {
     environment: "happy-dom",
   },
 });
+
+/**
+ * Lucide's icons arrive as pretty-printed SVG strings. Squeeze them before they
+ * ship: one line, no xmlns (HTML parsing puts <svg> in the SVG namespace
+ * anyway), no width/height (widget.css sizes every svg.lucide) and just the
+ * shared "lucide" class. A few hundred bytes the 10 KB budget can use.
+ */
+function compactIcons(): Plugin {
+  return {
+    name: "compact-lucide-icons",
+    transform(code, id) {
+      if (!/lucide-static[\\/].*icons[\\/]/.test(id)) return null;
+      return code.replace(/`([^`]*)`/, (_, svg: string) =>
+        JSON.stringify(
+          svg
+            .trim()
+            .replace(/\s*\n\s*/g, " ")
+            .replace(/ (xmlns|width|height)="[^"]*"/g, "")
+            .replace(/class="lucide [^"]*"/, 'class="lucide"')
+            .replace(/ ?(\/?>) ?/g, "$1"),
+        ),
+      );
+    },
+  };
+}

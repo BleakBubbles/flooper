@@ -1,7 +1,7 @@
 import { LIMITS } from "@flooper/shared";
-import { feedbackSubmissionSchema } from "@flooper/shared/schemas";
+import { feedbackSubmissionSchema, replyRequestSchema } from "@flooper/shared/schemas";
 import { type Context, Hono } from "hono";
-import { insertFeedback } from "../db/feedback";
+import { insertFeedback, setContactEmail } from "../db/feedback";
 import { allowedOrigins, getProjectByPublicKey, type ProjectRow } from "../db/projects";
 import { hitRateLimit } from "../db/rate-limit";
 import type { AppEnv } from "../env";
@@ -39,7 +39,20 @@ ingest.use("*", async (c, next) => {
   await next();
 });
 
-ingest.options("/:publicKey/feedback", (c) => {
+/**
+ * What the widget needs to know about its site before showing the form: for
+ * now, whether to ask "Want to hear back about this?". Asked once, when a
+ * visitor first opens the widget. Unknown keys get the defaults, so this
+ * says nothing about which keys exist.
+ */
+ingest.get("/:publicKey/config", async (c) => {
+  const project = await getProjectByPublicKey(c.env.DB, c.req.param("publicKey"));
+  c.header("Cache-Control", "public, max-age=300");
+  return c.json({ replies: project?.reply_requests === 1 });
+});
+
+// Preflight for the widget's POSTs (a note, and then maybe an address).
+ingest.options("/:publicKey/*", (c) => {
   c.header("Access-Control-Allow-Methods", "POST");
   c.header("Access-Control-Allow-Headers", "Content-Type");
   // Let the browser cache this preflight for a day instead of repeating it.
@@ -111,6 +124,21 @@ ingest.post("/:publicKey/feedback", async (c) => {
 
   const { id } = await insertFeedback(c.env.DB, project.id, submission);
   return c.json({ id }, 202);
+});
+
+/**
+ * "Want to hear back about this?", asked after a note is sent: the
+ * visitor's address for that note. Only while the site offers replies.
+ */
+ingest.post("/:publicKey/feedback/:id/reply", async (c) => {
+  const project = await authorizeOrigin(c);
+  const { email } = await parseJsonBody(c, replyRequestSchema, 1024);
+  if (project.reply_requests !== 1) {
+    throw new ApiError(403, "forbidden", "This site doesn't offer replies");
+  }
+  const ok = await setContactEmail(c.env.DB, project.id, c.req.param("id"), email);
+  if (!ok) throw notFound("Note");
+  return c.body(null, 204);
 });
 
 /**

@@ -31,6 +31,7 @@
     "@flooper/shared": "workspace:*",
     "happy-dom": "21.0.4",
     "lucide-static": "1.67.0",
+    "terser": "5.39.0",
     "vite": "8.3.5",
     "vitest": "5.0.5"
   }

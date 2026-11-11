@@ -23,6 +23,7 @@ export interface FeedbackRow {
   idempotency_key: string;
   created_at: number;
   deleted_at: number | null;
+  contact_email: string | null;
 }
 
 /**
@@ -69,6 +70,34 @@ export async function insertFeedback(
 }
 
 /** How many notes the project has in each status. One grouped query, not four. */
+/** How long after sending a note its visitor can still ask to hear back. */
+export const REPLY_WINDOW_MS = 60 * 60 * 1000;
+
+/**
+ * Attach the visitor's address to the note they just sent. Only once, only
+ * soon after sending, and only to a note on this site, so a note's ID (which
+ * only its visitor's browser was given) can't be used to change it later.
+ * Returns whether a note took it.
+ */
+export async function setContactEmail(
+  db: D1Database,
+  projectId: string,
+  id: string,
+  email: string,
+  now = Date.now(),
+): Promise<boolean> {
+  const updated = await db
+    .prepare(
+      `UPDATE feedback SET contact_email = ?
+       WHERE id = ? AND project_id = ? AND contact_email IS NULL
+         AND deleted_at IS NULL AND created_at > ?
+       RETURNING id`,
+    )
+    .bind(email, id, projectId, now - REPLY_WINDOW_MS)
+    .first<{ id: string }>();
+  return updated !== null;
+}
+
 export async function countFeedback(db: D1Database, projectId: string): Promise<FeedbackCounts> {
   const { results } = await db
     .prepare(
@@ -517,6 +546,7 @@ export function toFeedback(row: FeedbackRow): Feedback {
     metadata: parseOrNull(row.metadata),
     createdAt: new Date(row.created_at).toISOString(),
     deletedAt: row.deleted_at === null ? null : new Date(row.deleted_at).toISOString(),
+    contactEmail: row.contact_email ?? null,
   };
 }
 

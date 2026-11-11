@@ -24,6 +24,10 @@ export interface WidgetOptions {
   title: string;
   /** The Flooper instance's home page, for the "Powered by" link. */
   homeUrl: string;
+  /** Called when the panel opens (to ask the site's settings, once). */
+  onOpen?: () => void;
+  /** "Want to hear back?": attach the visitor's address to the note just sent. */
+  onReply?: (id: string, email: string) => Promise<boolean>;
 }
 
 export interface WidgetInput {
@@ -77,6 +81,10 @@ export class Widget {
     chipText: HTMLButtonElement;
     chipLabel: HTMLElement;
     chipClear: HTMLButtonElement;
+    thanksText: HTMLElement;
+    reply: HTMLFormElement;
+    replyEmail: HTMLInputElement;
+    replyButton: HTMLButtonElement;
   };
   private readonly picker: Picker;
   private readonly highlighter: Highlighter;
@@ -86,6 +94,12 @@ export class Widget {
   private targetElement: Element | null = null;
   private sending = false;
   private resetTimer: ReturnType<typeof setTimeout> | undefined;
+  private readonly onOpen: (() => void) | undefined;
+  private readonly onReply: WidgetOptions["onReply"];
+  /** The site offers replies (asked when the panel first opens). */
+  private replies = false;
+  /** The note just sent, for "Want to hear back?". */
+  private noteId = "";
 
   constructor(
     options: WidgetOptions,
@@ -103,7 +117,7 @@ export class Widget {
       form: $("form"),
       thanks: $(".thanks"),
       message: $("textarea"),
-      hp: $(".hp"),
+      hp: $("[name=website]"),
       send: $(".send"),
       sendLabel: $(".send-label"),
       status: $(".status"),
@@ -114,7 +128,13 @@ export class Widget {
       chipText: $(".target-text"),
       chipLabel: $(".target-label"),
       chipClear: $(".target-clear"),
+      thanksText: $(".thanks span"),
+      reply: $(".reply"),
+      replyEmail: $(".reply input"),
+      replyButton: $(".reply button"),
     };
+    this.onOpen = options.onOpen;
+    this.onReply = options.onReply;
     this.highlighter = new Highlighter($(".highlight"), $(".highlight-label"));
     this.picker = new Picker(this.root, this.host, this.highlighter);
     // textContent, not innerHTML: the title comes from site config and must
@@ -158,6 +178,12 @@ export class Widget {
       this.refresh();
       this.el.point.focus();
     });
+    // Notify me waits for something that looks like an address.
+    this.el.replyEmail.addEventListener("input", () => this.checkReply());
+    this.el.reply.addEventListener("submit", (event) => {
+      event.preventDefault();
+      void this.sendReply();
+    });
     this.el.form.addEventListener("submit", (event) => {
       event.preventDefault();
       void this.submit();
@@ -187,6 +213,7 @@ export class Widget {
   }
 
   open(): void {
+    this.onOpen?.();
     this.el.panel.hidden = false;
     this.el.launcher.setAttribute("aria-expanded", "true");
     this.el.reactions[0]?.focus();
@@ -194,6 +221,11 @@ export class Widget {
 
   close(): void {
     if (!this.isOpen) return;
+    // Closed after sending: start fresh next time.
+    if (this.el.form.hidden) {
+      clearTimeout(this.resetTimer);
+      this.reset();
+    }
     this.highlighter.hide();
     this.el.panel.hidden = true;
     this.el.launcher.setAttribute("aria-expanded", "false");
@@ -224,6 +256,35 @@ export class Widget {
     }
     this.refresh();
     (picked ? this.el.message : this.el.point).focus();
+  }
+
+  /**
+   * The site lets visitors ask to hear back: offer it after they send, with
+   * their address filled in if the site identified them.
+   */
+  offerReplies(email?: string): void {
+    this.replies = true;
+    if (email && !this.el.replyEmail.value) this.el.replyEmail.value = email;
+  }
+
+  private checkReply(): void {
+    this.el.replyButton.disabled = !this.el.replyEmail.checkValidity();
+  }
+
+  private async sendReply(): Promise<void> {
+    // Enter can't get here early: a form won't submit while its button is
+    // disabled, and the field is required and type="email".
+    const button = this.el.replyButton;
+    button.disabled = true;
+    const ok = await this.onReply?.(this.noteId, this.el.replyEmail.value.trim());
+    button.disabled = false;
+    if (ok) {
+      this.el.reply.hidden = true;
+      this.el.thanksText.textContent = "We'll email you if there's news.";
+      this.resetTimer = setTimeout(() => this.close(), 2500);
+    } else {
+      button.textContent = "Try again";
+    }
   }
 
   private showTarget(options: { scroll?: boolean } = {}): void {
@@ -320,10 +381,12 @@ export class Widget {
     if (result.ok) {
       this.el.form.hidden = true;
       this.el.thanks.hidden = false;
-      this.resetTimer = setTimeout(() => {
-        this.close();
-        this.reset();
-      }, 2500);
+      this.noteId = result.id;
+      // Sites that offer replies ask "Want to hear back?" and wait for an answer.
+      if (this.replies && this.onReply) {
+        this.el.reply.hidden = false;
+        this.checkReply();
+      } else this.resetTimer = setTimeout(() => this.close(), 2500);
     } else {
       this.setStatus(FAILURE_MESSAGES[result.code] ?? DEFAULT_FAILURE, "error");
     }
@@ -337,6 +400,9 @@ export class Widget {
     this.el.message.value = "";
     this.el.form.hidden = false;
     this.el.thanks.hidden = true;
+    this.el.thanksText.textContent = SENT;
+    this.el.reply.hidden = true;
+    this.el.replyButton.textContent = NOTIFY;
     this.setStatus("");
     this.refresh();
   }
@@ -345,8 +411,14 @@ export class Widget {
 /** Bring an element to the middle of the screen, gently unless motion is reduced. */
 function scrollToCenter(el: Element): void {
   const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-  el.scrollIntoView?.({ block: "center", behavior: reduceMotion ? "auto" : "smooth" });
+  el.scrollIntoView?.({
+    block: "center",
+    behavior: reduceMotion ? "auto" : "smooth",
+  });
 }
+
+const SENT = "The dev will see this soon.";
+const NOTIFY = "Notify me";
 
 function template(position: WidgetOptions["position"]): string {
   const reactions = REACTIONS.map(
@@ -378,9 +450,9 @@ function template(position: WidgetOptions["position"]): string {
         <button type="button" class="target-clear" aria-label="Remove the picked element"
           data-tooltip="Remove">${ICONS.close}</button>
       </div>
-      <input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <input class="sr-only" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
       <div class="footer">
-        <button type="button" class="point" aria-pressed="false"
+        <button type="button" class="btn point" aria-pressed="false"
           aria-label="Point at something on the page" data-tooltip="Point at something">${ICONS.pick}</button>
         <span class="status" role="status" aria-live="polite"></span>
         <button type="submit" class="btn primary send"><span class="send-label">Send</span>${ICONS.send}</button>
@@ -388,8 +460,16 @@ function template(position: WidgetOptions["position"]): string {
     </form>
     <div class="thanks" role="status" hidden>
       <strong>${ICONS.heart} Thanks!</strong>
-      <span>The dev will see this soon.</span>
+      <span>${SENT}</span>
     </div>
+    <form class="reply" hidden>
+      <label for="flooper-reply"><strong>Want to hear back?</strong></label>
+      <div class="footer">
+        <input id="flooper-reply" type="email" maxlength="254" autocomplete="email" required
+          placeholder="you@example.com">
+        <button class="btn primary">${NOTIFY}</button>
+      </div>
+    </form>
     <a class="powered" target="_blank" rel="noopener">Powered by <strong>Flooper</strong></a>
   </div>
   <button type="button" class="launcher" aria-label="Leave feedback" aria-expanded="false"

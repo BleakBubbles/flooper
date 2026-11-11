@@ -85,9 +85,17 @@ export const createProjectSchema = z.object({
  * createProjectSchema.partial(), whose allowedOrigins default of [] would
  * otherwise fill in, so renaming a site would erase its allowed origins.
  */
+/**
+ * After sending a note, the visitor can leave an address to hear back about
+ * it ("Want to hear back about this?").
+ */
+export const replyRequestSchema = z.object({ email: z.email().max(254) });
+
 export const updateProjectSchema = z.object({
   name: createProjectSchema.shape.name.optional(),
   allowedOrigins: z.array(origin).max(LIMITS.allowedOriginsMax).optional(),
+  /** Whether the widget asks visitors if they want to hear back. */
+  replyRequests: z.boolean().optional(),
 });
 
 export const updateFeedbackSchema = z.object({
@@ -188,6 +196,8 @@ export interface Project {
   name: string;
   publicKey: string;
   allowedOrigins: string[];
+  /** The widget asks visitors if they want to hear back about their note. */
+  replyRequests: boolean;
   createdAt: string;
 }
 
@@ -247,4 +257,6 @@ export interface Feedback {
   createdAt: string;
   /** When it was deleted, while it's in "Recently deleted"; null otherwise. */
   deletedAt: string | null;
+  /** The visitor asked to hear back about this note, at this address. */
+  contactEmail: string | null;
 }
