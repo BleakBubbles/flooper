@@ -1,4 +1,4 @@
-import type { NotificationSettings, User } from "@flooper/shared/schemas";
+import type { NoteEmails, NotificationSettings, User } from "@flooper/shared/schemas";
 import { randomToken } from "../lib/crypto";
 import { newId } from "../lib/ids";
 
@@ -15,7 +15,8 @@ export interface UserRow {
   avatar_url: string | null;
   created_at: number;
   email: string | null;
-  digest_enabled: number;
+  note_emails: NoteEmails;
+  /** "Emailed up to": when the last email about notes (either kind) went out. */
   digest_sent_at: number | null;
   unsubscribe_token: string | null;
 }
@@ -67,14 +68,15 @@ export function toUser(row: UserRow): User {
     name: row.name,
     avatarUrl: row.avatar_url,
     email: row.email,
-    digestEnabled: row.digest_enabled === 1,
+    noteEmails: row.note_emails,
   };
 }
 
 /**
- * Save the user's digest settings. Turning it on makes their unsubscribe
- * token if they don't have one, and starts the digest from now, so the first
- * email covers notes from here on rather than everything they ever got.
+ * Save which emails the user gets about new notes, and where. Choosing any
+ * makes their unsubscribe token if they don't have one. Changing the choice
+ * starts from now, so the first email covers notes from here on rather than
+ * everything since the last one (or ever).
  */
 export async function updateNotificationSettings(
   db: D1Database,
@@ -84,30 +86,23 @@ export async function updateNotificationSettings(
   const row = await db
     .prepare(
       `UPDATE users SET
-         email = ?,
-         digest_enabled = ?,
-         unsubscribe_token = COALESCE(unsubscribe_token, ?),
-         digest_sent_at = CASE WHEN ? = 1 AND digest_enabled = 0 THEN ? ELSE digest_sent_at END
-       WHERE id = ?
+         email = ?1,
+         note_emails = ?2,
+         unsubscribe_token = COALESCE(unsubscribe_token, ?3),
+         digest_sent_at = CASE WHEN ?2 <> note_emails THEN ?4 ELSE digest_sent_at END
+       WHERE id = ?5
        RETURNING *`,
     )
-    .bind(
-      settings.email,
-      settings.digestEnabled ? 1 : 0,
-      randomToken(),
-      settings.digestEnabled ? 1 : 0,
-      Date.now(),
-      userId,
-    )
+    .bind(settings.email, settings.noteEmails, randomToken(), Date.now(), userId)
     .first<UserRow>();
   if (!row) throw new Error("No such user");
   return row;
 }
 
-/** One-click unsubscribe: turns the digest off. False if the token matches no one. */
+/** One-click unsubscribe: no more emails about notes. False if the token matches no one. */
 export async function unsubscribeByToken(db: D1Database, token: string): Promise<boolean> {
   const result = await db
-    .prepare("UPDATE users SET digest_enabled = 0 WHERE unsubscribe_token = ?")
+    .prepare("UPDATE users SET note_emails = 'off' WHERE unsubscribe_token = ?")
     .bind(token)
     .run();
   return (result.meta.changes ?? 0) > 0;

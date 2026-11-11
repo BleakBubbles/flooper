@@ -1,4 +1,4 @@
-import type { User } from "@flooper/shared/schemas";
+import type { NoteEmails, User } from "@flooper/shared/schemas";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { Link } from "react-router";
@@ -8,8 +8,8 @@ import { CloseIcon, DownloadIcon } from "./icons";
 import { SettingRow } from "./SiteSettings";
 
 /**
- * Your own settings, in the notes panel's place (from the account menu): the
- * daily digest, exporting your notes, and deleting your account.
+ * Your own settings, in the notes panel's place (from the account menu):
+ * emails about new notes, exporting your notes, and deleting your account.
  */
 export function AccountSettings() {
   const me = useQuery({ queryKey: keys.me, queryFn: api.me });
@@ -26,11 +26,8 @@ export function AccountSettings() {
           </Link>
         </span>
       </div>
-      <SettingRow
-        title="Daily digest"
-        help="One email a day about new notes on your sites, around 13:00 UTC. Days without new notes send nothing, and every email has an unsubscribe link."
-      >
-        {me.data && <DigestForm key={me.data.id} user={me.data} />}
+      <SettingRow title="Emails">
+        {me.data && <NoteEmailsForm key={me.data.id} user={me.data} />}
       </SettingRow>
       <SettingRow title="Export notes" help="A spreadsheet (CSV) of your notes.">
         <ExportForm />
@@ -143,16 +140,22 @@ function DeleteAccount({ user }: { user: User }) {
   );
 }
 
-function DigestForm({ user }: { user: User }) {
+const NOTE_EMAIL_CHOICES: { value: NoteEmails; label: string }[] = [
+  { value: "off", label: "Off" },
+  { value: "daily", label: "Daily digest" },
+  { value: "instant", label: "All notes" },
+];
+
+/** Which emails about new notes (none, daily, or as they arrive), and where they go. */
+function NoteEmailsForm({ user }: { user: User }) {
   const queryClient = useQueryClient();
   const [email, setEmail] = useState(user.email ?? "");
-  const [enabled, setEnabled] = useState(user.digestEnabled);
+  const [choice, setChoice] = useState<NoteEmails>(user.noteEmails);
   const save = useMutation({
-    mutationFn: () =>
-      api.updateNotifications({ email: email.trim() || null, digestEnabled: enabled }),
+    mutationFn: () => api.updateNotifications({ email: email.trim() || null, noteEmails: choice }),
     onSuccess: (updated) => queryClient.setQueryData(keys.me, updated),
   });
-  const unchanged = email.trim() === (user.email ?? "") && enabled === user.digestEnabled;
+  const unchanged = email.trim() === (user.email ?? "") && choice === user.noteEmails;
 
   function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -161,17 +164,24 @@ function DigestForm({ user }: { user: User }) {
 
   return (
     <form onSubmit={onSubmit} className="digest-form">
-      <label className="check-row">
-        <input
-          type="checkbox"
-          className="select-box"
-          checked={enabled}
-          onChange={(e) => setEnabled(e.target.checked)}
-        />
-        Email me a daily digest of new notes
-      </label>
+      <fieldset className="choices">
+        <legend className="sr-only">Emails</legend>
+        {NOTE_EMAIL_CHOICES.map((c) => (
+          <label key={c.value} className="choice">
+            <input
+              type="radio"
+              className="radio-dot"
+              name="note-emails"
+              value={c.value}
+              checked={choice === c.value}
+              onChange={() => setChoice(c.value)}
+            />
+            <span className="choice-label">{c.label}</span>
+          </label>
+        ))}
+      </fieldset>
       <label htmlFor="digest-email" className="small muted">
-        Send it to
+        Send them to
       </label>
       <div className="inline-form">
         <input
@@ -188,7 +198,7 @@ function DigestForm({ user }: { user: User }) {
       </div>
       {save.isSuccess && unchanged && (
         <p className="small muted" role="status">
-          {user.digestEnabled ? `Saved. The next digest goes to ${user.email}.` : "Saved."}
+          Saved.
         </p>
       )}
       <FieldErrors error={save.error} />

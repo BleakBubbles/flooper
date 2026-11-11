@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { purgeDeleted } from "./db/feedback";
-import { resendSender, runDigests } from "./digest";
+import { resendSender, runDigests, runInstantEmails } from "./digest";
 import type { AppEnv, Bindings } from "./env";
 import { ApiError, notFound } from "./lib/errors";
 import { log } from "./lib/log";
@@ -11,6 +11,9 @@ import { ingest } from "./routes/ingest";
 import { portal } from "./routes/portal";
 import { unsubscribe } from "./routes/unsubscribe";
 import { webhooks } from "./routes/webhooks";
+
+/** The cron for emails as notes arrive; must match `triggers` in wrangler.jsonc. */
+const EVERY_MINUTE = "* * * * *";
 
 // Request flow:
 //
@@ -60,11 +63,15 @@ app.onError((err, c) => {
 
 export default {
   fetch: app.fetch,
-  // The daily digest (see `triggers` in wrangler.jsonc).
-  // Once a day (see `triggers` in wrangler.jsonc): the digests, and notes
-  // deleted more than 30 days ago go for good.
-  scheduled(_controller, env, ctx) {
+  // Cron triggers (see `triggers` in wrangler.jsonc). Every minute: emails
+  // for those who want them as notes arrive. Once a day: the daily digests,
+  // and notes deleted more than 30 days ago go for good.
+  scheduled(controller, env, ctx) {
     const now = Date.now();
+    if (controller.cron === EVERY_MINUTE) {
+      ctx.waitUntil(runInstantEmails(env, now, resendSender(env)));
+      return;
+    }
     ctx.waitUntil(runDigests(env, now, resendSender(env)));
     ctx.waitUntil(
       purgeDeleted(env.DB, now).then((purged) => log("info", "deleted notes purged", { purged })),

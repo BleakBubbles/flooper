@@ -23,12 +23,13 @@ export function DigestPrompt() {
     }
   });
   const turnOn = useMutation({
-    mutationFn: (email: string) => api.updateNotifications({ email, digestEnabled: true }),
+    mutationFn: (email: string) => api.updateNotifications({ email, noteEmails: "daily" }),
     onSuccess: (updated) => queryClient.setQueryData(keys.me, updated),
   });
 
   const user = me.data;
-  if (!user || user.digestEnabled || dismissed) return null;
+  // Asked only of those who've chosen nothing yet (either kind counts).
+  if (!user || user.noteEmails !== "off" || dismissed) return null;
 
   const dismiss = () => {
     setDismissed(true);

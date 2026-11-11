@@ -36,16 +36,6 @@ The repo is private for now. When it's time to make it public:
 5. Optionally publish the SDK to npm as `@flooper/sdk` (claim the `@flooper`
    scope first).
 
-### Instant emails
-
-An email as each note arrives, for owners who'd rather not wait for the daily
-digest (which is done; see below).
-
-### Close the loop
-
-Visitors can optionally leave contact details and hear back when their note is
-marked done. Builds on notifications.
-
 ### Feedback heat map ("review mode")
 
 Show feedback **overlaid on the owner's live site**: elements glow in proportion
@@ -88,6 +78,22 @@ Production patterns it would exercise: scoped short-lived credentials,
 code splitting, aggregation queries, and designing for data that drifts.
 
 ## Done
+
+- **Emails as notes arrive, 2026-11-11.** "Emails" in Your settings is now one
+  choice: Off, Daily digest, or All notes (as they arrive).
+  A run every minute emails the unread notes that just came in; several close
+  together come in one email, at most one every 5 minutes. Unsubscribe, bounces
+  and spam reports switch either off. Migration 0008 (`users.note_emails`,
+  `users.emailed_at`).
+- **Drag sites to reorder, 2026-11-11.** In the sidebar, expanded or collapsed,
+  or Alt+↑/↓ on a focused site; new sites join at the end. Migration 0007
+  (`projects.position`), `PUT /v1/projects/order`.
+- **Close the loop, 2026-11-11.** After sending a note, the widget asks "Want
+  to hear back about this?" (sites can switch it off; existing sites were
+  asked once). The owner replies from the note (Reply, `r`, or Reply in the
+  "Marked done" toast): one email per note, from "the site's address via
+  Flooper", with replies going to the owner. Left empty, it sends a standard
+  line fitted to the reaction and whether it's done. Migrations 0005 and 0006.
 
 - **Digest bounces and spam reports, 2026-11-10.** Resend's webhook switches a
   person's digest off when it bounces or is marked as spam (signed with Svix;

@@ -90,14 +90,15 @@ export function SettingRow({
   children,
 }: {
   title: string;
-  help: string;
+  /** Left out where the title says it all. */
+  help?: string;
   children: ReactNode;
 }) {
   return (
     <div className="setting-row">
       <div className="setting-label">
         <h3 className="setting-title">{title}</h3>
-        <p className="muted">{help}</p>
+        {help && <p className="muted">{help}</p>}
       </div>
       <div className="setting-control">{children}</div>
     </div>

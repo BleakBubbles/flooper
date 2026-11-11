@@ -41,13 +41,24 @@ Edit `NOTES_PER_SITE_PER_DAY` in both `vars` blocks of `apps/api/wrangler.jsonc`
 (local and production), run `pnpm exec wrangler types` in `apps/api`, and ship
 it like any change. Today's count carries on; only the limit moves.
 
-## The daily digest
+## Emails about new notes
 
-Once a day (13:00 UTC, the `triggers` cron in `apps/api/wrangler.jsonc`), each
-user who turned the digest on gets one email about notes that arrived since
-their last one, grouped by site, with a one-click unsubscribe. Days without new
-notes send nothing. If the provider refuses an email, that user's next run
-covers everything since the last one that went out.
+Each user picks one, under Your settings → Emails (stored as
+`users.note_emails`):
+
+- **Off** (the default).
+- **Daily digest:** at 13:00 UTC, one email about the unread notes since the last
+  one, grouped by site. Days without new notes send nothing.
+- **All notes:** a run every minute emails the unread notes that just
+  arrived. Several close together come in one email, and there are at least 5
+  minutes between two to one person (`INSTANT_GAP_MS`), so a busy hour can't
+  flood their inbox or Resend's quota.
+
+Both are cron triggers in `apps/api/wrangler.jsonc` (`0 13 * * *` and
+`* * * * *`); `scheduled` in `apps/api/src/index.ts` tells them apart. Every
+email has a one-click unsubscribe, which switches it off. If the provider
+refuses an email, that user's next run covers everything since the last one
+that went out.
 
 Emails go through [Resend](https://resend.com). To switch sending on:
 
@@ -61,7 +72,7 @@ Emails go through [Resend](https://resend.com). To switch sending on:
    pnpm exec wrangler secret put RESEND_API_KEY --env production
    ```
 
-Without the key, digests are written to the logs instead of sent, which is how
+Without the key, emails are written to the logs instead of sent, which is how
 it runs locally. Emails come from `EMAIL_FROM` (`Flooper <notes@flooper.app>`),
 and replies go to `REPLY_TO` (`Flooper <hello@flooper.app>`).
 
@@ -74,16 +85,18 @@ mail first, or replies will bounce. To reply _as_ Flooper from Gmail, add the
 address under Settings → Accounts → "Send mail as", using Resend's SMTP
 (`smtp.resend.com`, port 465, user `resend`, password: a sending-only API key).
 Resend's free plan sends 100 emails a day; each run sends to at most 100 users
-(`USERS_PER_RUN` in `apps/api/src/digest.ts`), so raise both together.
+(`USERS_PER_RUN` in `apps/api/src/digest.ts`), so raise both together. With
+"as notes arrive", one busy owner can use a good share of that quota (up to
+12 an hour), so watch Resend's dashboard as usage grows.
 
 ### Bounces and spam reports
 
-When a digest **bounces** (the address no longer exists) or someone **marks it
+When an email **bounces** (the address no longer exists) or someone **marks it
 as spam**, Resend calls `POST /api/webhooks/resend`, and Flooper switches that
-person's digest off. Mailing dead addresses, or people who complained, hurts
+person's emails about notes off. Mailing dead addresses, or people who complained, hurts
 `flooper.app`'s standing with mail providers. The call is signed (Svix); one
 that isn't, or whose timestamp is more than 5 minutes off, changes nothing.
-Each switch-off is logged as `digest switched off by Resend`.
+Each switch-off is logged as `note emails switched off by Resend`.
 
 To set it up:
 
@@ -99,8 +112,10 @@ To set it up:
 
 Until the secret is set, the endpoint answers 503 and does nothing.
 
-To run a digest locally, with the API's dev server running (`pnpm dev`), open
-`http://localhost:8787/__scheduled`; the digest is printed in its log.
+To run the emails locally, with the API's dev server running (`pnpm dev`),
+open `http://localhost:8787/cdn-cgi/handler/scheduled?cron=0+13+*+*+*` (the
+daily digest) or `...?cron=*+*+*+*+*` (as notes arrive); the emails are printed
+in its log.
 
 ## Worth setting up in Cloudflare
 

@@ -48,7 +48,7 @@
 
   // The daily digest, 13:00 UTC (morning in the Americas, afternoon in Europe).
   // Run it locally: wrangler dev --test-scheduled, then GET /__scheduled.
-  "triggers": { "crons": ["0 13 * * *"] },
+  "triggers": { "crons": ["0 13 * * *", "* * * * *"] },
 
   "env": {
     "production": {
@@ -68,7 +68,7 @@
         "EMAIL_FROM": "Flooper <notes@flooper.app>",
         "REPLY_TO": "Flooper <hello@flooper.app>"
       },
-      "triggers": { "crons": ["0 13 * * *"] },
+      "triggers": { "crons": ["0 13 * * *", "* * * * *"] },
       "d1_databases": [
         {
           "binding": "DB",

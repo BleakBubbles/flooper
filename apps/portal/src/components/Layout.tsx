@@ -127,7 +127,7 @@ function AccountMenu({ user }: { user: User }) {
       <hr />
       <ThemePicker theme={theme} onPick={setTheme} />
       <hr />
-      {/* Your settings: the digest, exporting notes, deleting the account. */}
+      {/* Your settings: emails about notes, exporting notes, deleting the account. */}
       <Link to="/?view=account">
         <span className="with-icon">
           <GearIcon />
