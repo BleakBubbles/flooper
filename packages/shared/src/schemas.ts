@@ -80,7 +80,15 @@ export const createProjectSchema = z.object({
   allowedOrigins: z.array(origin).max(LIMITS.allowedOriginsMax).default([]),
 });
 
-export const updateProjectSchema = createProjectSchema.partial();
+/**
+ * Changing a site: only what's sent changes. Spelled out rather than
+ * createProjectSchema.partial(), whose allowedOrigins default of [] would
+ * otherwise fill in, so renaming a site would erase its allowed origins.
+ */
+export const updateProjectSchema = z.object({
+  name: createProjectSchema.shape.name.optional(),
+  allowedOrigins: z.array(origin).max(LIMITS.allowedOriginsMax).optional(),
+});
 
 export const updateFeedbackSchema = z.object({
   status: z.enum(FEEDBACK_STATUSES),

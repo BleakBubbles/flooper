@@ -602,6 +602,19 @@ describe("portal API", () => {
     expect(await list("&deleted=1")).toEqual([]);
   });
 
+  it("changes only what's sent: renaming a site keeps its allowed origins", async () => {
+    const cookie = await loginAsDev();
+    const project = await createProject(cookie);
+    const res = await json(
+      "PATCH",
+      `/api/v1/projects/${project.id}`,
+      { name: "Renamed" },
+      { Cookie: cookie },
+    );
+    // createProject allows SITE; a rename must leave that alone.
+    expect(await res.json()).toMatchObject({ name: "Renamed", allowedOrigins: [SITE] });
+  });
+
   it("deletes a site with its notes, but only the owner's", async () => {
     const cookie = await loginAsDev();
     const project = await createProject(cookie);
