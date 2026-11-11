@@ -1,9 +1,4 @@
-import {
-  LIMITS,
-  REACTION_EMOJI,
-  REACTIONS,
-  type Reaction,
-} from "@flooper/shared";
+import { LIMITS, REACTION_EMOJI, REACTIONS, type Reaction } from "@flooper/shared";
 import type { SubmitErrorCode, SubmitResult } from "../api";
 import { Highlighter } from "../picker/highlight";
 import { type PickedTarget, Picker } from "../picker/picker";
@@ -53,8 +48,7 @@ export type SubmitHandler = (input: WidgetInput) => Promise<SubmitResult>;
 const FAILURE_MESSAGES: Partial<Record<SubmitErrorCode, string>> = {
   network_error: "Couldn't connect. Check your connection and try again.",
   rate_limited: "That's a lot of notes! Try again in a minute.",
-  site_limit_reached:
-    "This site has had a lot of notes today. Try again tomorrow.",
+  site_limit_reached: "This site has had a lot of notes today. Try again tomorrow.",
   paused: "Notes are paused for a little while. Try again later.",
   origin_not_allowed: "Notes aren't switched on for this site yet.",
   not_found: "Notes aren't switched on for this site yet.",
@@ -116,8 +110,7 @@ export class Widget {
     this.root = this.host.attachShadow({ mode: "open" });
     this.root.innerHTML = template(options.position);
 
-    const $ = <T extends Element>(selector: string) =>
-      this.root.querySelector(selector) as T;
+    const $ = <T extends Element>(selector: string) => this.root.querySelector(selector) as T;
     this.el = {
       launcher: $(".launcher"),
       panel: $(".panel"),
@@ -128,9 +121,7 @@ export class Widget {
       send: $(".send"),
       sendLabel: $(".send-label"),
       status: $(".status"),
-      reactions: [
-        ...this.root.querySelectorAll<HTMLButtonElement>(".reaction"),
-      ],
+      reactions: [...this.root.querySelectorAll<HTMLButtonElement>(".reaction")],
       notice: $(".notice"),
       point: $(".point"),
       chip: $(".target-chip"),
@@ -179,9 +170,7 @@ export class Widget {
     });
     this.el.chipText.addEventListener("focus", () => this.showTarget());
     this.el.chipText.addEventListener("blur", () => this.highlighter.hide());
-    this.el.chipText.addEventListener("click", () =>
-      this.showTarget({ scroll: true }),
-    );
+    this.el.chipText.addEventListener("click", () => this.showTarget({ scroll: true }));
     this.el.chipClear.addEventListener("click", () => {
       this.target = undefined;
       this.targetElement = null;
@@ -201,8 +190,7 @@ export class Widget {
     });
     this.root.addEventListener("keydown", (event) => {
       // While picking, Escape belongs to the picker (it cancels pick mode).
-      if ((event as KeyboardEvent).key === "Escape" && !this.picker.active)
-        this.close();
+      if ((event as KeyboardEvent).key === "Escape" && !this.picker.active) this.close();
     });
     this.refresh();
   }
@@ -252,11 +240,7 @@ export class Widget {
   private onOutsidePointer = (event: Event) => {
     // composedPath() sees through the shadow boundary; event.target alone
     // would just be the host element for clicks inside the widget.
-    if (
-      this.isOpen &&
-      !this.picker.active &&
-      !event.composedPath().includes(this.host)
-    ) {
+    if (this.isOpen && !this.picker.active && !event.composedPath().includes(this.host)) {
       this.close();
     }
   };
@@ -292,10 +276,7 @@ export class Widget {
     // disabled, and the field is required and type="email".
     const button = this.el.replyButton;
     button.disabled = true;
-    const ok = await this.onReply?.(
-      this.noteId,
-      this.el.replyEmail.value.trim(),
-    );
+    const ok = await this.onReply?.(this.noteId, this.el.replyEmail.value.trim());
     button.disabled = false;
     if (ok) {
       this.el.reply.hidden = true;
@@ -366,24 +347,15 @@ export class Widget {
 
   private refresh(): void {
     for (const button of this.el.reactions) {
-      button.setAttribute(
-        "aria-pressed",
-        String(button.dataset.reaction === this.reaction),
-      );
+      button.setAttribute("aria-pressed", String(button.dataset.reaction === this.reaction));
     }
-    const hasContent =
-      this.reaction !== undefined || this.el.message.value.trim().length > 0;
+    const hasContent = this.reaction !== undefined || this.el.message.value.trim().length > 0;
     this.el.send.disabled = this.sending || !hasContent;
     this.el.sendLabel.textContent = this.sending ? "Sending…" : "Send";
-    this.el.point.setAttribute(
-      "aria-pressed",
-      String(this.target !== undefined),
-    );
+    this.el.point.setAttribute("aria-pressed", String(this.target !== undefined));
     this.el.chip.hidden = this.target === undefined;
     if (this.target) {
-      this.el.chipLabel.textContent = this.target.text
-        ? `“${this.target.text}”`
-        : "Picked element";
+      this.el.chipLabel.textContent = this.target.text ? `“${this.target.text}”` : "Picked element";
     }
   }
 
@@ -438,9 +410,7 @@ export class Widget {
 
 /** Bring an element to the middle of the screen, gently unless motion is reduced. */
 function scrollToCenter(el: Element): void {
-  const reduceMotion = window.matchMedia?.(
-    "(prefers-reduced-motion: reduce)",
-  ).matches;
+  const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
   el.scrollIntoView?.({
     block: "center",
     behavior: reduceMotion ? "auto" : "smooth",
