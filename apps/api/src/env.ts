@@ -16,6 +16,8 @@ export interface Bindings extends Env {
   INGEST_PAUSED?: string;
   /** Resend's API key, for the daily digest. Without it, digests are logged, not sent. */
   RESEND_API_KEY?: string;
+  /** Resend's webhook signing secret ("whsec_..."), for bounces and spam reports. */
+  RESEND_WEBHOOK_SECRET?: string;
 }
 
 /** Per-request values that middleware stores on the Hono context. */

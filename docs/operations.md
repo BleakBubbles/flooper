@@ -76,6 +76,29 @@ address under Settings → Accounts → "Send mail as", using Resend's SMTP
 Resend's free plan sends 100 emails a day; each run sends to at most 100 users
 (`USERS_PER_RUN` in `apps/api/src/digest.ts`), so raise both together.
 
+### Bounces and spam reports
+
+When a digest **bounces** (the address no longer exists) or someone **marks it
+as spam**, Resend calls `POST /api/webhooks/resend`, and Flooper switches that
+person's digest off. Mailing dead addresses, or people who complained, hurts
+`flooper.app`'s standing with mail providers. The call is signed (Svix); one
+that isn't, or whose timestamp is more than 5 minutes off, changes nothing.
+Each switch-off is logged as `digest switched off by Resend`.
+
+To set it up:
+
+1. Resend dashboard → **Webhooks** → **Add endpoint**:
+   `https://flooper.app/api/webhooks/resend`, with the events
+   **email.bounced** and **email.complained**.
+2. Copy the endpoint's **signing secret** (`whsec_...`) and store it, from
+   `apps/api`:
+
+   ```bash
+   pnpm exec wrangler secret put RESEND_WEBHOOK_SECRET --env production
+   ```
+
+Until the secret is set, the endpoint answers 503 and does nothing.
+
 To run a digest locally, with the API's dev server running (`pnpm dev`), open
 `http://localhost:8787/__scheduled`; the digest is printed in its log.
 
