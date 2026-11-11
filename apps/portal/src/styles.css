@@ -1507,8 +1507,10 @@ select {
     grid-column: 3;
     grid-row: 1;
   }
+  /* Under the site, not the dot: the reaction lines up with the site's icon
+     (both 18px wide), and the dot keeps a column of its own. */
   .note-text {
-    grid-column: 1 / -1;
+    grid-column: 2 / -1;
     grid-row: 2;
   }
   .note-page {
