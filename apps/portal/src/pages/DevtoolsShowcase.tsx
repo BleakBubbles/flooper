@@ -1,4 +1,4 @@
-import { type ReactNode, useState } from "react";
+import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from "react";
 import "./devtools.css";
 
 type Tab = "Elements" | "Console" | "Network";
@@ -71,106 +71,169 @@ const CLAIMS: Claim[] = [
 const TABS = ["Elements", "Console", "Sources", "Network", "Performance"];
 
 /**
+ * When the showcase pins and steps through the claims as you scroll: side by
+ * side, with room for all of it on screen. Must match devtools.css.
+ */
+const PINNED = "(min-width: 1000px) and (min-height: 720px)";
+
+/**
  * "Built the way you'd build it": one mock browser with DevTools open, and the
  * claims as tabs beside it. Each claim switches DevTools to where you'd verify
- * it yourself. It stays on the one you pick; nothing moves on its own.
+ * it yourself. Nothing moves on its own: on wide screens the section pins
+ * while you scroll past it, and your scrolling steps through the claims (so
+ * the whole story plays out as you read down the page); picking a claim
+ * scrolls to its step. Elsewhere, it's just the tabs.
  */
 export function DevtoolsShowcase({ heading }: { heading: string }) {
   const [active, setActive] = useState(0);
   const claim = CLAIMS[active] as Claim;
+  const scroller = useRef<HTMLDivElement>(null);
+  // While a picked claim scrolls into place, the steps it passes don't count.
+  const jumping = useRef(false);
+
+  useEffect(() => {
+    const media = matchMedia(PINNED);
+    let frame = 0;
+    const onScroll = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        const el = scroller.current;
+        if (!el || !media.matches || jumping.current) return;
+        const box = el.getBoundingClientRect();
+        const through = -box.top / Math.max(1, box.height - innerHeight);
+        const step = Math.min(CLAIMS.length - 1, Math.max(0, Math.floor(through * CLAIMS.length)));
+        setActive(step);
+      });
+    };
+    addEventListener("scroll", onScroll, { passive: true });
+    media.addEventListener("change", onScroll);
+    return () => {
+      removeEventListener("scroll", onScroll);
+      media.removeEventListener("change", onScroll);
+      cancelAnimationFrame(frame);
+    };
+  }, []);
+
+  /** Show a claim; pinned, scroll to the middle of its step so scrolling agrees. */
+  const pick = (i: number) => {
+    setActive(i);
+    const el = scroller.current;
+    if (!el || !matchMedia(PINNED).matches) return;
+    const box = el.getBoundingClientRect();
+    const top = scrollY + box.top + ((i + 0.5) / CLAIMS.length) * (box.height - innerHeight);
+    jumping.current = true;
+    const done = () => {
+      jumping.current = false;
+    };
+    addEventListener("scrollend", done, { once: true });
+    setTimeout(done, 900); // Browsers without scrollend.
+    scrollTo({
+      top,
+      behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
+    });
+  };
 
   return (
-    <section className="dt-showcase" aria-labelledby="dt-heading">
-      {/* The heading heads the list, not the whole section, so the left
+    <div
+      className="dt-scroller"
+      ref={scroller}
+      style={{ "--dt-steps": CLAIMS.length } as CSSProperties}
+    >
+      <div className="dt-pin">
+        <section className="dt-showcase" aria-labelledby="dt-heading">
+          {/* The heading heads the list, not the whole section, so the left
           column reads as one unit and starts level with the window. */}
-      <div className="dt-side">
-        <h2 id="dt-heading">{heading}</h2>
-        <div className="dt-claims" role="tablist" aria-labelledby="dt-heading">
-          {CLAIMS.map((c, i) => (
-            <button
-              key={c.title}
-              type="button"
-              role="tab"
-              id={`dt-claim-${i}`}
-              aria-selected={i === active}
-              aria-controls="dt-window"
-              className="dt-claim"
-              onClick={() => setActive(i)}
-            >
-              <span className="dt-claim-icon">
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  {c.icon}
-                </svg>
-              </span>
-              <span className="dt-claim-text">
-                <strong>{c.title}</strong>
-                <span className="dt-claim-line">{c.line}</span>
-              </span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div
-        className="dt-window"
-        id="dt-window"
-        role="tabpanel"
-        aria-labelledby={`dt-claim-${active}`}
-      >
-        <div className="dt-chrome" aria-hidden="true">
-          <span className="dt-dots">
-            <i />
-            <i />
-            <i />
-          </span>
-          <span className="dt-url">
-            <LockIcon />
-            {claim.host}
-            <span className="dim">/checkout</span>
-          </span>
-        </div>
-        <MockPage active={active} />
-        <div className="dt-tools">
-          {/* A mouse shortcut to the claims list, which is the real tab list:
-              hidden from screen readers and skipped by Tab, so it isn't one twice. */}
-          <div className="dt-tabs" aria-hidden="true">
-            {TABS.map((t) => {
-              const target = CLAIMS.findIndex((c) => c.tab === t);
-              if (target === -1) return <span key={t}>{t}</span>;
-              return (
+          <div className="dt-side">
+            <h2 id="dt-heading">{heading}</h2>
+            <div className="dt-claims" role="tablist" aria-labelledby="dt-heading">
+              {CLAIMS.map((c, i) => (
                 <button
-                  key={t}
+                  key={c.title}
                   type="button"
-                  tabIndex={-1}
-                  className={t === claim.tab ? "on" : undefined}
-                  // Network covers two claims: stay on whichever one is showing.
-                  onClick={() => t !== claim.tab && setActive(target)}
+                  role="tab"
+                  id={`dt-claim-${i}`}
+                  aria-selected={i === active}
+                  aria-controls="dt-window"
+                  className="dt-claim"
+                  onClick={() => pick(i)}
                 >
-                  {t}
+                  <span className="dt-claim-icon">
+                    <svg
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      {c.icon}
+                    </svg>
+                  </span>
+                  <span className="dt-claim-text">
+                    <strong>{c.title}</strong>
+                    <span className="dt-claim-line">{c.line}</span>
+                  </span>
                 </button>
-              );
-            })}
+              ))}
+            </div>
           </div>
-          {/* Keyed so each claim's panel animates in fresh. */}
-          <div className="dt-body" key={active}>
-            {active === 0 && <NetworkPanel blocked={false} />}
-            {active === 1 && <ElementsPanel />}
-            {active === 2 && <NetworkPanel blocked />}
-            {active === 3 && <ConsolePanel />}
+
+          <div
+            className="dt-window"
+            id="dt-window"
+            role="tabpanel"
+            aria-labelledby={`dt-claim-${active}`}
+          >
+            <div className="dt-chrome" aria-hidden="true">
+              <span className="dt-dots">
+                <i />
+                <i />
+                <i />
+              </span>
+              <span className="dt-url">
+                <LockIcon />
+                {claim.host}
+                <span className="dim">/checkout</span>
+              </span>
+            </div>
+            <MockPage active={active} />
+            <div className="dt-tools">
+              {/* A mouse shortcut to the claims list, which is the real tab list:
+              hidden from screen readers and skipped by Tab, so it isn't one twice. */}
+              <div className="dt-tabs" aria-hidden="true">
+                {TABS.map((t) => {
+                  const target = CLAIMS.findIndex((c) => c.tab === t);
+                  if (target === -1) return <span key={t}>{t}</span>;
+                  return (
+                    <button
+                      key={t}
+                      type="button"
+                      tabIndex={-1}
+                      className={t === claim.tab ? "on" : undefined}
+                      // Network covers two claims: stay on whichever one is showing.
+                      onClick={() => t !== claim.tab && pick(target)}
+                    >
+                      {t}
+                    </button>
+                  );
+                })}
+              </div>
+              {/* Keyed so each claim's panel animates in fresh. */}
+              <div className="dt-body" key={active}>
+                {active === 0 && <NetworkPanel blocked={false} />}
+                {active === 1 && <ElementsPanel />}
+                {active === 2 && <NetworkPanel blocked />}
+                {active === 3 && <ConsolePanel />}
+              </div>
+            </div>
           </div>
-        </div>
+        </section>
       </div>
-    </section>
+    </div>
   );
 }
 
