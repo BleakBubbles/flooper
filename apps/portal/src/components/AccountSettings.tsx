@@ -29,10 +29,7 @@ export function AccountSettings() {
       <SettingRow title="Emails">
         {me.data && <NoteEmailsForm key={me.data.id} user={me.data} />}
       </SettingRow>
-      <SettingRow
-        title="Export your notes"
-        help="Every note on your sites as a spreadsheet file (CSV) for Excel, Numbers or Google Sheets: the message, reaction, status, page, browser and more. Deleted notes aren't included."
-      >
+      <SettingRow title="Export notes" help="A spreadsheet (CSV) of your notes.">
         <ExportForm />
       </SettingRow>
       {me.data && <DeleteAccount user={me.data} />}
@@ -89,23 +86,19 @@ function DeleteAccount({ user }: { user: User }) {
     <div className="setting-row danger-row">
       <div className="setting-label">
         <h3 className="setting-title">Delete your account</h3>
-        <p className="muted">
-          Removes your account, all your sites and all their notes, and signs you out everywhere.
-          The widget on your sites stops accepting notes. This can't be undone, so export your notes
-          first if you want them.
-        </p>
+        <p className="muted">Deletes your account, sites and notes. This can't be undone.</p>
         <p className="muted small">
           {/* True: GitHub's token is used once at sign-in and never kept. */}
-          Flooper doesn't keep access to your GitHub account. GitHub still lists it among your{" "}
+          You can also remove Flooper from your{" "}
           <a
             className="text-link"
             href="https://github.com/settings/applications"
             target="_blank"
             rel="noreferrer"
           >
-            authorized apps
+            GitHub authorized apps
           </a>
-          ; you can remove it there too.
+          .
         </p>
       </div>
       <div className="setting-control">
