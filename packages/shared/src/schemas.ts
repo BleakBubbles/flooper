@@ -91,6 +91,11 @@ export const createProjectSchema = z.object({
  */
 export const replyRequestSchema = z.object({ email: z.email().max(254) });
 
+/** The sidebar's order: every site's ID, first to last. */
+export const reorderProjectsSchema = z.object({
+  ids: z.array(z.string().min(1).max(64)).min(1).max(200),
+});
+
 export const updateProjectSchema = z.object({
   name: createProjectSchema.shape.name.optional(),
   allowedOrigins: z.array(origin).max(LIMITS.allowedOriginsMax).optional(),

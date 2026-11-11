@@ -62,6 +62,8 @@ export const api = {
   logout: () => request<void>("POST", "/auth/logout"),
 
   listProjects: () => request<{ data: ProjectWithSummary[] }>("GET", "/v1/projects"),
+  /** The sidebar's order, after a drag: every site's ID, first to last. */
+  reorderProjects: (ids: string[]) => request<void>("PUT", "/v1/projects/order", { ids }),
   getProject: (id: string) => request<Project>("GET", `/v1/projects/${id}`),
   createProject: (input: CreateProjectInput) => request<Project>("POST", "/v1/projects", input),
   updateProject: (id: string, input: UpdateProjectInput) =>

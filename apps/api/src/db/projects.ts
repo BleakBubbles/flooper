@@ -9,19 +9,48 @@ export interface ProjectRow {
   allowed_origins: string;
   reply_requests: number;
   reply_prompt_seen: number;
+  position: number;
   created_at: number;
 }
 
 /**
- * Oldest first: new sites join at the bottom, so adding one never moves the
- * others, and the site you added first (usually your main one) leads.
+ * In the owner's own order (dragged in the sidebar). New sites join at the
+ * bottom, so adding one never moves the others.
  */
 export async function listProjects(db: D1Database, ownerId: string): Promise<ProjectRow[]> {
   const { results } = await db
-    .prepare("SELECT * FROM projects WHERE owner_id = ? ORDER BY created_at, id")
+    .prepare("SELECT * FROM projects WHERE owner_id = ? ORDER BY position, created_at, id")
     .bind(ownerId)
     .all<ProjectRow>();
   return results;
+}
+
+/**
+ * Put the owner's sites in this order (IDs, first to last). IDs that aren't
+ * theirs are ignored; their sites left out keep their place after these.
+ */
+export async function reorderProjects(
+  db: D1Database,
+  ownerId: string,
+  ids: string[],
+): Promise<void> {
+  const order = JSON.stringify(ids);
+  await db.batch([
+    // Left out: after the ones given, in the order they had.
+    db
+      .prepare(
+        `UPDATE projects SET position = position + ?1
+         WHERE owner_id = ?2 AND id NOT IN (SELECT value FROM json_each(?3))`,
+      )
+      .bind(ids.length, ownerId, order),
+    db
+      .prepare(
+        `UPDATE projects
+         SET position = (SELECT key FROM json_each(?2) WHERE value = projects.id)
+         WHERE owner_id = ?1 AND id IN (SELECT value FROM json_each(?2))`,
+      )
+      .bind(ownerId, order),
+  ]);
 }
 
 /**
@@ -56,8 +85,11 @@ export async function createProject(
   const row = await db
     .prepare(
       // New sites ask visitors if they want to hear back, from the start.
-      `INSERT INTO projects (id, owner_id, name, public_key, allowed_origins, reply_requests, created_at)
-       VALUES (?, ?, ?, ?, ?, 1, ?)
+      // At the end of the owner's list.
+      `INSERT INTO projects
+         (id, owner_id, name, public_key, allowed_origins, reply_requests, created_at, position)
+       VALUES (?1, ?2, ?3, ?4, ?5, 1, ?6,
+         (SELECT COALESCE(MAX(position), -1) + 1 FROM projects WHERE owner_id = ?2))
        RETURNING *`,
     )
     .bind(
