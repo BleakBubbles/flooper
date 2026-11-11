@@ -263,6 +263,44 @@ export interface ProjectWithSummary extends Project {
   summary: ProjectSummary;
 }
 
+/**
+ * "View on site": a review link opens the site at this page (a path, like
+ * "/checkout"; the site's home page if left out).
+ */
+export const reviewLinkSchema = z.object({
+  path: z.string().startsWith("/").max(2000).optional(),
+});
+
+/** A note as review mode shows it over the page: no visitor details. */
+export interface ReviewNote {
+  id: string;
+  reaction: (typeof REACTIONS)[number] | null;
+  message: string | null;
+  status: (typeof FEEDBACK_STATUSES)[number];
+  createdAt: string;
+}
+
+/** An element notes point at, with how many of each reaction. */
+export interface ReviewElement {
+  selector: string;
+  /** Its visible text when it was picked, to tell it apart (and find it again). */
+  text: string | null;
+  total: number;
+  counts: Record<(typeof REACTIONS)[number] | "none", number>;
+  /** Newest first. */
+  notes: ReviewNote[];
+}
+
+/** One page's notes for review mode: by element, busiest first, and the rest. */
+export interface ReviewPage {
+  path: string;
+  elements: ReviewElement[];
+  /** Notes that don't point at anything on the page. */
+  unpinned: ReviewNote[];
+  /** More notes than one page returns (REVIEW_NOTES_MAX); these are the newest. */
+  truncated: boolean;
+}
+
 export interface Feedback {
   id: string;
   projectId: string;
