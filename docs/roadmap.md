@@ -71,8 +71,22 @@ Stepping stones, each useful on its own:
    volume grows; for now it's read from each note's context.
 2. **The picker,** so notes carry selectors.
 3. **"Show me on the page,"** the single-note version of review mode.
-4. **Full review mode:** per-element aggregation, review tokens, the
-   lazy-loaded overlay, pins and the drift sidebar.
+4. **Full review mode,** in three PRs:
+   1. **Review links and the page API** (done, 2026-11-11). `POST
+      /v1/projects/:id/review` makes a 4-hour, read-only link to the site with
+      the token in the fragment (`#flooper-review=...`); the widget can then
+      ask `GET /v1/ingest/:key/review?path=` (Bearer token, from the site's
+      own addresses) for that page's notes, grouped by element, busiest
+      first. Migration 0009 (`review_tokens`, hashed like sessions).
+   2. **The overlay:** "View on site" in the app; the widget lazy-loads a
+      separate review bundle that draws a glow per element and pins with
+      reaction counts.
+   3. **The rest:** a sidebar for notes with no element or whose element has
+      drifted, then triage from the overlay if it's worth it.
+
+   Skipped on purpose: a list of elements in the app. Selectors are often
+   unreadable (`main > div:nth-of-type(3) > button`); the overlay shows the
+   element itself instead.
 
 Production patterns it would exercise: scoped short-lived credentials,
 code splitting, aggregation queries, and designing for data that drifts.

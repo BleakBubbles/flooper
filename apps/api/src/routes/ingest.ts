@@ -4,6 +4,7 @@ import { type Context, Hono } from "hono";
 import { insertFeedback, setContactEmail } from "../db/feedback";
 import { allowedOrigins, getProjectByPublicKey, type ProjectRow } from "../db/projects";
 import { hitRateLimit } from "../db/rate-limit";
+import { projectForReviewToken, reviewPage } from "../db/review";
 import type { AppEnv } from "../env";
 import { sha256Hex } from "../lib/crypto";
 import { ApiError, notFound } from "../lib/errors";
@@ -53,11 +54,37 @@ ingest.get("/:publicKey/config", async (c) => {
 
 // Preflight for the widget's POSTs (a note, and then maybe an address).
 ingest.options("/:publicKey/*", (c) => {
-  c.header("Access-Control-Allow-Methods", "POST");
-  c.header("Access-Control-Allow-Headers", "Content-Type");
+  c.header("Access-Control-Allow-Methods", "GET, POST");
+  // Authorization: review mode's token.
+  c.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
   // Let the browser cache this preflight for a day instead of repeating it.
   c.header("Access-Control-Max-Age", "86400");
   return c.body(null, 204);
+});
+
+/**
+ * Review mode: one page's notes, grouped by element, for the widget to draw
+ * over the owner's own site. Needs the site's review token (from "View on
+ * site") as a Bearer token, and the request must come from one of the site's
+ * own addresses, like any note. Read-only, and never cached.
+ */
+ingest.get("/:publicKey/review", async (c) => {
+  const site = await authorizeOrigin(c);
+  const token = c.req.header("Authorization")?.match(/^Bearer (.+)$/)?.[1];
+  const project = token ? await projectForReviewToken(c.env.DB, token, site.public_key) : null;
+  if (!project) {
+    throw new ApiError(
+      401,
+      "unauthorized",
+      "This review link has expired. Open a new one from Flooper",
+    );
+  }
+  const path = c.req.query("path");
+  if (!path?.startsWith("/") || path.length > 2000) {
+    throw new ApiError(422, "validation_failed", "Which page? Send its path, like /checkout");
+  }
+  c.header("Cache-Control", "no-store");
+  return c.json(await reviewPage(c.env.DB, project.id, path));
 });
 
 ingest.post("/:publicKey/feedback", async (c) => {
@@ -154,7 +181,12 @@ async function authorizeOrigin(c: Context<AppEnv>): Promise<ProjectRow> {
   const project = await getProjectByPublicKey(c.env.DB, c.req.param("publicKey") ?? "");
   if (!project) throw notFound("Project");
 
-  const origin = c.req.header("Origin");
+  // Browsers leave Origin off same-origin GETs, which is what review mode's
+  // read is on flooper.app itself (its widget talks to its own server). Then
+  // the browser's Sec-Fetch-Site, which pages can't set, vouches for it.
+  const origin =
+    c.req.header("Origin") ??
+    (c.req.header("Sec-Fetch-Site") === "same-origin" ? new URL(c.req.url).origin : undefined);
   if (!origin || !allowedOrigins(project).includes(origin)) {
     throw new ApiError(
       403,

@@ -12,6 +12,7 @@ import {
   notificationSettingsSchema,
   reorderProjectsSchema,
   replySchema,
+  reviewLinkSchema,
   updateFeedbackSchema,
   updateProjectSchema,
 } from "@flooper/shared/schemas";
@@ -35,6 +36,7 @@ import {
   updateFeedbackStatus,
 } from "../db/feedback";
 import {
+  allowedOrigins,
   createProject,
   deleteProject,
   getProjectForOwner,
@@ -43,6 +45,7 @@ import {
   toProject,
   updateProject,
 } from "../db/projects";
+import { createReviewToken } from "../db/review";
 import { deleteUser, toUser, updateNotificationSettings } from "../db/users";
 import { resendSender } from "../digest";
 import type { AuthedEnv } from "../env";
@@ -122,6 +125,26 @@ portal.post("/projects", async (c) => {
   const input = await parseJsonBody(c, createProjectSchema);
   const row = await createProject(c.env.DB, { ownerId: c.get("user").id, ...input });
   return c.json(toProject(row), 201);
+});
+
+/**
+ * "View on site": a short-lived, read-only link to the site itself (its first
+ * allowed address), where the widget shows the page's notes over it. The
+ * token goes in the URL fragment, which browsers never send to servers.
+ */
+portal.post("/projects/:id/review", async (c) => {
+  const { path } = await parseJsonBody(c, reviewLinkSchema);
+  const project = await getProjectForOwner(c.env.DB, c.req.param("id"), c.get("user").id);
+  if (!project) throw notFound("Project");
+  const origin = allowedOrigins(project)[0];
+  if (!origin) {
+    throw new ApiError(409, "bad_request", "Add your site's address first, in its settings");
+  }
+  const { token, expiresAt } = await createReviewToken(c.env.DB, project.id);
+  return c.json({
+    url: `${origin}${path ?? "/"}#flooper-review=${token}`,
+    expiresAt: new Date(expiresAt).toISOString(),
+  });
 });
 
 // The sidebar's order, after a drag.
