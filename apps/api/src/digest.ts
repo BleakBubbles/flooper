@@ -2,9 +2,18 @@ import type { Reaction } from "@flooper/shared";
 import type { Bindings } from "./env";
 import { log } from "./lib/log";
 
-// The daily digest: once a day (see `triggers` in wrangler.jsonc), each user
-// who turned it on gets one email about the notes that arrived since the last
-// one, grouped by site. Days without new notes send nothing.
+// Emails about new notes, grouped by site. Each user picks one kind (or none):
+//
+// - daily: once a day (13:00 UTC), the notes since the last one. Days without
+//   new notes send nothing.
+// - instant: a run every minute emails the notes that just arrived. Several
+//   close together come in one email, and there's at least INSTANT_GAP_MS
+//   between two, so a busy hour can't flood anyone's inbox (or Resend's quota).
+//
+// Both runs are cron triggers (see `triggers` in wrangler.jsonc).
+
+/** Which email: the daily digest, or one as notes arrive. */
+export type NoteEmailKind = "daily" | "instant";
 
 /** One email, ready to send. */
 export interface Email {
@@ -40,6 +49,10 @@ interface DigestNote {
 
 /** How far back a first (or long-delayed) digest looks. */
 const MAX_LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000;
+/** How far back an instant email looks, if one was missed (say, Resend was down). */
+const INSTANT_LOOKBACK_MS = 24 * 60 * 60 * 1000;
+/** The least time between two instant emails to one person; notes in between wait. */
+export const INSTANT_GAP_MS = 5 * 60 * 1000;
 /** Notes listed per site; the rest are counted. */
 const NOTES_PER_SITE = 5;
 /** Users per run: Resend's free plan sends 100 a day. Raise with the plan. */
@@ -47,23 +60,63 @@ const USERS_PER_RUN = 100;
 
 const EMOJI: Record<Reaction, string> = { love: "❤️", idea: "💡", confused: "🤔", bug: "🐛" };
 
-/**
- * Send everyone their digest. Each user's "last sent" time only moves when
- * their email is accepted, so a failed send is retried by the next run (and
- * covers everything since the last one that worked).
- */
+/** Send everyone who chose the daily digest theirs. */
 export async function runDigests(env: Bindings, now: number, send: Sender): Promise<number> {
   const { results: users } = await env.DB.prepare(
     `SELECT id, email, unsubscribe_token, digest_sent_at FROM users
-     WHERE digest_enabled = 1 AND email IS NOT NULL AND unsubscribe_token IS NOT NULL
+     WHERE note_emails = 'daily' AND email IS NOT NULL AND unsubscribe_token IS NOT NULL
      ORDER BY digest_sent_at ASC NULLS FIRST LIMIT ?`,
   )
     .bind(USERS_PER_RUN)
     .all<DigestUser>();
+  return emailNotes(env, now, send, users, "daily");
+}
 
+/**
+ * Every minute: email the notes that just arrived, to everyone who chose
+ * "as notes arrive" and has new ones, unless they had one in the last
+ * INSTANT_GAP_MS (those notes wait for the next email).
+ */
+export async function runInstantEmails(
+  env: Bindings,
+  now: number,
+  send: Sender,
+  /** Shorter in tests. */
+  gap = INSTANT_GAP_MS,
+): Promise<number> {
+  const { results: users } = await env.DB.prepare(
+    `SELECT u.id, u.email, u.unsubscribe_token, u.digest_sent_at FROM users u
+     WHERE u.note_emails = 'instant' AND u.email IS NOT NULL AND u.unsubscribe_token IS NOT NULL
+       AND (u.emailed_at IS NULL OR u.emailed_at <= ?1)
+       AND EXISTS (
+         SELECT 1 FROM feedback f JOIN projects p ON p.id = f.project_id
+         WHERE p.owner_id = u.id AND f.status = 'new' AND f.deleted_at IS NULL
+           AND f.created_at > COALESCE(u.digest_sent_at, ?2) AND f.created_at <= ?3)
+     ORDER BY u.emailed_at ASC NULLS FIRST LIMIT ?4`,
+  )
+    .bind(now - gap, now - INSTANT_LOOKBACK_MS, now, USERS_PER_RUN)
+    .all<DigestUser>();
+  if (users.length === 0) return 0;
+  return emailNotes(env, now, send, users, "instant");
+}
+
+/**
+ * Email each of these users their unread notes since their last email. Each
+ * user's "last sent" time only moves when their email is accepted, so a failed
+ * send is retried by the next run (and covers everything since the last one
+ * that worked).
+ */
+async function emailNotes(
+  env: Bindings,
+  now: number,
+  send: Sender,
+  users: DigestUser[],
+  kind: NoteEmailKind,
+): Promise<number> {
+  const lookback = kind === "daily" ? MAX_LOOKBACK_MS : INSTANT_LOOKBACK_MS;
   let sent = 0;
   for (const user of users) {
-    const since = Math.max(user.digest_sent_at ?? 0, now - MAX_LOOKBACK_MS);
+    const since = Math.max(user.digest_sent_at ?? 0, now - lookback);
     const { results: notes } = await env.DB.prepare(
       `SELECT p.id AS site_id, p.name AS site_name, f.reaction, f.message, f.page_url
        FROM feedback f JOIN projects p ON p.id = f.project_id
@@ -75,19 +128,24 @@ export async function runDigests(env: Bindings, now: number, send: Sender): Prom
       .all<DigestNote>();
 
     if (notes.length > 0) {
-      const email = buildDigest(user.email, notes, publicUrl(env), user.unsubscribe_token);
+      const email = buildDigest(user.email, notes, publicUrl(env), user.unsubscribe_token, kind);
       const ok = await send(email).catch((err: unknown) => {
-        log("error", "digest send failed", { userId: user.id, error: String(err) });
+        log("error", "note email failed", { userId: user.id, kind, error: String(err) });
         return false;
       });
       if (!ok) continue;
       sent++;
     }
-    await env.DB.prepare("UPDATE users SET digest_sent_at = ? WHERE id = ?")
-      .bind(now, user.id)
+    // Covered up to now; and if an email went out, the gap counts from now.
+    await env.DB.prepare(
+      `UPDATE users SET digest_sent_at = ?1,
+         emailed_at = CASE WHEN ?2 = 1 THEN ?1 ELSE emailed_at END
+       WHERE id = ?3`,
+    )
+      .bind(now, notes.length > 0 ? 1 : 0, user.id)
       .run();
   }
-  log("info", "digests sent", { users: users.length, sent });
+  log("info", "note emails sent", { kind, users: users.length, sent });
   return sent;
 }
 
@@ -96,12 +154,13 @@ function publicUrl(env: Bindings): string {
   return env.PUBLIC_URL.replace(/\/+$/, "");
 }
 
-/** One user's digest: a subject, then each site with its newest notes. */
+/** One user's email: a subject, then each site with its newest notes. */
 export function buildDigest(
   to: string,
   notes: DigestNote[],
   base: string,
   unsubscribeToken: string,
+  kind: NoteEmailKind = "daily",
 ): Email {
   const sites = new Map<string, { name: string; notes: DigestNote[] }>();
   for (const note of notes) {
@@ -114,13 +173,27 @@ export function buildDigest(
   const plural = count === 1 ? "note" : "notes";
   const siteNames = [...sites.values()].map((s) => s.name);
   const where = siteNames.length === 1 ? siteNames[0] : `${siteNames.length} sites`;
-  const subject = `${count} new ${plural} on ${where}`;
+  const first = notes[0];
+  // An instant email about one note says what it is, so the subject alone
+  // tells you whether to look now.
+  const subject =
+    kind === "instant" && count === 1 && first
+      ? `New note on ${where}: ${shorten(summary(first), 60)}`
+      : `${count} new ${plural} on ${where}`;
   const unsubscribeUrl = `${base}/api/unsubscribe/${unsubscribeToken}`;
+  const lead =
+    kind === "daily"
+      ? `${count} new ${plural} since your last digest.`
+      : count === 1
+        ? `A new note on ${where}.`
+        : `${count} new notes in the last few minutes.`;
+  const why =
+    kind === "daily"
+      ? "You get this because you turned on the daily digest in Flooper."
+      : "You get this because you asked Flooper to email you as notes arrive.";
 
-  const text: string[] = [`${count} new ${plural} since your last digest.`, ""];
-  const html: string[] = [
-    `<p style="margin:0 0 20px;font-size:16px">${count} new ${plural} since your last digest.</p>`,
-  ];
+  const text: string[] = [lead, ""];
+  const html: string[] = [`<p style="margin:0 0 20px;font-size:16px">${escapeHtml(lead)}</p>`];
   for (const [id, site] of sites) {
     const link = `${base}/?site=${encodeURIComponent(id)}`;
     const shown = site.notes.slice(0, NOTES_PER_SITE);
@@ -146,7 +219,7 @@ export function buildDigest(
   }
   text.push("", `Unsubscribe: ${unsubscribeUrl}`);
   html.push(
-    `<p style="margin:32px 0 0;font-size:13px;color:#8b8b85">You get this because you turned on the daily digest in Flooper. <a href="${escapeHtml(unsubscribeUrl)}" style="color:#8b8b85">Unsubscribe</a></p>`,
+    `<p style="margin:32px 0 0;font-size:13px;color:#8b8b85">${escapeHtml(why)} <a href="${escapeHtml(unsubscribeUrl)}" style="color:#8b8b85">Unsubscribe</a></p>`,
   );
 
   return {
@@ -162,7 +235,11 @@ export function buildDigest(
 function summary(note: DigestNote): string {
   const message = (note.message ?? "").replace(/\s+/g, " ").trim();
   if (!message) return "(no message)";
-  return message.length > 140 ? `${message.slice(0, 139)}…` : message;
+  return shorten(message, 140);
+}
+
+function shorten(text: string, max: number): string {
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
 }
 
 function pathOf(url: string): string {

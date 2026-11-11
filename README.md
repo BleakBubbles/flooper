@@ -15,7 +15,8 @@ size attached.
 - **Separate:** runs in a shadow root, isolated from your styles.
 - **Secure:** only accepts notes from the sites you allow.
 - **Scriptable:** `Flooper.identify({ id })`, `Flooper.open()` and `Flooper.close()`.
-- **Daily digest:** an opt-in email about new notes, with one-click unsubscribe.
+- **Emails about new notes:** off, a daily digest, or as notes arrive (batched,
+  at most one every 5 minutes), with one-click unsubscribe.
 
 ## Add it to your site
 

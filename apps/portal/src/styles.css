@@ -2188,6 +2188,56 @@ kbd,
 /* Selecting notes: a box over each row's unread dot, shown on hover and on
    every row once something is selected (Gmail's pattern). The column header
    row is a .note-row too, so its select-all box follows the same rules. */
+/* A short list of choices (radio buttons). */
+.choices {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 4px;
+  padding: 0;
+  border: 0;
+}
+.choice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+.choice-label {
+  font-weight: 600;
+}
+/* A radio drawn like .select-box: soft ring, pink once picked. */
+.radio-dot {
+  appearance: none;
+  flex: none;
+  display: grid;
+  place-content: center;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  padding: 0;
+  border: 1.5px solid color-mix(in srgb, var(--muted) 55%, transparent);
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+  transition: border-color 0.12s ease;
+}
+.radio-dot:hover {
+  border-color: var(--muted);
+}
+.radio-dot:checked {
+  border-color: var(--accent);
+}
+.radio-dot:checked::after {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.radio-dot:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 50%, transparent);
+  outline-offset: 2px;
+}
 .select-box {
   /* Drawn here rather than the browser's own: a softer, slightly thicker
      border that doesn't shimmer, pink once ticked. Still a real checkbox.

@@ -9,7 +9,7 @@ async function setup({ ownerEmail = "owner@example.com" as string | null } = {})
   await json(
     "PUT",
     "/api/v1/me/notifications",
-    { email: ownerEmail, digestEnabled: false },
+    { email: ownerEmail, noteEmails: "off" },
     { Cookie: cookie },
   );
   const project = await createProject(cookie);
