@@ -773,6 +773,9 @@ select {
   .sidebar {
     position: sticky;
     top: 16px;
+    /* Sticky gives the sidebar its own layer; above the notes beside it, so
+       a site's menu opening out of the collapsed strip isn't drawn under them. */
+    z-index: 2;
   }
 }
 .notes-area {
@@ -841,6 +844,13 @@ select {
 }
 .sidebar-item:hover {
   background: var(--surface-raised);
+  color: var(--fg);
+}
+/* While its menu is open (⋯ or right-click), so you can see which site it's
+   for: outlined, which the site you're on (filled) never is. */
+.sidebar-row:has(> .menu[open]) > .sidebar-item {
+  background: var(--surface-raised);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
   color: var(--fg);
 }
 .sidebar-item[aria-current="page"] {
@@ -987,8 +997,26 @@ select {
   .home-layout.sidebar-collapsed {
     grid-template-columns: 38px minmax(0, 1fr);
   }
+  /* No ⋯ button in the strip, but the menu is still there for a right-click:
+     it covers the row without catching clicks, and opens beside the strip,
+     level with the site. */
   .sidebar-collapsed .sidebar-row > .menu {
-    display: none;
+    inset: 0;
+    opacity: 1;
+    pointer-events: none;
+  }
+  .sidebar-collapsed .sidebar-row > .menu > summary {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .sidebar-collapsed .sidebar-row .menu-list {
+    top: 0;
+    right: auto;
+    left: calc(100% + 8px);
+    pointer-events: auto;
   }
   /* "Your sites" keeps its height, as a short line instead of words, so
      every row sits where it does in the full sidebar. */
