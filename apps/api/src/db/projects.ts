@@ -8,6 +8,7 @@ export interface ProjectRow {
   public_key: string;
   allowed_origins: string;
   reply_requests: number;
+  reply_prompt_seen: number;
   created_at: number;
 }
 
@@ -82,10 +83,12 @@ export async function updateProject(
   return db
     .prepare(
       `UPDATE projects SET
-         name = COALESCE(?, name),
-         allowed_origins = COALESCE(?, allowed_origins),
-         reply_requests = COALESCE(?, reply_requests)
-       WHERE id = ? AND owner_id = ?
+         name = COALESCE(?1, name),
+         allowed_origins = COALESCE(?2, allowed_origins),
+         reply_requests = COALESCE(?3, reply_requests),
+         -- Choosing either way answers the one-time prompt.
+         reply_prompt_seen = CASE WHEN ?3 IS NULL THEN reply_prompt_seen ELSE 1 END
+       WHERE id = ?4 AND owner_id = ?5
        RETURNING *`,
     )
     .bind(
@@ -126,6 +129,7 @@ export function toProject(row: ProjectRow): Project {
     publicKey: row.public_key,
     allowedOrigins: allowedOrigins(row),
     replyRequests: row.reply_requests === 1,
+    replyPrompt: row.reply_requests === 0 && row.reply_prompt_seen === 0,
     createdAt: new Date(row.created_at).toISOString(),
   };
 }

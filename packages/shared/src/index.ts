@@ -75,3 +75,48 @@ export interface Paginated<T> {
   /** Opaque cursor for the next page, or null when there are no more results. */
   nextCursor: string | null;
 }
+
+/**
+ * The website a note was left on, as visitors know it: the page's host
+ * ("example.com"). Emails to visitors use this, never the site's name in
+ * Flooper, which is the owner's own label.
+ */
+export function noteHost(pageUrl: string): string {
+  try {
+    return new URL(pageUrl).host.replace(/^www\./, "");
+  } catch {
+    return "the site";
+  }
+}
+
+/**
+ * What a reply says when the owner doesn't write anything: fitted to the
+ * note's reaction, and to whether it's done. Shown as the placeholder in
+ * "Let them know?", so the owner sees exactly what goes out.
+ */
+export function defaultReplyMessage(
+  host: string,
+  done: boolean,
+  reaction: Reaction | null = null,
+): string {
+  switch (reaction) {
+    case "bug":
+      return done
+        ? `The problem you reported on ${host} has been fixed. Thanks for letting us know.`
+        : `Thanks for reporting a problem on ${host}. It's been read, and it's being looked into.`;
+    case "idea":
+      return done
+        ? `Your idea for ${host} has been addressed. Thanks for suggesting it.`
+        : `Thanks for your idea for ${host}. It's been read, and it's being considered.`;
+    case "confused":
+      return done
+        ? `What you found confusing on ${host} has been addressed. Thanks for pointing it out.`
+        : `Thanks for pointing out what was confusing on ${host}. It's being looked into.`;
+    case "love":
+      return `Thanks for the kind words about ${host}. They're much appreciated.`;
+    default:
+      return done
+        ? `Your note on ${host} has been addressed. Thanks for taking the time to send it.`
+        : `Thanks for your note on ${host}. It's been read, and it's being looked into.`;
+  }
+}

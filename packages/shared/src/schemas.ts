@@ -98,6 +98,11 @@ export const updateProjectSchema = z.object({
   replyRequests: z.boolean().optional(),
 });
 
+/** "Let them know?": an optional note from the owner, sent to the visitor. */
+export const replySchema = z.object({
+  message: z.string().trim().max(2000).optional(),
+});
+
 export const updateFeedbackSchema = z.object({
   status: z.enum(FEEDBACK_STATUSES),
 });
@@ -198,6 +203,8 @@ export interface Project {
   allowedOrigins: string[];
   /** The widget asks visitors if they want to hear back about their note. */
   replyRequests: boolean;
+  /** Replies are off and the owner hasn't been asked yet: show the one-time prompt. */
+  replyPrompt: boolean;
   createdAt: string;
 }
 
@@ -259,4 +266,6 @@ export interface Feedback {
   deletedAt: string | null;
   /** The visitor asked to hear back about this note, at this address. */
   contactEmail: string | null;
+  /** When the owner emailed the visitor about this note; null until then. */
+  repliedAt: string | null;
 }

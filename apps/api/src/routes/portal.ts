@@ -10,12 +10,14 @@ import {
   markAllReadSchema,
   noteIdsSchema,
   notificationSettingsSchema,
+  replySchema,
   updateFeedbackSchema,
   updateProjectSchema,
 } from "@flooper/shared/schemas";
 import { Hono } from "hono";
 import { notesCsv } from "../db/export";
 import {
+  claimReply,
   countFeedback,
   deleteForever,
   emptySummary,
@@ -23,6 +25,7 @@ import {
   listFeedback,
   listPageGroups,
   markAllSeen,
+  releaseReply,
   type SortedFeedbackRow,
   setDeleted,
   setStatuses,
@@ -39,11 +42,13 @@ import {
   updateProject,
 } from "../db/projects";
 import { deleteUser, toUser, updateNotificationSettings } from "../db/users";
+import { resendSender } from "../digest";
 import type { AuthedEnv } from "../env";
 import { decodeCursor, encodeCursor } from "../lib/cursor";
 import { ApiError, notFound } from "../lib/errors";
 import { parseJsonBody, parseQuery } from "../lib/validate";
 import { clearSessionCookie, requireUser, setSignedInHint } from "../middleware/auth";
+import { buildReplyEmail } from "../reply";
 
 /**
  * The API the portal uses. Everything here requires a logged-in user, and
@@ -223,6 +228,46 @@ portal.patch("/feedback/:id", async (c) => {
   const row = await updateFeedbackStatus(c.env.DB, c.req.param("id"), c.get("user").id, status);
   if (!row) throw notFound("Feedback");
   return c.json(toFeedback(row));
+});
+
+/**
+ * "Let them know?": email the visitor who asked to hear back about this note.
+ * Once per note. From Flooper under the website's address, with replies
+ * going to the owner, so the owner needs an address on their account first.
+ */
+portal.post("/feedback/:id/reply", async (c) => {
+  const { message } = await parseJsonBody(c, replySchema);
+  const user = c.get("user");
+  if (!user.email) {
+    throw new ApiError(
+      422,
+      "validation_failed",
+      "Add your email in Settings first, so they can write back to you",
+    );
+  }
+  const note = await getFeedbackForOwner(c.env.DB, c.req.param("id"), user.id);
+  if (!note) throw notFound("Feedback");
+  if (!note.contact_email)
+    throw new ApiError(409, "bad_request", "This visitor didn't leave an email");
+
+  const claimed = await claimReply(c.env.DB, note.id, user.id);
+  if (!claimed) throw new ApiError(409, "bad_request", "They've already been told about this note");
+  const email = buildReplyEmail({
+    to: note.contact_email,
+    pageUrl: note.page_url,
+    done: claimed.status === "done",
+    reaction: claimed.reaction,
+    ownerEmail: user.email,
+    from: c.env.EMAIL_FROM,
+    note: note.message,
+    message,
+  });
+  const sent = await resendSender(c.env)(email).catch(() => false);
+  if (!sent) {
+    await releaseReply(c.env.DB, note.id);
+    throw new ApiError(502, "internal_error", "The email didn't go out. Try again in a moment");
+  }
+  return c.json(toFeedback(claimed));
 });
 
 function page({

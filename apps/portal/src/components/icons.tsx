@@ -206,6 +206,33 @@ export const MailOpenIcon = () => (
   </Icon>
 );
 
+/** Reply, and "wants a reply" (the visitor asked to hear back). */
+export const ReplyIcon = ({ size = 16 }: { size?: number }) => (
+  <Icon size={size}>
+    <path d="M20 18v-2a4 4 0 0 0-4-4H4" />
+    <path d="m9 17-5-5 5-5" />
+  </Icon>
+);
+
+/** The reply box in "Let them know?": an arrow down from the quote and into it. */
+export const ReplyArrowIcon = () => (
+  <svg
+    className="reply-arrow"
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="3"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <polyline points="15 10 20 15 15 20" />
+    <path d="M4 4v7a4 4 0 0 0 4 4h12" />
+  </svg>
+);
+
 /** "Mark as unread": the envelope, closed. */
 export const MailIcon = () => (
   <Icon>
