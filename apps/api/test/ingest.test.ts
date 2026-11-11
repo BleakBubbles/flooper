@@ -196,7 +196,7 @@ describe("POST /api/v1/ingest/:publicKey/feedback", () => {
   });
 });
 
-describe('replies ("Email me when it\'s fixed")', () => {
+describe('replies ("Want to hear back about this?")', () => {
   it("tells the widget whether replies are on, new sites on, never revealing keys", async () => {
     const { cookie, project } = await setup();
     const config = async (key: string) =>
@@ -205,7 +205,7 @@ describe('replies ("Email me when it\'s fixed")', () => {
       ).json()) as {
         replies: boolean;
       };
-    expect(project.replyRequests).toBe(true);
+    // New sites start with replies on.
     expect(await config(project.publicKey)).toEqual({ replies: true });
     // Unknown keys get the same shape as a site with replies off.
     expect(await config("pk_nope")).toEqual({ replies: false });
@@ -220,38 +220,40 @@ describe('replies ("Email me when it\'s fixed")', () => {
     expect(await config(project.publicKey)).toEqual({ replies: false });
   });
 
-  it("keeps a visitor's address only while the site offers replies", async () => {
+  it("takes an address for a just-sent note, once, while the site offers replies", async () => {
     const { cookie, project, path } = await setup();
-    const send = async (message: string, ip: string) => {
-      const res = await json(
-        "POST",
-        path,
-        submission({ message, contactEmail: "visitor@example.com" }),
-        { Origin: SITE, "CF-Connecting-IP": ip },
-      );
-      expect(res.status).toBe(202);
+    const send = async (ip: string) => {
+      const res = await json("POST", path, submission({ message: ip }), {
+        Origin: SITE,
+        "CF-Connecting-IP": ip,
+      });
+      return ((await res.json()) as { id: string }).id;
     };
-    await send("with replies on", "203.0.113.150");
+    const reply = (id: string, email: string, origin = SITE) =>
+      json("POST", `${path}/${id}/reply`, { email }, { Origin: origin });
+
+    const id = await send("203.0.113.150");
+    // Not an address, or from another site: refused.
+    expect((await reply(id, "not an email")).status).toBe(422);
+    expect((await reply(id, "visitor@example.com", "https://evil.example")).status).toBe(403);
+    expect((await reply(id, "visitor@example.com")).status).toBe(204);
+    // Once only, so a note's ID can't be used to change it afterwards.
+    expect((await reply(id, "someone@example.com")).status).toBe(404);
+    expect((await reply("fb_nope", "visitor@example.com")).status).toBe(404);
+
+    const notes = (await (
+      await request(`/api/v1/projects/${project.id}/feedback`, { headers: { Cookie: cookie } })
+    ).json()) as { data: { id: string; contactEmail: string | null }[] };
+    expect(notes.data.find((n) => n.id === id)?.contactEmail).toBe("visitor@example.com");
+
+    // Switched off: no longer taken.
     await json(
       "PATCH",
       `/api/v1/projects/${project.id}`,
       { replyRequests: false },
       { Cookie: cookie },
     );
-    await send("with replies off", "203.0.113.151");
-
-    const notes = (await (
-      await request(`/api/v1/projects/${project.id}/feedback`, { headers: { Cookie: cookie } })
-    ).json()) as { data: { message: string; contactEmail: string | null }[] };
-    const byMessage = Object.fromEntries(notes.data.map((n) => [n.message, n.contactEmail]));
-    expect(byMessage["with replies on"]).toBe("visitor@example.com");
-    expect(byMessage["with replies off"]).toBeNull();
-
-    // Not an address: refused, like any malformed field.
-    const bad = await json("POST", path, submission({ contactEmail: "not an email" }), {
-      Origin: SITE,
-      "CF-Connecting-IP": "203.0.113.152",
-    });
-    expect(bad.status).toBe(422);
+    const later = await send("203.0.113.151");
+    expect((await reply(later, "visitor@example.com")).status).toBe(403);
   });
 });

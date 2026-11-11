@@ -35,15 +35,13 @@ export async function insertFeedback(
   db: D1Database,
   projectId: string,
   submission: FeedbackSubmission,
-  /** The visitor's "Email me when it's fixed" address, if the site allows it. */
-  contactEmail: string | null = null,
 ): Promise<{ id: string; duplicate: boolean }> {
   const inserted = await db
     .prepare(
       `INSERT INTO feedback
          (id, project_id, reaction, message, page_url, context, target, visitor, metadata,
-          idempotency_key, created_at, contact_email)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          idempotency_key, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT (project_id, idempotency_key) DO NOTHING
        RETURNING id`,
     )
@@ -59,7 +57,6 @@ export async function insertFeedback(
       jsonOrNull(submission.metadata),
       submission.idempotencyKey,
       Date.now(),
-      contactEmail,
     )
     .first<{ id: string }>();
   if (inserted) return { id: inserted.id, duplicate: false };
@@ -73,6 +70,34 @@ export async function insertFeedback(
 }
 
 /** How many notes the project has in each status. One grouped query, not four. */
+/** How long after sending a note its visitor can still ask to hear back. */
+export const REPLY_WINDOW_MS = 60 * 60 * 1000;
+
+/**
+ * Attach the visitor's address to the note they just sent. Only once, only
+ * soon after sending, and only to a note on this site, so a note's ID (which
+ * only its visitor's browser was given) can't be used to change it later.
+ * Returns whether a note took it.
+ */
+export async function setContactEmail(
+  db: D1Database,
+  projectId: string,
+  id: string,
+  email: string,
+  now = Date.now(),
+): Promise<boolean> {
+  const updated = await db
+    .prepare(
+      `UPDATE feedback SET contact_email = ?
+       WHERE id = ? AND project_id = ? AND contact_email IS NULL
+         AND deleted_at IS NULL AND created_at > ?
+       RETURNING id`,
+    )
+    .bind(email, id, projectId, now - REPLY_WINDOW_MS)
+    .first<{ id: string }>();
+  return updated !== null;
+}
+
 export async function countFeedback(db: D1Database, projectId: string): Promise<FeedbackCounts> {
   const { results } = await db
     .prepare(

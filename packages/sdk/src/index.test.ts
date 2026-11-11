@@ -55,8 +55,12 @@ describe("init", () => {
     textarea.value = "  cool site!  ";
     root.querySelector("form")?.dispatchEvent(new Event("submit", { cancelable: true }));
 
-    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
-    const [url, init_] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    const sent = () =>
+      (fetchMock.mock.calls as unknown as [string, RequestInit][]).find(([u]) =>
+        u.endsWith("/feedback"),
+      );
+    await vi.waitFor(() => expect(sent()).toBeDefined());
+    const [url, init_] = sent() as [string, RequestInit];
     expect(url).toBe("https://api.test/api/v1/ingest/pk_test/feedback");
     const body = JSON.parse(init_.body as string);
     expect(body).toMatchObject({
@@ -69,6 +73,80 @@ describe("init", () => {
     await vi.waitFor(() =>
       expect(root.querySelector(".thanks")?.hasAttribute("hidden")).toBe(false),
     );
+  });
+
+  it("asks 'Want to hear back?' after sending, when the site offers replies", async () => {
+    const fetchMock = vi.fn(async (url: string) =>
+      url.endsWith("/config")
+        ? new Response(JSON.stringify({ replies: true }))
+        : url.endsWith("/reply")
+          ? new Response(null, { status: 204 })
+          : new Response(JSON.stringify({ id: "fb_1" }), { status: 202 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    instance = init({ projectKey: "pk_test", apiUrl: "https://api.test" });
+    instance.identify({ email: "sam@example.com" });
+
+    const root = shadow();
+    const reply = root.querySelector(".reply") as HTMLFormElement;
+    root.querySelector<HTMLButtonElement>(".launcher")?.click();
+    await vi.waitFor(() =>
+      expect(fetchMock.mock.calls.some(([u]) => u.endsWith("/config"))).toBe(true),
+    );
+    // Not before the note is sent.
+    expect(reply.hidden).toBe(true);
+    root.querySelector<HTMLButtonElement>('[data-reaction="bug"]')?.click();
+    root.querySelector("form")?.dispatchEvent(new Event("submit", { cancelable: true }));
+    await vi.waitFor(() => expect(reply.hidden).toBe(false));
+
+    // Filled in from identify(), and sent for the note just made. Notify me
+    // waits for something that looks like an address.
+    const input = root.querySelector(".reply input") as HTMLInputElement;
+    const notify = root.querySelector(".reply button") as HTMLButtonElement;
+    expect(input.value).toBe("sam@example.com");
+    expect(notify.disabled).toBe(false);
+    input.value = "sam@";
+    input.dispatchEvent(new Event("input"));
+    expect(notify.disabled).toBe(true);
+    input.value = "sam@example.com";
+    input.dispatchEvent(new Event("input"));
+    expect(notify.disabled).toBe(false);
+    reply.dispatchEvent(new Event("submit", { cancelable: true }));
+    const sent = () =>
+      (fetchMock.mock.calls as unknown as [string, RequestInit][]).find(([u]) =>
+        u.endsWith("/reply"),
+      );
+    await vi.waitFor(() => expect(sent()).toBeDefined());
+    const [url, init_] = sent() as [string, RequestInit];
+    expect(url).toBe("https://api.test/api/v1/ingest/pk_test/feedback/fb_1/reply");
+    expect(JSON.parse(init_.body as string)).toEqual({ email: "sam@example.com" });
+    await vi.waitFor(() => expect(reply.hidden).toBe(true));
+    expect(root.querySelector(".thanks span")?.textContent).toBe(
+      "We'll email you if there's news.",
+    );
+    // Asked once, however often the panel opens.
+    expect(fetchMock.mock.calls.filter(([u]) => u.endsWith("/config"))).toHaveLength(1);
+  });
+
+  it("doesn't ask when the site hasn't switched replies on", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        url.endsWith("/config")
+          ? new Response(JSON.stringify({ replies: false }))
+          : new Response(JSON.stringify({ id: "fb_1" }), { status: 202 }),
+      ),
+    );
+    instance = init({ projectKey: "pk_test" });
+    const root = shadow();
+    root.querySelector<HTMLButtonElement>(".launcher")?.click();
+    root.querySelector<HTMLButtonElement>('[data-reaction="bug"]')?.click();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    root.querySelector("form")?.dispatchEvent(new Event("submit", { cancelable: true }));
+    await vi.waitFor(() =>
+      expect((root.querySelector(".thanks") as HTMLElement).hidden).toBe(false),
+    );
+    expect((root.querySelector(".reply") as HTMLElement).hidden).toBe(true);
   });
 
   it("fills in the example message with → when the box is empty", () => {
@@ -130,8 +208,12 @@ describe("init", () => {
 
     root.querySelector<HTMLButtonElement>('[data-reaction="love"]')?.click();
     root.querySelector("form")?.dispatchEvent(new Event("submit", { cancelable: true }));
-    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
-    const [, request] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    const sent = () =>
+      (fetchMock.mock.calls as unknown as [string, RequestInit][]).find(([u]) =>
+        u.endsWith("/feedback"),
+      );
+    await vi.waitFor(() => expect(sent()).toBeDefined());
+    const [, request] = sent() as [string, RequestInit];
     expect(JSON.parse(request.body as string).target).toEqual({
       selector: "#projects",
       text: "Projects",

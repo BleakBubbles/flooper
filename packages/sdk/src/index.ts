@@ -27,8 +27,10 @@ export function init(options: FlooperOptions): FlooperInstance {
   if (typeof document === "undefined") return noopInstance;
 
   const apiUrl = (options.apiUrl ?? __DEFAULT_API_URL__).replace(/\/+$/, "");
+  const ingestUrl = `${apiUrl}/api/v1/ingest/${encodeURIComponent(options.projectKey)}`;
   let visitor: Visitor | undefined = options.visitor;
   let metadata: Metadata | undefined = options.metadata;
+  let asked = false;
 
   const widget = new Widget(
     {
@@ -38,6 +40,28 @@ export function init(options: FlooperOptions): FlooperInstance {
       title: options.title ?? "Leave a note for the dev",
       // The API and the portal are one Worker, so its root is Flooper's home page.
       homeUrl: `${apiUrl}/`,
+      // The first time the panel opens: does this site offer replies?
+      onOpen: () => {
+        if (asked) return;
+        asked = true;
+        fetch(`${ingestUrl}/config`)
+          .then((res) => res.json())
+          .then((config: { replies?: boolean }) => {
+            if (config.replies) widget.offerReplies(visitor?.email);
+          })
+          .catch(() => {});
+      },
+      // Sent as plain text (the API reads JSON either way), so the browser
+      // doesn't need a preflight first.
+      onReply: (id, email) =>
+        fetch(`${ingestUrl}/feedback/${id}/reply`, {
+          method: "POST",
+          body: JSON.stringify({ email }),
+          credentials: "omit",
+        }).then(
+          (res) => res.ok,
+          () => false,
+        ),
     },
     async (input) => {
       const payload: FeedbackSubmission = {

@@ -54,7 +54,7 @@ export async function createProject(
 ): Promise<ProjectRow> {
   const row = await db
     .prepare(
-      // New sites offer "Email me when it's fixed" from the start.
+      // New sites ask visitors if they want to hear back, from the start.
       `INSERT INTO projects (id, owner_id, name, public_key, allowed_origins, reply_requests, created_at)
        VALUES (?, ?, ?, ?, ?, 1, ?)
        RETURNING *`,

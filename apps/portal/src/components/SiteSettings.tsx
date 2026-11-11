@@ -42,6 +42,12 @@ export function SiteSettings({ site }: { site: ProjectWithSummary }) {
         <OriginsForm key={site.id} project={site} />
       </SettingRow>
       <SettingRow
+        title="Replies"
+        help="After sending a note, visitors can leave an email, so you can tell them what came of it."
+      >
+        <RepliesSwitch project={site} />
+      </SettingRow>
+      <SettingRow
         title="Install snippet"
         help="Paste it just before the closing </body> tag on every page that should have the widget."
       >
@@ -136,6 +142,37 @@ function SiteNameForm({ project }: { project: Project }) {
       </button>
       <FieldErrors error={save.error} />
     </form>
+  );
+}
+
+/** Saves as soon as it's ticked: there's nothing else to fill in. */
+function RepliesSwitch({ project }: { project: Project }) {
+  const queryClient = useQueryClient();
+  const save = useMutation({
+    mutationFn: (on: boolean) => api.updateProject(project.id, { replyRequests: on }),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(keys.project(project.id), updated);
+      void queryClient.invalidateQueries({ queryKey: keys.projects });
+    },
+  });
+  const checked = save.isPending
+    ? (save.variables ?? project.replyRequests)
+    : project.replyRequests;
+
+  return (
+    <div className="digest-form">
+      <label className="check-row">
+        <input
+          type="checkbox"
+          className="select-box"
+          checked={checked}
+          disabled={save.isPending}
+          onChange={(e) => save.mutate(e.target.checked)}
+        />
+        Ask visitors if they want to hear back
+      </label>
+      <FieldErrors error={save.error} />
+    </div>
   );
 }
 
