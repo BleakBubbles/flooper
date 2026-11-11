@@ -28,10 +28,10 @@ async function post(event: unknown, headers?: Record<string, string>) {
 }
 
 async function digestOn(email = "owner@example.com"): Promise<boolean> {
-  const row = await env.DB.prepare("SELECT digest_enabled FROM users WHERE email = ?")
+  const row = await env.DB.prepare("SELECT note_emails FROM users WHERE email = ?")
     .bind(email)
-    .first<{ digest_enabled: number }>();
-  return row?.digest_enabled === 1;
+    .first<{ note_emails: string }>();
+  return row?.note_emails !== "off";
 }
 
 async function turnOn(email: string) {
@@ -39,7 +39,7 @@ async function turnOn(email: string) {
   const res = await json(
     "PUT",
     "/api/v1/me/notifications",
-    { email, digestEnabled: true },
+    { email, noteEmails: "daily" },
     { Cookie: cookie },
   );
   expect(res.status).toBe(200);

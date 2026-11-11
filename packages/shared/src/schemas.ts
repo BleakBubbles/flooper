@@ -183,20 +183,27 @@ export interface User {
   login: string;
   name: string | null;
   avatarUrl: string | null;
-  /** Where daily digests go (from GitHub at first sign-in, then the user's to change). */
+  /** Where emails about notes go (from GitHub at first sign-in, then the user's to change). */
   email: string | null;
-  /** Whether they get a daily email about new notes. Off until they turn it on. */
-  digestEnabled: boolean;
+  /** Emails about new notes: none, a daily digest, or as they arrive. Off until chosen. */
+  noteEmails: NoteEmails;
 }
 
-/** Turning the daily digest on or off, and where it goes. */
+/**
+ * Emails about new notes: none, one digest a day, or as notes arrive (within
+ * a minute; several close together come in one email).
+ */
+export const NOTE_EMAILS = ["off", "daily", "instant"] as const;
+export type NoteEmails = (typeof NOTE_EMAILS)[number];
+
+/** Which emails about new notes, and where they go. */
 export const notificationSettingsSchema = z
   .object({
     email: z.email().max(254).nullable(),
-    digestEnabled: z.boolean(),
+    noteEmails: z.enum(NOTE_EMAILS),
   })
-  .refine((s) => !s.digestEnabled || s.email !== null, {
-    message: "Add an email address to get the daily digest",
+  .refine((s) => s.noteEmails === "off" || s.email !== null, {
+    message: "Add an email address to get emails about new notes",
     path: ["email"],
   });
 export type NotificationSettings = z.infer<typeof notificationSettingsSchema>;

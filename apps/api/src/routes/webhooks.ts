@@ -35,12 +35,12 @@ webhooks.post("/resend", async (c) => {
   if (emails.length === 0) return c.body(null, 204);
 
   const result = await c.env.DB.prepare(
-    `UPDATE users SET digest_enabled = 0
-     WHERE digest_enabled = 1 AND lower(email) IN (SELECT value FROM json_each(?))`,
+    `UPDATE users SET note_emails = 'off'
+     WHERE note_emails <> 'off' AND lower(email) IN (SELECT value FROM json_each(?))`,
   )
     .bind(JSON.stringify(emails))
     .run();
-  log("info", "digest switched off by Resend", {
+  log("info", "note emails switched off by Resend", {
     event: event.type,
     users: result.meta.changes ?? 0,
   });
