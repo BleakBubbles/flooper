@@ -202,7 +202,7 @@ function PickerSketch() {
         <span className="pay">Pay $12</span>
       </span>
       <span className="mini-widget">
-        <span className="mini-title">Leave a note for the dev</span>
+        <span className="mini-title">Leave a note for the dev:</span>
         <span className="mini-reactions">
           <span>❤️</span>
           <span>💡</span>

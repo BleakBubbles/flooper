@@ -37,7 +37,7 @@ export function init(options: FlooperOptions): FlooperInstance {
       position: options.position ?? "bottom-right",
       launcher: options.launcher ?? true,
       theme: options.theme ?? "auto",
-      title: options.title ?? "Leave a note for the dev",
+      title: options.title ?? "Leave a note for the dev:",
       // The API and the portal are one Worker, so its root is Flooper's home page.
       homeUrl: `${apiUrl}/`,
       // The first time the panel opens: does this site offer replies?
