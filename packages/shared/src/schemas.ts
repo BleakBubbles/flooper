@@ -299,6 +299,8 @@ export interface ReviewPage {
   unpinned: ReviewNote[];
   /** More notes than one page returns (REVIEW_NOTES_MAX); these are the newest. */
   truncated: boolean;
+  /** Notes on every page of the site, counted the same way (not archived or deleted). */
+  siteTotal: number;
 }
 
 export interface Feedback {

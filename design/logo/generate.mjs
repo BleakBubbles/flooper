@@ -127,11 +127,32 @@ const standalone = svgDoc(
 
 // Widget icon: CSS classes, so the widget's theme decides the colors.
 const CLASSES = { fg: "w", fgStroke: "ws", bg: "k", bgStroke: "ks" };
-const icon = [
-  '<svg viewBox="40 40 432 432" aria-hidden="true" focusable="false">',
-  creature((roles) => `class="${roles.map((r) => CLASSES[r]).join(" ")}"`),
-  "</svg>",
-].join("\n");
+const icon = compactForWidget(
+  [
+    '<svg viewBox="40 40 432 432" aria-hidden="true">',
+    creature((roles) => `class="${roles.map((r) => CLASSES[r]).join(" ")}"`),
+    "</svg>",
+  ].join(""),
+);
+
+/**
+ * The widget ships this on every page of every site, inside a 10 KB budget,
+ * so it's squeezed with no visible change at the button's size: coordinates
+ * to whole units of the 432-unit drawing (arc radii stay exact, since they
+ * shape the curves), one line, and no attributes the widget's CSS sets
+ * instead (.launcher path:not(.w) has no fill; .ks strokes are
+ * segmentWidth wide).
+ */
+function compactForWidget(svg) {
+  const KEEP = "\u0000";
+  return svg
+    .replace(/\n/g, "")
+    .replace(/A([\d.]+) ([\d.]+)/g, (m) => m.replaceAll(".", KEEP))
+    .replace(/\d+\.\d+/g, (v) => String(Math.round(Number(v))))
+    .replaceAll(KEEP, ".")
+    .replaceAll(' fill="none"', "")
+    .replaceAll(` stroke-width="${LOGO.segmentWidth}"`, "");
+}
 
 // iOS (and GitHub's OAuth app page) round the corners themselves and dislike
 // transparency: a full-bleed square.

@@ -147,6 +147,10 @@ svg.lucide {
 }
 .launcher .ks {
   stroke: var(--launcher-bg);
+  stroke-width: 25;
+}
+.launcher path:not(.w) {
+  fill: none;
 }
 .launcher .ws {
   stroke: currentColor;
@@ -387,14 +391,14 @@ textarea:focus + .ghost .autofill-hint {
 }
 /* Controls at the panel's edges line their tooltip up with that edge, so it
    stays on screen when the widget sits in a corner. */
-.point::after {
+.point::after,
+.reaction:last-child::after {
   left: 0;
   transform: translateY(2px);
 }
 .reaction:last-child::after {
   left: auto;
   right: 0;
-  transform: translateY(2px);
 }
 .point:is(:hover, :focus-visible)::after,
 .reaction:last-child:is(:hover, :focus-visible)::after {
@@ -575,10 +579,8 @@ textarea:focus + .ghost .autofill-hint {
   color: var(--fg);
 }
 
-button:focus-visible,
-textarea:focus-visible,
-input:focus-visible,
-a:focus-visible {
+/* Everything focusable in the widget: buttons, the note and email boxes, the credit. */
+:focus-visible {
   outline: 2px solid var(--fg);
   outline-offset: 2px;
 }

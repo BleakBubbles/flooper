@@ -3,15 +3,4 @@
 // The Flooper creature for the widget button. Colors come from the widget's CSS:
 //   .w  = foreground fill    .ws = foreground stroke
 //   .k  = background fill    .ks = background stroke
-export const LOGO_SVG = `<svg viewBox="40 40 432 432" aria-hidden="true" focusable="false">
-<path class="ws" fill="none" stroke-width="84" stroke-linecap="round" d="M391.1 178A156 156 0 1 1 228.91 102.37"/>
-<path class="ks" fill="none" stroke-width="25" d="M347.99 298.9A54.5 54.5 0 0 0 446.78 344.96"/>
-<path class="ks" fill="none" stroke-width="25" d="M264.85 357.11A54.5 54.5 0 0 0 274.35 465.7"/>
-<path class="ks" fill="none" stroke-width="25" d="M172.86 314.22A54.5 54.5 0 0 0 83.57 376.74"/>
-<path class="ks" fill="none" stroke-width="25" d="M164.01 213.1A54.5 54.5 0 0 0 65.22 167.04"/>
-<circle class="w ks" stroke-width="16" cx="391.1" cy="178" r="50"/>
-<circle class="k" cx="364.96" cy="179.14" r="12"/>
-<circle class="k" cx="404.74" cy="156.41" r="12"/>
-<path class="ws" stroke-width="14" stroke-linecap="round" d="M343.37 142.77L353.18 159.94"/>
-<path class="ws" stroke-width="14" stroke-linecap="round" d="M383.15 120.05L392.27 136.02"/>
-</svg>`;
+export const LOGO_SVG = `<svg viewBox="40 40 432 432" aria-hidden="true"><path class="ws" stroke-width="84" stroke-linecap="round" d="M391 178A156 156 0 1 1 229 102"/><path class="ks" d="M348 299A54.5 54.5 0 0 0 447 345"/><path class="ks" d="M265 357A54.5 54.5 0 0 0 274 466"/><path class="ks" d="M173 314A54.5 54.5 0 0 0 84 377"/><path class="ks" d="M164 213A54.5 54.5 0 0 0 65 167"/><circle class="w ks" stroke-width="16" cx="391" cy="178" r="50"/><circle class="k" cx="365" cy="179" r="12"/><circle class="k" cx="405" cy="156" r="12"/><path class="ws" stroke-width="14" stroke-linecap="round" d="M343 143L353 160"/><path class="ws" stroke-width="14" stroke-linecap="round" d="M383 120L392 136"/></svg>`;

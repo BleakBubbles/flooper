@@ -1,0 +1,256 @@
+/* Review mode's overlay, in its own shadow root over the owner's live site.
+   Always dark, like the widget's launcher, so it reads on any site; pink is
+   Flooper's accent, the same as a picked element's highlight. */
+:host {
+  all: initial;
+  --pink: 244 114 182;
+  font:
+    13px / 1.45 system-ui,
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
+}
+[hidden] {
+  /* biome-ignore lint/complexity/noImportantStyles: `hidden` must beat every display rule. */
+  display: none !important;
+}
+
+/* Above the page: the highlights, then the counts by the pointer, the notes
+   card and the bar. Clicks outside them reach the page as usual. */
+.layer > *,
+.label,
+.bar {
+  position: fixed;
+  z-index: 2147482996;
+}
+.label {
+  z-index: 2147482997;
+}
+.layer > .card,
+.bar {
+  z-index: 2147482998;
+}
+
+/* An element with notes: the border marks where it is (the same for every
+   element), the fill how busy it is. --heat (0 to 1) is its share of the
+   busiest element here, on a square-root curve so a few notes still show
+   beside many; no floor, since the border already marks quiet ones.
+   Translucent, so nested elements stack into darker spots: the busiest parts
+   of the page are the darkest. Clicking it opens its notes. */
+.area {
+  margin: 0;
+  padding: 0;
+  border: 1.5px solid rgb(var(--pink) / 0.7);
+  border-radius: 6px;
+  /* --max: 0.4, less for each level it's nested in (see DEPTH_FADE). */
+  background: rgb(var(--pink) / calc(var(--max, 0.4) * var(--heat)));
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+/* What a click here opens (hovered, focused or open): outlined. */
+.area.on,
+.area:focus-visible {
+  border-color: rgb(var(--pink));
+  outline: none;
+  box-shadow: 0 0 0 2px rgb(var(--pink));
+}
+
+/* The counts of what's under the pointer, beside it, like DevTools' tooltip. */
+.label {
+  pointer-events: none;
+  padding: 3px 9px;
+  border: 1px solid rgb(var(--pink));
+  border-radius: 999px;
+  background: #0b0b0c;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.35);
+}
+
+.card {
+  display: grid;
+  gap: 14px;
+  width: min(340px, calc(100vw - 16px));
+  max-height: min(420px, calc(100vh - 16px));
+  overflow: auto;
+  padding: 12px 14px;
+  border: 1px solid #2f2f34;
+  border-radius: 12px;
+  background: #141416;
+  color: #ededed;
+  box-shadow: 0 16px 40px rgb(0 0 0 / 0.5);
+}
+.card-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.card-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.card-counts {
+  flex: none;
+  color: #8b8b93;
+  font-size: 12px;
+}
+.notes {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.note {
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  column-gap: 6px;
+}
+.note-text {
+  color: inherit;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.note-text:hover {
+  color: rgb(var(--pink));
+  text-decoration: underline;
+}
+.note-meta {
+  grid-column: 2;
+  color: #8b8b93;
+  font-size: 12px;
+}
+
+/* Review mode and its switch, the notes here / on the whole site, and the way
+   out: top center, like the widget's pick bar. */
+.bar {
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100vw - 24px);
+  padding: 6px;
+  border: 1px solid rgb(var(--pink) / 0.6);
+  border-radius: 12px;
+  background: #0b0b0c;
+  color: #ededed;
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.45);
+}
+.title,
+.count {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.title {
+  font-weight: 600;
+}
+.bar > .title {
+  padding-left: 8px;
+}
+.status {
+  padding: 0 10px;
+  border-left: 1px solid #2f2f34;
+  font-variant-numeric: tabular-nums;
+}
+/* Text in the bar: lifted 1px. System fonts leave more room above letters
+   than below, so centred text looks low beside the centred icons and switch. */
+.t {
+  position: relative;
+  top: -1px;
+}
+.bar svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.title svg {
+  color: rgb(var(--pink));
+}
+.exit {
+  flex: none;
+  padding: 5px 12px;
+  border: 1px solid rgb(239 68 68 / 0.45);
+  border-radius: 8px;
+  background: rgb(239 68 68 / 0.16);
+  color: #fca5a5;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+.exit:hover {
+  border-color: #ef4444;
+  background: #ef4444;
+  color: #fff;
+}
+
+/* Review mode's switch: its name, then a track whose knob slides right and
+   turns the track pink when on, like the highlights it shows. */
+.switch {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px 4px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: #ededed;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.switch:hover {
+  background: #1f1f23;
+}
+.track {
+  position: relative;
+  width: 32px;
+  height: 18px;
+  border-radius: 999px;
+  background: #3a3a40;
+  transition: background 0.15s ease;
+}
+.track::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.15s ease;
+}
+.switch[aria-checked="true"] .track {
+  background: rgb(var(--pink));
+}
+.switch[aria-checked="true"] .track::after {
+  transform: translateX(14px);
+}
+
+:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
