@@ -15,22 +15,28 @@
   display: none !important;
 }
 
-/* Above the page: the highlights, then the counts by the pointer, the notes
-   card and the bar. Clicks outside them reach the page as usual. */
+/* Above the page, bottom to top: the highlights; the counts by the pointer
+   and the Other notes panel; an element's notes card (over the panel, since
+   it's what was just clicked); the bar and its menus. Clicks outside them
+   reach the page as usual. */
 .layer > *,
 .label,
 .bar,
-.menu {
+.menu,
+.side {
   position: fixed;
   z-index: 2147482996;
 }
-.label {
+.label,
+.side {
   z-index: 2147482997;
 }
-.layer > .card,
+.layer > .card {
+  z-index: 2147482998;
+}
 .bar,
 .menu {
-  z-index: 2147482998;
+  z-index: 2147482999;
 }
 
 /* An element with notes: the border marks where it is (the same for every
@@ -148,10 +154,77 @@
   list-style: none;
 }
 .note {
+  position: relative;
   display: grid;
   grid-template-columns: 22px 1fr;
   column-gap: 6px;
 }
+/* A note's actions: over its top right, on hover or keyboard focus, so the
+   list stays calm. (Always there on touch screens, which can't hover.) */
+.note-actions {
+  position: absolute;
+  top: -3px;
+  right: 0;
+  display: flex;
+  gap: 2px;
+  padding-left: 18px;
+  background: linear-gradient(to right, rgb(20 20 22 / 0), #141416 18px);
+  visibility: hidden;
+}
+.note:hover .note-actions,
+.note:focus-within .note-actions {
+  visibility: visible;
+}
+@media (hover: none) {
+  .note-actions {
+    visibility: visible;
+  }
+}
+.note-action {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: #8b8b93;
+  cursor: pointer;
+}
+.note-action:enabled:hover {
+  background: #26262a;
+  color: #fff;
+}
+.note-action:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+.note-action svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* When an action didn't work: a short message at the bottom. */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  z-index: 2147483000;
+  transform: translateX(-50%);
+  padding: 8px 14px;
+  border: 1px solid #2f2f34;
+  border-radius: 10px;
+  background: #141416;
+  color: #ededed;
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.45);
+}
+
 .note-text {
   color: inherit;
   text-decoration: none;
@@ -214,7 +287,11 @@
   transform: translateY(-50%);
 }
 /* The count opens the filter menu; pink while a filter is on. */
-button.count {
+/* The bar's buttons: the page you're on (opens the pages list), the count
+   (the filter menu) and the notes the page can't show (the side panel). */
+button.where,
+button.count,
+button.off {
   padding: 5px 10px 5px 12px;
   border: 0;
   border-radius: 8px;
@@ -223,12 +300,169 @@ button.count {
   font: inherit;
   cursor: pointer;
 }
+button.where:hover,
+button.where[aria-expanded="true"],
 button.count:hover,
-button.count[aria-expanded="true"] {
+button.count[aria-expanded="true"],
+button.off:hover,
+button.off[aria-expanded="true"] {
   background: #1f1f23;
+}
+/* Just closed by a click, the pointer still on it: shown closed at once. */
+button.settled:not([aria-expanded="true"]):hover {
+  background: none;
+}
+.where,
+.off {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.where {
+  gap: 2px;
+}
+/* Long paths are cut short; the pages list has them in full. */
+.where-path {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.where svg {
+  width: 14px;
+  height: 14px;
+  color: #8b8b93;
+}
+.off {
+  color: #c4c4ca;
 }
 .count.filtered {
   color: rgb(var(--pink));
+}
+
+/* The pages list, under the path: the site's pages with notes, busiest first. */
+.menu.pages {
+  max-height: min(420px, calc(100vh - 90px));
+  overflow: auto;
+  padding: 6px;
+}
+.page-list {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.page-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  width: 100%;
+  min-width: 220px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: #ededed;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.page-row:hover {
+  background: #1f1f23;
+}
+/* The page you're on. */
+.page-row[aria-current="page"] {
+  background: rgb(var(--pink) / 0.14);
+  color: #fff;
+}
+.page-path {
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.page-total {
+  color: #8b8b93;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The notes the page can't show, in a panel at the right, under the bar's
+   height. Looks like a notes card. */
+.side {
+  right: 12px;
+  /* Sizes include the border, so a saved size comes back exactly. */
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  width: min(340px, calc(100vw - 24px));
+  min-width: 240px;
+  min-height: 140px;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100vh - 16px);
+  overflow: hidden;
+  /* Bigger or smaller from its corner. */
+  resize: both;
+  border: 1px solid #2f2f34;
+  border-radius: 12px;
+  background: #141416;
+  color: #ededed;
+  box-shadow: 0 16px 40px rgb(0 0 0 / 0.5);
+}
+/* Its header: drag it by this. */
+.side-head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 8px 8px 14px;
+  border-bottom: 1px solid #2f2f34;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+.side.dragging .side-head {
+  cursor: grabbing;
+}
+.side-name {
+  margin: 0;
+  font-weight: 600;
+}
+.side-x {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: #8b8b93;
+  cursor: pointer;
+}
+.side-x:hover {
+  background: #1f1f23;
+  color: #fff;
+}
+.side-x svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.side .card-body {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+}
+.side-title {
+  margin: 0 0 10px;
+  color: #8b8b93;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 /* The filter menu, under the count. */

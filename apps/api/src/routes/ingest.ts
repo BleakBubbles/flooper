@@ -1,10 +1,14 @@
 import { LIMITS } from "@flooper/shared";
-import { feedbackSubmissionSchema, replyRequestSchema } from "@flooper/shared/schemas";
+import {
+  feedbackSubmissionSchema,
+  replyRequestSchema,
+  updateFeedbackSchema,
+} from "@flooper/shared/schemas";
 import { type Context, Hono } from "hono";
 import { insertFeedback, setContactEmail } from "../db/feedback";
 import { allowedOrigins, getProjectByPublicKey, type ProjectRow } from "../db/projects";
 import { hitRateLimit } from "../db/rate-limit";
-import { projectForReviewToken, reviewPage } from "../db/review";
+import { projectForReviewToken, reviewPage, setReviewNoteStatus } from "../db/review";
 import type { AppEnv } from "../env";
 import { sha256Hex } from "../lib/crypto";
 import { ApiError, notFound } from "../lib/errors";
@@ -69,6 +73,31 @@ ingest.options("/:publicKey/*", (c) => {
  * own addresses, like any note. Read-only, and never cached.
  */
 ingest.get("/:publicKey/review", async (c) => {
+  const project = await authorizeReview(c);
+  const path = c.req.query("path");
+  if (!path?.startsWith("/") || path.length > 2000) {
+    throw new ApiError(422, "validation_failed", "Which page? Send its path, like /checkout");
+  }
+  c.header("Cache-Control", "no-store");
+  return c.json(await reviewPage(c.env.DB, project.id, path));
+});
+
+/**
+ * Review mode's actions on a note: read or unread, done or reopened, or
+ * archived. The same checks as reading (the site's review token, from one of
+ * its own addresses), and only that site's notes.
+ */
+ingest.post("/:publicKey/review/notes/:id", async (c) => {
+  const project = await authorizeReview(c);
+  const { status } = await parseJsonBody(c, updateFeedbackSchema);
+  const note = await setReviewNoteStatus(c.env.DB, project.id, c.req.param("id"), status);
+  if (!note) throw notFound("Note");
+  c.header("Cache-Control", "no-store");
+  return c.json(note);
+});
+
+/** Review mode's site, from its review token (a Bearer token) and the request's origin. */
+async function authorizeReview(c: Context<AppEnv>): Promise<ProjectRow> {
   const site = await authorizeOrigin(c);
   const token = c.req.header("Authorization")?.match(/^Bearer (.+)$/)?.[1];
   const project = token ? await projectForReviewToken(c.env.DB, token, site.public_key) : null;
@@ -79,13 +108,8 @@ ingest.get("/:publicKey/review", async (c) => {
       "This review link has expired. Open a new one from Flooper",
     );
   }
-  const path = c.req.query("path");
-  if (!path?.startsWith("/") || path.length > 2000) {
-    throw new ApiError(422, "validation_failed", "Which page? Send its path, like /checkout");
-  }
-  c.header("Cache-Control", "no-store");
-  return c.json(await reviewPage(c.env.DB, project.id, path));
-});
+  return project;
+}
 
 ingest.post("/:publicKey/feedback", async (c) => {
   // The emergency switch, checked before any database work. 503 with a long

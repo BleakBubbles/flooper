@@ -24,16 +24,14 @@ Batches 1–3 are done (see below).
 
 ### Going public (open-sourcing)
 
-The repo is private for now. When it's time to make it public:
+The repo went public on 2026-11-12, after a check of the full git history for
+secrets and personal data. Private vulnerability reporting is on (as
+`SECURITY.md` says), and the `production` environment only deploys from
+`main`. Left to do:
 
-1. Check the full git history for anything that shouldn't be public (secrets,
-   personal data). Making the repo public publishes every past commit too.
-2. Switch the visibility: Settings → General → Danger Zone → Change visibility.
-3. Upload `design/logo/github-social-preview.png` under Settings → General →
-   Social preview. (GitHub only offers this for public repositories.)
-4. Turn on private vulnerability reporting (Settings → Security), which
-   `SECURITY.md` tells people to use.
-5. Optionally publish the SDK to npm as `@flooper/sdk` (claim the `@flooper`
+1. Upload `design/logo/github-social-preview.png` under Settings → General →
+   Social preview.
+2. Optionally publish the SDK to npm as `@flooper/sdk` (claim the `@flooper`
    scope first).
 
 ### Feedback heat map ("review mode")
@@ -90,8 +88,20 @@ Stepping stones, each useful on its own:
       and exits. To fit the loader in the widget's 10 KB, its CSS variables
       get short names at build time and the launcher's logo has rounded
       coordinates (no visible change).
-   3. **The rest:** a sidebar for notes with no element or whose element has
-      drifted, then triage from the overlay if it's worth it.
+   3. **The rest** (done, 2026-11-12):
+      - **Filter menu** (from the note count): a chip per reaction and per
+        status, all on to begin with. Everything follows it, and the tab
+        remembers it.
+      - **The card and hover follow the page:** the card is pinned to its
+        element as you scroll, and the hover updates under a still pointer.
+      - **Page switcher:** the bar's path lists the site's pages with notes.
+      - **Other notes panel:** notes on no element, or whose element is gone,
+        in a panel you can drag and resize.
+      - **Actions on hover:** read or unread, done or reopened, archived,
+        using the review link (statuses only; deleting stays in the app).
+        A note's Page link in the app opens review mode too.
+      - **Later, maybe:** keyboard navigation between highlights, and a time
+        range.
 
    Skipped on purpose: a list of elements in the app. Selectors are often
    unreadable (`main > div:nth-of-type(3) > button`); the overlay shows the

@@ -86,6 +86,11 @@ describe("review mode", () => {
     expect(page.truncated).toBe(false);
     // Three on /checkout, one on /about.
     expect(page.siteTotal).toBe(4);
+    // Every page with notes, busiest first.
+    expect(page.pages).toEqual([
+      { path: "/checkout", total: 3 },
+      { path: "/about", total: 1 },
+    ]);
     // Shown on the live site: nothing about who sent them.
     expect(JSON.stringify(page)).not.toMatch(/visitor|contactEmail|userAgent/);
   });
@@ -129,6 +134,35 @@ describe("review mode", () => {
     const bare = await createProject(cookie, []);
     const none = await json("POST", `/api/v1/projects/${bare.id}/review`, {}, { Cookie: cookie });
     expect(none.status).toBe(409);
+  });
+
+  it("changes a note's status from review mode, on its own site only", async () => {
+    const { link, read, project } = await setup();
+    const token = tokenOf(((await (await link()).json()) as { url: string }).url);
+    const page = (await (await read(token)).json()) as ReviewPage;
+    const id = page.elements[0]?.notes[0]?.id ?? "";
+    const act = (body: unknown, opts: { token?: string; origin?: string; id?: string } = {}) =>
+      json("POST", `/api/v1/ingest/${project.publicKey}/review/notes/${opts.id ?? id}`, body, {
+        Origin: opts.origin ?? SITE,
+        Authorization: `Bearer ${opts.token ?? token}`,
+      });
+
+    const done = await act({ status: "done" });
+    expect(done.status).toBe(200);
+    expect(await done.json()).toEqual({ id, status: "done" });
+    const after = (await (await read(token)).json()) as ReviewPage;
+    expect(after.elements[0]?.notes.find((n) => n.id === id)?.status).toBe("done");
+
+    // Archived: gone from review mode, like everywhere archived notes are.
+    expect((await act({ status: "archived" })).status).toBe(200);
+    const archived = (await (await read(token)).json()) as ReviewPage;
+    expect(archived.siteTotal).toBe(3);
+
+    expect((await act({ status: "nonsense" })).status).toBe(422);
+    expect((await act({ status: "done" }, { token: "wrong" })).status).toBe(401);
+    expect((await act({ status: "done" }, { origin: "https://evil.example" })).status).toBe(403);
+    // Another site's note, or none at all: not found.
+    expect((await act({ status: "done" }, { id: "fb_nope" })).status).toBe(404);
   });
 
   it("lets the widget ask with an Authorization header from another origin", async () => {
