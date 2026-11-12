@@ -1,0 +1,15 @@
+# Cache rules for the Worker's static files (Cloudflare reads this file from
+# the built folder). Without them every file is "max-age=0, must-revalidate":
+# a round trip back to flooper.app before it can be used.
+
+# The widget, on every page of every site that uses Flooper. Its address never
+# changes, so it can't be cached forever: browsers and Cloudflare keep it for 5
+# minutes, then use the copy they have while checking for a new one in the
+# background. A new widget reaches visitors within about 5 minutes.
+/sdk/*
+  Cache-Control: public, max-age=300, stale-while-revalidate=86400
+
+# The app's own scripts and styles: their names change with their contents
+# (Vite adds a hash), so a given name never changes and can be kept for good.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable

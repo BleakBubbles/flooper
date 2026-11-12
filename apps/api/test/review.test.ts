@@ -165,6 +165,27 @@ describe("review mode", () => {
     expect((await act({ status: "done" }, { id: "fb_nope" })).status).toBe(404);
   });
 
+  it("finds a page's notes by the page path index, not by reading the whole site", async () => {
+    const plan = async (sql: string) =>
+      (await env.DB.prepare(`EXPLAIN QUERY PLAN ${sql}`).all<{ detail: string }>()).results
+        .map((r) => r.detail)
+        .join(" | ");
+    // Review mode's page.
+    expect(
+      await plan(`SELECT id FROM feedback WHERE project_id = 'p' AND deleted_at IS NULL
+        AND status <> 'archived' AND json_extract(context, '$.path') = '/'`),
+    ).toContain("feedback_project_path");
+    // The site's pages, and the app's notes grouped by page.
+    expect(
+      await plan(`SELECT json_extract(context, '$.path') AS path, COUNT(*) FROM feedback
+        WHERE project_id = 'p' GROUP BY path`),
+    ).toContain("feedback_project_path");
+    expect(
+      await plan(`SELECT f.id FROM feedback f WHERE f.project_id = 'p'
+        AND json_extract(f.context, '$.path') = '/'`),
+    ).toContain("feedback_project_path");
+  });
+
   it("lets the widget ask with an Authorization header from another origin", async () => {
     const { project } = await setup();
     const res = await request(`/api/v1/ingest/${project.publicKey}/review`, {
