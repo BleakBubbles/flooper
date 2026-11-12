@@ -37,7 +37,10 @@ declare global {
 }
 
 let started = false;
-window.FlooperReview = (ingestUrl, token) => {
+// A site that sets the widget up again, like a single-page app moving between
+// pages, loads this script again each time. Keep the first copy (it follows
+// the address by itself), so there's only ever one overlay and Exit ends it.
+window.FlooperReview ??= (ingestUrl, token) => {
   if (started) return;
   started = true;
   new Review(ingestUrl, token).start();

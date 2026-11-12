@@ -173,6 +173,20 @@ describe("review mode's overlay", () => {
     expect(sessionStorage.getItem("flooper-review")).toBeNull();
   });
 
+  it("keeps one overlay when the site loads the script again", async () => {
+    await start();
+    // A single-page app moving between pages sets the widget up again, which
+    // loads this script again.
+    vi.resetModules();
+    await import("./index");
+    window.FlooperReview?.(INGEST, "tok_123");
+    expect(document.querySelectorAll("flooper-review")).toHaveLength(1);
+    overlay().querySelector<HTMLButtonElement>(".exit")?.click();
+    expect(document.querySelector("flooper-review")).toBeNull();
+    // Mounted again so afterEach's Exit has something to click.
+    await start();
+  });
+
   it("leaves review mode on Exit", async () => {
     sessionStorage.setItem("flooper-review", "tok_123");
     await start();

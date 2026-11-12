@@ -46,11 +46,36 @@ const router = createBrowserRouter([
 /**
  * The app if this browser is signed in, the landing page if not. The cookie
  * hint answers at once (no flash of the wrong page); /me backs it up for
- * anyone signed in before the hint existed.
+ * anyone signed in before the hint existed. A tab in review mode gets the
+ * landing page either way: it's the page visitors leave notes on, at the
+ * same address, so the overlay finds them.
  */
 function AppOrLanding() {
-  const me = useQuery({ queryKey: keys.me, queryFn: api.me, enabled: !hasSignedInHint() });
-  return hasSignedInHint() || me.isSuccess ? <Layout /> : <LandingPage />;
+  const reviewing = inReviewMode();
+  const signedIn = hasSignedInHint();
+  const me = useQuery({
+    queryKey: keys.me,
+    queryFn: api.me,
+    enabled: !signedIn && !reviewing,
+  });
+  if (reviewing) return <LandingPage />;
+  return signedIn || me.isSuccess ? <Layout /> : <LandingPage />;
+}
+
+/**
+ * Whether this tab is reviewing Flooper's own site: opened from a review link
+ * (#flooper-review=…), or since then, which the widget keeps in the tab's
+ * sessionStorage under "flooper-review" until Exit (packages/sdk/src/index.ts,
+ * startReview).
+ */
+function inReviewMode(): boolean {
+  try {
+    return (
+      location.hash.includes("flooper-review=") || sessionStorage.getItem("flooper-review") !== null
+    );
+  } catch {
+    return false;
+  }
 }
 
 /**
