@@ -78,6 +78,9 @@ const MIN_RADIUS = 310;
     under it: its top is the tunnel, where notes fade out anyway. */
 const HEADER_HEIGHT = 73;
 const RING_TUCK = 40;
+/** Then lifted further, size unchanged: the header's middle is empty, so the
+    ring's top (the tunnel) can sit in it, between the logo and the button. */
+const RING_LIFT = 32;
 /** Card text never goes below 12px (it's 13px at full size). */
 const MIN_CARD_SCALE = 12 / 13;
 
@@ -362,7 +365,7 @@ export function NoteRing({ hero }: { hero: ReactNode }) {
         style={
           {
             height: layout.height,
-            marginTop: layout.compact ? undefined : -RING_TUCK,
+            marginTop: layout.compact ? undefined : -(RING_TUCK + RING_LIFT),
             "--card-scale": layout.cardScale,
           } as CSSProperties
         }
