@@ -152,6 +152,7 @@ export class Widget {
 
     this.el.launcher.hidden = !options.launcher;
     this.el.launcher.addEventListener("click", () => this.toggle());
+    $(".x").addEventListener("click", () => this.close());
     for (const button of this.el.reactions) {
       button.addEventListener("click", () =>
         this.pickReaction(button.dataset.reaction as Reaction),
@@ -491,6 +492,7 @@ function template(position: WidgetOptions["position"]): string {
       </div>
     </form>
     <a class="powered" target="_blank" rel="noopener">Powered by <strong>Flooper</strong></a>
+    <button class="target-clear x" aria-label="Close">${ICONS.close}</button>
   </div>
   <button type="button" class="launcher" aria-label="Leave feedback" aria-expanded="false"
     aria-controls="flooper-panel">${LOGO_SVG}</button>

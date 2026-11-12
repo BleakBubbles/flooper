@@ -85,5 +85,31 @@ describe("Widget", () => {
     expect(root.querySelector<HTMLElement>(".launcher")?.hidden).toBe(true);
     widget.open();
     expect(root.querySelector<HTMLElement>(".panel")?.hidden).toBe(false);
+    // With no button of its own, the panel's × is the way to close it by pointer.
+    root.querySelector<HTMLButtonElement>(".x")?.click();
+    expect(root.querySelector<HTMLElement>(".panel")?.hidden).toBe(true);
+  });
+
+  it("closes from its ×, which isn't mistaken for the picked element's remove button", () => {
+    widget = new Widget(
+      {
+        position: "bottom-right",
+        launcher: true,
+        theme: "auto",
+        title: "Hi",
+        homeUrl: "https://flooper.test/",
+      },
+      vi.fn(),
+    );
+    widget.mount();
+    widget.open();
+    const root = widget.host.shadowRoot as ShadowRoot;
+    // The × shares the remove button's look (class), so it comes after it.
+    expect(root.querySelector(".target-clear")?.closest(".target-chip")).not.toBeNull();
+    const x = root.querySelector<HTMLButtonElement>(".x");
+    expect(x?.getAttribute("aria-label")).toBe("Close");
+    x?.click();
+    expect(root.querySelector<HTMLElement>(".panel")?.hidden).toBe(true);
+    expect(root.querySelector(".launcher")?.getAttribute("aria-expanded")).toBe("false");
   });
 });
