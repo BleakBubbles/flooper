@@ -442,10 +442,12 @@ export function NoteRing({ hero }: { hero: ReactNode }) {
               {plusOne}
             </>
           ) : (
-            <div className="hero">
-              {hero}
+            // The text alone is centered in the ring; play/pause hangs below
+            // it, so the headline sits in the middle, not above it.
+            <>
+              <div className="hero">{hero}</div>
               {toggle}
-            </div>
+            </>
           )}
         </div>
         {layout.compact && toggle}

@@ -236,6 +236,15 @@ body:has(.landing) {
   background: rgba(255, 255, 255, 0.14);
 }
 /* Phones: centered just under the counter in the ring's middle. */
+/* Wide screens: just under the text, which is centered in the ring on its
+   own (the button isn't counted). */
+.ring-center > .ring-toggle {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  translate: -50% 0;
+  margin-top: 20px;
+}
 .ring.compact .ring-toggle {
   position: absolute;
   left: 50%;
