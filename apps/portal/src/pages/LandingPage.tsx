@@ -1,9 +1,10 @@
 import type { FlooperInstance } from "@flooper/sdk";
 import { useQuery } from "@tanstack/react-query";
-import { type ReactNode, useEffect } from "react";
+import { type MouseEvent, type ReactNode, useEffect } from "react";
 import { Link } from "react-router";
 import { api, keys } from "../api";
 import { GithubButton } from "../components/GithubButton";
+import { inReviewMode, openAppFromReview } from "../reviewMode";
 import { usePageTitle } from "../usePageTitle";
 import { DevtoolsShowcase } from "./DevtoolsShowcase";
 import { NoteRing } from "./NoteRing";
@@ -22,6 +23,12 @@ export function LandingPage() {
   // Already logged in? Then the way in is the app, not the login button.
   const me = useQuery({ queryKey: keys.me, queryFn: api.me });
   const loggedIn = me.isSuccess;
+  // In review mode, / is this page: going to the app ends review mode first.
+  const openApp = (event: MouseEvent) => {
+    if (!inReviewMode()) return;
+    event.preventDefault();
+    openAppFromReview();
+  };
 
   return (
     <div className="landing">
@@ -32,7 +39,7 @@ export function LandingPage() {
         </Link>
         <nav>
           {loggedIn ? (
-            <Link className="btn primary" to="/">
+            <Link className="btn primary" to="/" onClick={openApp}>
               Open the app
               <MiniIcon size={16}>
                 <path d="M7 7h10v10" />
@@ -118,7 +125,7 @@ export function LandingPage() {
         <span>Flooper. Made for small sites.</span>
         {/* Signed out, straight to GitHub like "Log in": one click, not two. */}
         {loggedIn ? (
-          <Link to="/" className="landing-footer-link">
+          <Link to="/" className="landing-footer-link" onClick={openApp}>
             Open the app
             <FooterArrow />
           </Link>
