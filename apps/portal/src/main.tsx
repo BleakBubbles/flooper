@@ -16,6 +16,7 @@ import { LandingPage } from "./pages/LandingPage";
 import { LoginPage } from "./pages/LoginPage";
 import { SitesPage } from "./pages/SitesPage";
 import { createQueryClient } from "./queryClient";
+import { inReviewMode } from "./reviewMode";
 import { hasSignedInHint } from "./signedIn";
 import "./styles.css";
 
@@ -60,22 +61,6 @@ function AppOrLanding() {
   });
   if (reviewing) return <LandingPage />;
   return signedIn || me.isSuccess ? <Layout /> : <LandingPage />;
-}
-
-/**
- * Whether this tab is reviewing Flooper's own site: opened from a review link
- * (#flooper-review=…), or since then, which the widget keeps in the tab's
- * sessionStorage under "flooper-review" until Exit (packages/sdk/src/index.ts,
- * startReview).
- */
-function inReviewMode(): boolean {
-  try {
-    return (
-      location.hash.includes("flooper-review=") || sessionStorage.getItem("flooper-review") !== null
-    );
-  } catch {
-    return false;
-  }
 }
 
 /**
