@@ -261,7 +261,7 @@ function MockPage({ active }: { active: number }) {
       </div>
       {active === 3 && (
         <div className="dt-page-widget">
-          <strong>Leave a note for the dev</strong>
+          <strong>Leave a note for the dev:</strong>
           <span className="dt-page-reactions">❤️ 💡 🤔 🐛</span>
           <span className="dt-page-field" />
           <span className="dt-page-send">Send</span>
