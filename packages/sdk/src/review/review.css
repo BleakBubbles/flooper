@@ -19,7 +19,8 @@
    card and the bar. Clicks outside them reach the page as usual. */
 .layer > *,
 .label,
-.bar {
+.bar,
+.menu {
   position: fixed;
   z-index: 2147482996;
 }
@@ -27,7 +28,8 @@
   z-index: 2147482997;
 }
 .layer > .card,
-.bar {
+.bar,
+.menu {
   z-index: 2147482998;
 }
 
@@ -72,12 +74,7 @@
 }
 
 .card {
-  display: grid;
-  gap: 14px;
   width: min(340px, calc(100vw - 16px));
-  max-height: min(420px, calc(100vh - 16px));
-  overflow: auto;
-  padding: 12px 14px;
   border: 1px solid #2f2f34;
   border-radius: 12px;
   background: #141416;
@@ -89,6 +86,45 @@
   align-items: baseline;
   gap: 10px;
   margin-bottom: 8px;
+}
+.card-body {
+  display: grid;
+  gap: 14px;
+  max-height: min(420px, calc(100vh - 16px));
+  overflow: auto;
+  padding: 12px 14px;
+}
+/* Close, in the corner, clear of the first title (and of the scrolling). */
+.card-x {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: #8b8b93;
+  cursor: pointer;
+}
+.card-x:hover {
+  background: #1f1f23;
+  color: #fff;
+}
+.card-x svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.card-body > section:first-child .card-head {
+  padding-right: 22px;
 }
 .card-title {
   flex: 1;
@@ -162,10 +198,138 @@
   padding-left: 8px;
 }
 .status {
+  position: relative;
   padding: 0 10px;
-  border-left: 1px solid #2f2f34;
   font-variant-numeric: tabular-nums;
 }
+/* The divider before it, drawn so the count's hover background can cover it. */
+.status::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 1px;
+  height: 18px;
+  background: #2f2f34;
+  transform: translateY(-50%);
+}
+/* The count opens the filter menu; pink while a filter is on. */
+button.count {
+  padding: 5px 10px 5px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+button.count:hover,
+button.count[aria-expanded="true"] {
+  background: #1f1f23;
+}
+.count.filtered {
+  color: rgb(var(--pink));
+}
+
+/* The filter menu, under the count. */
+.menu {
+  display: grid;
+  gap: 6px;
+  width: max-content;
+  max-width: calc(100vw - 16px);
+  padding: 10px 12px 12px;
+  border: 1px solid #2f2f34;
+  border-radius: 12px;
+  background: #141416;
+  color: #ededed;
+  box-shadow: 0 16px 40px rgb(0 0 0 / 0.5);
+}
+.menu-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+/* Turns a section's chips all back on: beside its heading, once any are off.
+   No taller than the heading's line, so the row doesn't grow when it shows. */
+.menu-reset {
+  display: grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  margin-top: 2px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: #8b8b93;
+  cursor: pointer;
+}
+.menu-reset:hover {
+  background: #1f1f23;
+  color: #fff;
+}
+.menu-reset svg {
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.menu-label {
+  margin: 2px 0 0;
+  color: #8b8b93;
+  font-size: 12px;
+  font-weight: 600;
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid #2f2f34;
+  border-radius: 999px;
+  background: #1f1f23;
+  color: #ededed;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.chip:enabled:hover {
+  border-color: #c4c4ca;
+}
+.chip svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+/* Every chip is on to begin with, so on is a plain chip and off is dashed
+   and faded (emoji and all): hidden from the page. */
+.chip[aria-pressed="false"] {
+  border-style: dashed;
+  background: none;
+  opacity: 0.5;
+}
+.chip:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+.menu-empty {
+  color: #8b8b93;
+  font-size: 12px;
+}
+
 /* Text in the bar: lifted 1px. System fonts leave more room above letters
    than below, so centred text looks low beside the centred icons and switch. */
 .t {
@@ -221,7 +385,7 @@
   font-weight: 600;
   cursor: pointer;
 }
-.switch:hover {
+.switch:enabled:hover {
   background: #1f1f23;
 }
 .track {
@@ -248,6 +412,14 @@
 }
 .switch[aria-checked="true"] .track::after {
   transform: translateX(14px);
+}
+/* Nothing on this page to highlight: off, its track greyed out (review mode
+   itself is still on, so its name stays as it is). */
+.switch:disabled {
+  cursor: default;
+}
+.switch:disabled .track {
+  opacity: 0.4;
 }
 
 :focus-visible {

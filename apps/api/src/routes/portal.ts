@@ -128,15 +128,22 @@ portal.post("/projects", async (c) => {
 });
 
 /**
- * "View on site": a short-lived, read-only link to the site itself (its first
- * allowed address), where the widget shows the page's notes over it. The
- * token goes in the URL fragment, which browsers never send to servers.
+ * "View on site": a short-lived, read-only link to the site itself (the
+ * allowed address asked for, or its first), where the widget shows the page's
+ * notes over it. The token goes in the URL fragment, which browsers never send
+ * to servers.
  */
 portal.post("/projects/:id/review", async (c) => {
-  const { path } = await parseJsonBody(c, reviewLinkSchema);
+  const body = await parseJsonBody(c, reviewLinkSchema);
   const project = await getProjectForOwner(c.env.DB, c.req.param("id"), c.get("user").id);
   if (!project) throw notFound("Project");
-  const origin = allowedOrigins(project)[0];
+  const origins = allowedOrigins(project);
+  // Only ever one of the site's own addresses, so the link can't point elsewhere.
+  if (body.origin !== undefined && !origins.includes(body.origin)) {
+    throw new ApiError(400, "bad_request", "That address isn't one of this site's");
+  }
+  const origin = body.origin ?? origins[0];
+  const path = body.path;
   if (!origin) {
     throw new ApiError(409, "bad_request", "Add your site's address first, in its settings");
   }

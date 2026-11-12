@@ -6,10 +6,10 @@ import { showToast } from "./components/Toasts";
  * opens straight away (a popup blocker would stop one opened after waiting
  * for the link), then goes to the link once it's made.
  */
-export function viewOnSite(siteId: string, path?: string) {
+export function viewOnSite(siteId: string, path?: string, origin?: string) {
   const tab = window.open("", "_blank");
   if (tab) tab.opener = null;
-  api.reviewLink(siteId, path).then(
+  api.reviewLink(siteId, path, origin).then(
     ({ url }) => {
       if (tab) tab.location.href = url;
       else window.location.href = url;
