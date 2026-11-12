@@ -20,12 +20,21 @@ const STORAGE_KEY = "flooper-review";
 const HIDDEN_KEY = "flooper-review-hidden";
 /** The filter menu's choices for this tab, kept from page to page. */
 const FILTER_KEY = "flooper-review-filter";
+/** Where the side panel was dragged and how big it was made, for this tab. */
+const SIDE_KEY = "flooper-review-side";
 const NO_REACTION = "💬";
 // Lucide's scan-eye (review mode, the same as "View on site" in Flooper) and
 // the speech bubble Flooper uses for notes. Stroked by the bar's CSS.
 const REVIEW_ICON =
   '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h2m10 0h2a2 2 0 0 1 2 2v2m0 10v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="1"/><path d="M18.944 12.33a1 1 0 0 0 0-.66 7.5 7.5 0 0 0-13.888 0 1 1 0 0 0 0 .66 7.5 7.5 0 0 0 13.888 0"/></svg>';
-// Lucide's rotate-ccw: a filter section's Reset.
+// Lucide's eye-off (notes the page can't show) and chevron-down (the pages list).
+const OFF_PAGE_ICON =
+  '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/></svg>';
+const CHEVRON_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
+// The app's archive icon: a note's Archive action.
+const ARCHIVE_ICON =
+  '<svg viewBox="0 0 24 24" aria-hidden="true"><rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg>';
+// Lucide's rotate-ccw: a filter section's Reset, and a note's Reopen.
 const RESET_ICON =
   '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>';
 const CLOSE_ICON =
@@ -66,6 +75,20 @@ interface Filter {
 }
 const NO_FILTER: Filter = { hiddenKinds: [], hiddenStatuses: [] };
 
+/**
+ * The side panel's height to begin with, at most: its header, then a group
+ * title and ten notes (36px each, 10px apart), and a bit of the next. It can
+ * be made bigger (or smaller) from its corner.
+ */
+const SIDE_MAX = 560;
+
+/** The side panel's place and size, once it's been dragged or resized. */
+interface SideBox {
+  left?: number;
+  top?: number;
+  width?: number;
+  height?: number;
+}
 /** How far each highlight reaches past its element: the outer element's own edge, even when a child fills it. */
 const EDGE = 3;
 /** Elements within this many pixels of each other's box, on every side, count as the same space. */
@@ -120,8 +143,17 @@ class Review {
   private resized = 0;
   private hidden = remember(HIDDEN_KEY) === "1";
   private filter: Filter = readFilter();
-  /** The filter menu, while it's open. */
+  /** The open menu under the bar (the filter, or the pages list), if any. */
   private menu: HTMLElement | null = null;
+  private menuKind: "filter" | "pages" | null = null;
+  /** The side panel of notes the page can't show, if it's open. */
+  private side: HTMLElement | null = null;
+  /** The open card's elements, to open it again after a note changes. */
+  private cardSelectors: string[] = [];
+  /** Closes the open card on a click anywhere else. */
+  private cardCloser: ((event: Event) => void) | null = null;
+  /** A short message at the bottom, when an action didn't work. */
+  private readonly toast = el("div", "toast");
   private path = location.pathname;
   private frame = 0;
   private watch = 0;
@@ -139,9 +171,25 @@ class Review {
     const style = document.createElement("style");
     style.textContent = STYLES;
     this.label.hidden = true;
-    this.root.append(style, this.layer, this.label, this.bar);
+    this.toast.hidden = true;
+    this.toast.setAttribute("role", "status");
+    this.root.append(style, this.layer, this.label, this.bar, this.toast);
     document.documentElement.append(this.host);
     this.layer.addEventListener("click", this.click);
+    // The bar's buttons look the same hovered as open, so one just closed by
+    // a click would still look open under the pointer: it drops the hover
+    // look until the pointer leaves it. (After the button's own click handler.)
+    this.bar.addEventListener("click", (event) => {
+      const button = (event.target as Element).closest("button[aria-expanded]");
+      // Closed: shown closed. Opened again: shown open.
+      button?.classList.toggle("settled", button.getAttribute("aria-expanded") === "false");
+    });
+    this.bar.addEventListener("pointerout", (event) => {
+      const button = (event.target as Element).closest(".settled");
+      if (button && !button.contains(event.relatedTarget as Node | null)) {
+        button.classList.remove("settled");
+      }
+    });
     addEventListener("pointermove", this.hover, { passive: true });
     document.documentElement.addEventListener("pointerleave", this.leave);
     addEventListener("scroll", this.schedule, { capture: true, passive: true });
@@ -164,6 +212,7 @@ class Review {
     forget(STORAGE_KEY);
     forget(HIDDEN_KEY);
     forget(FILTER_KEY);
+    forget(SIDE_KEY);
     removeEventListener("pointermove", this.hover);
     document.documentElement.removeEventListener("pointerleave", this.leave);
     removeEventListener("scroll", this.schedule, { capture: true });
@@ -208,7 +257,7 @@ class Review {
    * nothing here to highlight, it's off and greyed out, and says why.
    */
   private say(
-    status: string | HTMLElement,
+    status: string | HTMLElement[],
     withSwitch = false,
     empty = false,
     filtering = false,
@@ -216,11 +265,12 @@ class Review {
     const title = el("span", "title");
     title.innerHTML = REVIEW_ICON;
     title.append(text("Review mode"));
-    let shown = status;
+    let shown: HTMLElement[];
     if (typeof status === "string") {
-      shown = el("span", "status");
-      shown.append(text(status));
-    }
+      const message = el("span", "status");
+      message.append(text(status));
+      shown = [message];
+    } else shown = status;
     let first: HTMLElement = title;
     if (withSwitch) {
       // An on/off switch named "Review mode": off hides the highlights (the
@@ -243,7 +293,7 @@ class Review {
     exit.append(text("Exit"));
     exit.type = "button";
     exit.addEventListener("click", () => this.stop());
-    this.bar.replaceChildren(first, shown as HTMLElement, exit);
+    this.bar.replaceChildren(first, ...shown, exit);
   }
 
   /** Highlights off: the page as it is, to use as normal. Remembered for the tab. */
@@ -306,12 +356,49 @@ class Review {
       : `${all}${more} of this site's ${plural(page.siteTotal, "note")} are on this page`;
     count.setAttribute("aria-label", `${count.title} Filter`);
     count.setAttribute("aria-haspopup", "true");
-    count.setAttribute("aria-expanded", String(this.menu !== null));
-    count.addEventListener("click", () => (this.menu ? this.closeMenu() : this.openMenu()));
+    count.setAttribute("aria-expanded", String(this.menuKind === "filter"));
+    count.addEventListener("click", () =>
+      this.menuKind === "filter" ? this.closeMenu() : this.openFilter(),
+    );
+
+    // The page you're on, as a button: it lists the site's pages with notes.
+    const where = el("button", "status where");
+    where.type = "button";
+    where.append(el("span", "where-path", page.path));
+    where.insertAdjacentHTML("beforeend", CHEVRON_ICON);
+    where.title = "Pages with notes";
+    where.setAttribute("aria-label", `${page.path}. Pages with notes`);
+    where.setAttribute("aria-haspopup", "true");
+    where.setAttribute("aria-expanded", String(this.menuKind === "pages"));
+    where.addEventListener("click", () =>
+      this.menuKind === "pages" ? this.closeMenu() : this.openPages(),
+    );
+
+    // The notes the page can't show (on no element, or one that's gone), if
+    // any: a button that opens them in a panel at the side.
+    const items = [where, count];
+    const off = offPage(view);
+    const offCount = off.unpinned.length + off.missing.reduce((n, e) => n + e.total, 0);
+    if (offCount > 0) {
+      const button = el("button", "status off");
+      button.type = "button";
+      button.innerHTML = OFF_PAGE_ICON;
+      button.append(text(String(offCount)));
+      button.title = `${plural(offCount, "note")} not on anything shown here`;
+      button.setAttribute("aria-label", button.title);
+      button.setAttribute("aria-expanded", String(this.side !== null));
+      button.addEventListener("click", () => (this.side ? this.closeSide() : this.openSide()));
+      items.push(button);
+    }
     this.layer.hidden = this.hidden;
-    this.say(count, true, this.marks.length === 0, filtering);
+    this.say(items, true, this.marks.length === 0, filtering);
     this.place();
-    if (this.menu) this.openMenu();
+    if (this.menuKind === "filter") this.openFilter();
+    if (this.menuKind === "pages") this.openPages();
+    if (this.side) {
+      if (offCount > 0) this.openSide();
+      else this.closeSide();
+    }
   }
 
   /**
@@ -320,10 +407,9 @@ class Review {
    * turns them all back on). It stays open while you pick, and each pick
    * redraws the page at once.
    */
-  private openMenu(): void {
+  private openFilter(): void {
     const page = this.page;
     if (!page) return;
-    this.menu?.remove();
     const menu = el("div", "menu");
     menu.setAttribute("role", "group");
     menu.setAttribute("aria-label", "Filter notes");
@@ -394,13 +480,49 @@ class Review {
       ),
       statuses,
     );
+    this.showMenu(menu, "filter", ".count");
+  }
+
+  /**
+   * The pages list, under the path: the site's pages with notes, busiest
+   * first. Picking one goes there; the tab stays in review mode.
+   */
+  private openPages(): void {
+    const page = this.page;
+    if (!page) return;
+    const menu = el("div", "menu pages");
+    menu.setAttribute("aria-label", "Pages with notes");
+    const list = el("ul", "page-list");
+    for (const { path, total } of page.pages) {
+      const row = el("button", "page-row");
+      row.type = "button";
+      row.append(el("span", "page-path", path), el("span", "page-total", String(total)));
+      row.title = path;
+      if (path === page.path) row.setAttribute("aria-current", "page");
+      row.addEventListener("click", () => {
+        this.closeMenu();
+        if (path !== location.pathname) location.assign(path);
+      });
+      const item = el("li");
+      item.append(row);
+      list.append(item);
+    }
+    if (page.pages.length === 0) list.append(el("li", "menu-empty", "No notes on this site yet"));
+    menu.append(list);
+    this.showMenu(menu, "pages", ".where");
+  }
+
+  /** A menu under its button in the bar, kept on screen. One at a time. */
+  private showMenu(menu: HTMLElement, kind: "filter" | "pages", anchor: string): void {
+    this.menu?.remove();
     this.root.append(menu);
     this.menu = menu;
-    this.bar.querySelector(".count")?.setAttribute("aria-expanded", "true");
-    // Under the count, kept on screen.
-    const anchor = this.bar.querySelector(".count")?.getBoundingClientRect();
+    this.menuKind = kind;
+    const button = this.bar.querySelector(anchor);
+    button?.setAttribute("aria-expanded", "true");
+    const box = button?.getBoundingClientRect();
     const bar = this.bar.getBoundingClientRect();
-    const middle = anchor ? anchor.left + anchor.width / 2 : innerWidth / 2;
+    const middle = box ? box.left + box.width / 2 : innerWidth / 2;
     const left = Math.min(
       innerWidth - menu.offsetWidth - 8,
       Math.max(8, middle - menu.offsetWidth / 2),
@@ -408,11 +530,208 @@ class Review {
     Object.assign(menu.style, { left: `${left}px`, top: `${bar.bottom + 8}px` });
   }
 
+  /**
+   * A note's action (read or unread, done or reopened, archived): saved,
+   * then the page drawn again with it, the open card and panel kept open.
+   * Archived notes leave review mode, as they do everywhere.
+   */
+  private act = async (note: ReviewNote, status: ReviewNote["status"]): Promise<void> => {
+    let res: Response | null = null;
+    try {
+      res = await fetch(`${this.ingestUrl}/review/notes/${encodeURIComponent(note.id)}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${this.token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+        credentials: "omit",
+      });
+    } catch {}
+    if (res?.status === 401) {
+      forget(STORAGE_KEY);
+      this.say("This review link has expired. Open a new one from Flooper.");
+      return;
+    }
+    if (!res?.ok || !this.page) {
+      this.notify("Couldn't change that note. Try again.");
+      return;
+    }
+    if (status === "archived") archive(this.page, note.id);
+    else note.status = status;
+    this.refresh();
+  };
+
+  /** The page drawn again after a change, with the card that was open opened again. */
+  private refresh(): void {
+    if (!this.page) return;
+    const card = this.card;
+    const kept = card
+      ? {
+          selectors: this.cardSelectors,
+          left: Number.parseFloat(card.style.left),
+          top: Number.parseFloat(card.style.top),
+        }
+      : null;
+    this.draw(this.page);
+    if (!kept) return;
+    const marks = this.marks.filter((m) =>
+      m.elements.some((e) => kept.selectors.includes(e.selector)),
+    );
+    if (marks.length > 0) this.openCard(marks, kept.left - 8, kept.top - 8);
+  }
+
+  /** A message at the bottom for a few seconds. */
+  private notify(message: string): void {
+    this.toast.textContent = message;
+    this.toast.hidden = false;
+    clearTimeout(this.toastTimer);
+    this.toastTimer = window.setTimeout(() => {
+      this.toast.hidden = true;
+    }, 4000);
+  }
+  private toastTimer = 0;
+
   private closeMenu(): void {
     if (!this.menu) return;
     this.menu.remove();
     this.menu = null;
-    this.bar.querySelector(".count")?.setAttribute("aria-expanded", "false");
+    this.menuKind = null;
+    for (const b of this.bar.querySelectorAll(".count, .where")) {
+      b.setAttribute("aria-expanded", "false");
+    }
+  }
+
+  /**
+   * The notes this page can't show, in a panel at the right: those on no
+   * element, and those whose element isn't on the page (any more). The
+   * filter applies here too.
+   */
+  private openSide(): void {
+    const page = this.page;
+    if (!page) return;
+    const { unpinned, missing } = offPage(applyFilter(page, this.filter));
+    const side = el("aside", "side");
+    side.setAttribute("aria-label", "Other notes");
+    // A header to drag it by, with the way to close it.
+    const head = el("div", "side-head");
+    head.append(el("p", "side-name", "Other notes"));
+    const close = el("button", "side-x");
+    close.type = "button";
+    close.setAttribute("aria-label", "Close");
+    close.innerHTML = CLOSE_ICON;
+    close.addEventListener("click", () => this.closeSide());
+    head.append(close);
+    this.draggable(side, head);
+    const body = el("div", "card-body");
+    if (unpinned.length > 0) {
+      const section = el("section", "card-section");
+      section.append(el("p", "side-title", `Not on an element · ${unpinned.length}`));
+      const list = el("ul", "notes");
+      for (const note of unpinned) list.append(noteItem(note, this.app, this.act));
+      section.append(list);
+      body.append(section);
+    }
+    if (missing.length > 0) {
+      const section = el("section", "card-section");
+      const n = missing.reduce((sum, e) => sum + e.total, 0);
+      section.append(el("p", "side-title", `Element not found · ${n}`));
+      for (const element of missing) {
+        const head = el("div", "card-head");
+        head.append(
+          el("p", "card-title", describe(element)),
+          el("span", "card-counts", counts([element])),
+        );
+        const list = el("ul", "notes");
+        for (const note of element.notes) list.append(noteItem(note, this.app, this.act));
+        section.append(head, list);
+      }
+      body.append(section);
+    }
+    side.append(head, body);
+    // Drawn again (a note changed, or the filter): where the list was scrolled to.
+    const scrolled = this.side?.querySelector(".card-body")?.scrollTop ?? 0;
+    this.side?.remove();
+    this.root.append(side);
+    this.side = side;
+    this.placeSide(side);
+    body.scrollTop = scrolled;
+    this.bar.querySelector(".off")?.setAttribute("aria-expanded", "true");
+  }
+
+  /**
+   * Where the side panel goes: where it was dragged and at the size it was
+   * made, if it was, kept on screen. Otherwise at the right under the bar,
+   * about ten notes tall at most, and on short windows ending above the
+   * widget's button (48px, 20px from the corner).
+   */
+  private placeSide(side: HTMLElement): void {
+    const saved = readSide();
+    const top = this.bar.getBoundingClientRect().bottom + 8;
+    if (saved.width) side.style.width = `${Math.min(saved.width, innerWidth - 16)}px`;
+    const height = saved.height
+      ? Math.min(saved.height, innerHeight - 16)
+      : Math.max(160, Math.min(SIDE_MAX, innerHeight - top - 88));
+    if (saved.height || side.offsetHeight > height) side.style.height = `${height}px`;
+    if (saved.left !== undefined && saved.top !== undefined) {
+      this.moveSide(side, saved.left, saved.top);
+    } else {
+      side.style.top = `${top}px`;
+    }
+    // Made bigger or smaller from its corner: remember that size.
+    if (typeof ResizeObserver === "function") {
+      const set = { width: side.offsetWidth, height: side.offsetHeight };
+      new ResizeObserver(() => {
+        if (!side.isConnected) return;
+        const width = side.offsetWidth;
+        const height = side.offsetHeight;
+        if (width === set.width && height === set.height) return;
+        set.width = width;
+        set.height = height;
+        writeSide({ ...readSide(), width, height });
+      }).observe(side);
+    }
+  }
+
+  /** The side panel at (left, top), kept where its header can still be grabbed. */
+  private moveSide(side: HTMLElement, left: number, top: number): void {
+    const x = Math.min(Math.max(left, 8 - side.offsetWidth + 80), innerWidth - 80);
+    const y = Math.min(Math.max(top, 8), innerHeight - 40);
+    Object.assign(side.style, { left: `${x}px`, top: `${y}px`, right: "auto" });
+  }
+
+  /** Dragging the side panel by its header (not its buttons): it stays where it's let go. */
+  private draggable(side: HTMLElement, head: HTMLElement): void {
+    let from: { x: number; y: number; left: number; top: number } | null = null;
+    head.addEventListener("pointerdown", (event) => {
+      if (event.button !== 0 || (event.target as Element).closest("button")) return;
+      event.preventDefault();
+      const box = side.getBoundingClientRect();
+      from = { x: event.clientX, y: event.clientY, left: box.left, top: box.top };
+      // Keep getting the moves when the pointer outruns the header.
+      try {
+        head.setPointerCapture(event.pointerId);
+      } catch {}
+      side.classList.add("dragging");
+    });
+    head.addEventListener("pointermove", (event) => {
+      if (!from) return;
+      this.moveSide(side, from.left + event.clientX - from.x, from.top + event.clientY - from.y);
+    });
+    const drop = () => {
+      if (!from) return;
+      from = null;
+      side.classList.remove("dragging");
+      const left = Number.parseFloat(side.style.left);
+      const top = Number.parseFloat(side.style.top);
+      if (Number.isFinite(left) && Number.isFinite(top)) writeSide({ ...readSide(), left, top });
+    };
+    head.addEventListener("pointerup", drop);
+    head.addEventListener("pointercancel", drop);
+  }
+
+  private closeSide(): void {
+    if (!this.side) return;
+    this.side.remove();
+    this.side = null;
+    this.bar.querySelector(".off")?.setAttribute("aria-expanded", "false");
   }
 
   /** A new filter: kept for the tab, and the page drawn again with it. */
@@ -554,22 +873,21 @@ class Review {
     this.openCard(picked, at.x, at.y);
   };
 
-  /** Esc: close the filter menu, or else the notes. */
+  /** Esc: close a menu, or else the notes card, or else the side panel. */
   private escape = (event: KeyboardEvent): void => {
     if (event.key !== "Escape") return;
     if (this.menu) this.closeMenu();
-    else this.closeCard();
+    else if (this.card) this.closeCard();
+    else this.closeSide();
   };
 
-  /** A press anywhere but the menu or the count (which toggles it) closes the menu. */
+  /** A press anywhere but the menu or its button (which toggles it) closes the menu. */
   private outside = (event: PointerEvent): void => {
     if (!this.menu) return;
     const path = event.composedPath();
-    if (
-      path.includes(this.menu) ||
-      path.some((t) => t instanceof HTMLElement && t.classList.contains("count"))
-    )
-      return;
+    const toggles = (t: EventTarget) =>
+      t instanceof HTMLElement && (t.classList.contains("count") || t.classList.contains("where"));
+    if (path.includes(this.menu) || path.some(toggles)) return;
     this.closeMenu();
   };
 
@@ -603,10 +921,11 @@ class Review {
       );
       section.append(head);
       const list = el("ul", "notes");
-      for (const note of element.notes) list.append(noteItem(note, this.app));
+      for (const note of element.notes) list.append(noteItem(note, this.app, this.act));
       section.append(list);
       body.append(section);
     }
+    this.cardSelectors = marks.flatMap((m) => m.elements.map((e) => e.selector));
     this.layer.append(card);
     this.card = card;
     // Beside the click, kept on screen, then pinned there against the element.
@@ -615,15 +934,15 @@ class Review {
     Object.assign(card.style, { left: `${left}px`, top: `${top}px` });
     const mark = marks[0] as Mark;
     this.pin = { mark, dx: left - mark.box.left, dy: top - mark.box.top };
-    // A click anywhere else closes it (in the overlay or on the page).
-    const close = (event: Event) => {
-      if (event.composedPath().includes(card)) {
-        document.addEventListener("click", close, { once: true, capture: true });
-        return;
-      }
-      this.closeCard();
+    // A click anywhere else closes it (in the overlay or on the page). Not
+    // the click that opened it, which is still on its way.
+    const closer = (event: Event) => {
+      if (!event.composedPath().includes(card)) this.closeCard();
     };
-    setTimeout(() => document.addEventListener("click", close, { once: true, capture: true }));
+    this.cardCloser = closer;
+    setTimeout(() => {
+      if (this.cardCloser === closer) document.addEventListener("click", closer, true);
+    });
   }
 
   private closeCard(): void {
@@ -631,6 +950,8 @@ class Review {
     this.card.remove();
     this.card = null;
     this.pin = null;
+    if (this.cardCloser) document.removeEventListener("click", this.cardCloser, true);
+    this.cardCloser = null;
     this.outline([]);
   }
 }
@@ -649,6 +970,25 @@ function el<K extends keyof HTMLElementTagNameMap>(
 /** Words in the bar, lifted to line up with the icons beside them (see .t). */
 function text(words: string): HTMLElement {
   return el("span", "t", words);
+}
+
+/** Where the side panel was put and how big it was made, if it was. */
+function readSide(): SideBox {
+  try {
+    const saved = JSON.parse(remember(SIDE_KEY) ?? "null") as SideBox | null;
+    if (!saved || typeof saved !== "object") return {};
+    const box: SideBox = {};
+    for (const key of ["left", "top", "width", "height"] as const) {
+      if (typeof saved[key] === "number" && Number.isFinite(saved[key])) box[key] = saved[key];
+    }
+    return box;
+  } catch {
+    return {};
+  }
+}
+
+function writeSide(box: SideBox): void {
+  remember(SIDE_KEY, JSON.stringify(box));
 }
 
 /** The tab's filter, if one was set on an earlier page. */
@@ -686,6 +1026,11 @@ function applyFilter(page: ReviewPage, filter: Filter): ReviewPage {
     return [{ ...element, notes, total: notes.length, counts }];
   });
   return { ...page, elements, unpinned: page.unpinned.filter(keep) };
+}
+
+/** The page's notes it can't show: on no element, and on elements it can't find. */
+function offPage(page: ReviewPage): { unpinned: ReviewNote[]; missing: ReviewElement[] } {
+  return { unpinned: page.unpinned, missing: page.elements.filter((e) => !find(e.selector)) };
 }
 
 /** Every note on the page: on elements, and on nothing. */
@@ -799,7 +1144,62 @@ const STATUS: Record<ReviewNote["status"], string> = {
   archived: "Archived",
 };
 
-function noteItem(note: ReviewNote, app: string): HTMLElement {
+/**
+ * A note's actions, like the app's: read or unread, done or reopened, and
+ * archive. Shown on hover (or keyboard focus), so the list stays calm.
+ */
+function noteActions(
+  note: ReviewNote,
+  act: (note: ReviewNote, status: ReviewNote["status"]) => Promise<void>,
+): HTMLElement {
+  const actions = el("span", "note-actions");
+  const button = (label: string, icon: string, status: ReviewNote["status"]) => {
+    const b = el("button", "note-action");
+    b.type = "button";
+    b.innerHTML = icon;
+    b.title = label;
+    b.setAttribute("aria-label", label);
+    b.addEventListener("click", async () => {
+      for (const other of actions.querySelectorAll("button")) other.disabled = true;
+      await act(note, status);
+      // Still here if it didn't work (a changed note is drawn again).
+      for (const other of actions.querySelectorAll("button")) other.disabled = false;
+    });
+    actions.append(b);
+  };
+  if (note.status === "new") button("Mark as read", STATUS_ICONS.seen, "seen");
+  if (note.status === "seen") button("Mark as unread", STATUS_ICONS.new, "new");
+  if (note.status === "done" || note.status === "archived") button("Reopen", RESET_ICON, "new");
+  else button("Mark done", STATUS_ICONS.done, "done");
+  if (note.status !== "archived") button("Archive", ARCHIVE_ICON, "archived");
+  return actions;
+}
+
+/** Take an archived note out of the page, its counts and its totals. */
+function archive(page: ReviewPage, id: string): void {
+  const before = noteCount(page);
+  page.unpinned = page.unpinned.filter((n) => n.id !== id);
+  page.elements = page.elements.flatMap((element) => {
+    const notes = element.notes.filter((n) => n.id !== id);
+    if (notes.length === element.notes.length) return [element];
+    if (notes.length === 0) return [];
+    const counts = { love: 0, idea: 0, confused: 0, bug: 0, none: 0 };
+    for (const n of notes) counts[n.reaction ?? "none"]++;
+    return [{ ...element, notes, total: notes.length, counts }];
+  });
+  if (noteCount(page) < before) {
+    page.siteTotal = Math.max(0, page.siteTotal - 1);
+    page.pages = page.pages
+      .map((p) => (p.path === page.path ? { ...p, total: p.total - 1 } : p))
+      .filter((p) => p.total > 0);
+  }
+}
+
+function noteItem(
+  note: ReviewNote,
+  app: string,
+  act: (note: ReviewNote, status: ReviewNote["status"]) => Promise<void>,
+): HTMLElement {
   const item = el("li", "note");
   const emoji = note.reaction ? REACTION_EMOJI[note.reaction] : NO_REACTION;
   // The note itself opens it in Flooper, in a new tab.
@@ -812,6 +1212,7 @@ function noteItem(note: ReviewNote, app: string): HTMLElement {
     el("span", "note-emoji", emoji),
     text,
     el("span", "note-meta", `${STATUS[note.status]} · ${ago(note.createdAt)}`),
+    noteActions(note, act),
   );
   return item;
 }

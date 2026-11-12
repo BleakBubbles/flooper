@@ -11,6 +11,8 @@ import type { ProjectRow } from "./projects";
 export const REVIEW_TTL_MS = 4 * 60 * 60 * 1000;
 /** The most notes one page returns, newest first. */
 export const REVIEW_NOTES_MAX = 500;
+/** The most pages the overlay's page list shows, busiest first. */
+export const REVIEW_PAGES_MAX = 50;
 
 /**
  * Make a review link's token for one site. Only its hash is stored. Expired
@@ -52,6 +54,27 @@ export async function projectForReviewToken(
     .first<ProjectRow>();
 }
 
+/**
+ * Review mode's actions: one note's status, on the review token's own site,
+ * and never a deleted one. Only statuses, which are all reversible; deleting
+ * stays in the app.
+ */
+export async function setReviewNoteStatus(
+  db: D1Database,
+  projectId: string,
+  id: string,
+  status: FeedbackStatus,
+): Promise<{ id: string; status: FeedbackStatus } | null> {
+  return db
+    .prepare(
+      `UPDATE feedback SET status = ?
+       WHERE id = ? AND project_id = ? AND deleted_at IS NULL
+       RETURNING id, status`,
+    )
+    .bind(status, id, projectId)
+    .first<{ id: string; status: FeedbackStatus }>();
+}
+
 interface ReviewRow {
   id: string;
   reaction: Reaction | null;
@@ -72,7 +95,7 @@ export async function reviewPage(
   projectId: string,
   path: string,
 ): Promise<ReviewPage> {
-  const [page, site] = await db.batch([
+  const [page, site, pages] = await db.batch([
     db
       .prepare(
         `SELECT id, reaction, message, status, created_at, target FROM feedback
@@ -88,6 +111,15 @@ export async function reviewPage(
          WHERE project_id = ? AND deleted_at IS NULL AND status <> 'archived'`,
       )
       .bind(projectId),
+    // Every page with notes, for the bar's list of pages.
+    db
+      .prepare(
+        `SELECT json_extract(context, '$.path') AS path, COUNT(*) AS total FROM feedback
+         WHERE project_id = ? AND deleted_at IS NULL AND status <> 'archived'
+         GROUP BY path HAVING path IS NOT NULL
+         ORDER BY total DESC, path LIMIT ?`,
+      )
+      .bind(projectId, REVIEW_PAGES_MAX),
   ]);
   const results = (page?.results ?? []) as ReviewRow[];
 
@@ -128,5 +160,6 @@ export async function reviewPage(
     unpinned,
     truncated: results.length > REVIEW_NOTES_MAX,
     siteTotal: ((site?.results[0] as { n: number } | undefined)?.n ?? 0) as number,
+    pages: (pages?.results ?? []) as { path: string; total: number }[],
   };
 }

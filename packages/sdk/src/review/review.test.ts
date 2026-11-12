@@ -29,6 +29,10 @@ const PAGE: ReviewPage = {
   unpinned: [{ id: "fb_x", reaction: "love", message: "Nice", status: "seen", createdAt: now }],
   truncated: false,
   siteTotal: 40,
+  pages: [
+    { path: "/pricing", total: 12 },
+    { path: "/", total: 7 },
+  ],
 };
 
 // No layout in the test DOM: give each element a box.
@@ -307,6 +311,159 @@ describe("review mode's overlay", () => {
       reset("status")?.click();
       expect(chipNamed("Done")?.getAttribute("aria-pressed")).toBe("true");
       expect(chipNamed("Broken")?.getAttribute("aria-pressed")).toBe("false");
+    });
+  });
+
+  it("lists the site's pages from the path, and goes to the one picked", async () => {
+    await start();
+    const where = overlay().querySelector<HTMLButtonElement>(".where");
+    expect(where?.textContent).toBe("/");
+    where?.click();
+    const rows = [...overlay().querySelectorAll<HTMLButtonElement>(".page-row")];
+    expect(rows.map((r) => r.textContent)).toEqual(["/pricing12", "/7"]);
+    // The page you're on is marked, and picking it just closes the list.
+    expect(rows[1]?.getAttribute("aria-current")).toBe("page");
+    const assign = vi.fn();
+    vi.stubGlobal("location", { ...window.location, pathname: "/", assign });
+    rows[1]?.click();
+    expect(assign).not.toHaveBeenCalled();
+    expect(overlay().querySelector(".pages")).toBeNull();
+    where?.click();
+    overlay().querySelector<HTMLButtonElement>(".page-row")?.click();
+    expect(assign).toHaveBeenCalledWith("/pricing");
+  });
+
+  it("shows the notes it can't draw in a side panel", async () => {
+    await start();
+    // #gone isn't on the page, and the love note is on nothing.
+    const off = overlay().querySelector<HTMLButtonElement>(".off");
+    expect(off?.textContent).toBe("2");
+    expect(off?.getAttribute("aria-label")).toBe("2 notes not on anything shown here");
+    off?.click();
+    const side = () => overlay().querySelector<HTMLElement>(".side");
+    expect([...(side()?.querySelectorAll(".side-title") ?? [])].map((t) => t.textContent)).toEqual([
+      "Not on an element · 1",
+      "Element not found · 1",
+    ]);
+    expect(side()?.querySelector(".card-title")?.textContent).toBe("“Old”");
+    expect([...(side()?.querySelectorAll(".note-text") ?? [])].map((n) => n.textContent)).toEqual([
+      "Nice",
+      "Gone note",
+    ]);
+    // The filter applies there too: with love notes hidden, one is left.
+    overlay().querySelector<HTMLButtonElement>(".count")?.click();
+    [...overlay().querySelectorAll<HTMLButtonElement>(".menu .chip")]
+      .find((c) => c.getAttribute("aria-label")?.startsWith("Love it"))
+      ?.click();
+    expect(overlay().querySelector(".off")?.textContent).toBe("1");
+    expect(side()?.querySelectorAll(".note-text")).toHaveLength(1);
+    // Esc closes the menu first, then the panel.
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    expect(side()).not.toBeNull();
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    expect(side()).toBeNull();
+  });
+
+  it("lets the side panel be dragged by its header, and remembers where", async () => {
+    await start();
+    overlay().querySelector<HTMLButtonElement>(".off")?.click();
+    const side = () => overlay().querySelector<HTMLElement>(".side");
+    const head = side()?.querySelector<HTMLElement>(".side-head");
+    const at = (type: string, x: number, y: number) =>
+      head?.dispatchEvent(
+        new PointerEvent(type, { bubbles: true, clientX: x, clientY: y, button: 0, pointerId: 1 }),
+      );
+    at("pointerdown", 100, 100);
+    at("pointermove", 400, 300);
+    at("pointerup", 400, 300);
+    expect(side()?.style.left).toBe("300px");
+    expect(side()?.style.top).toBe("200px");
+    expect(JSON.parse(sessionStorage.getItem("flooper-review-side") ?? "{}")).toMatchObject({
+      left: 300,
+      top: 200,
+    });
+    // Closed and opened again: back where it was put. The header's × closes it.
+    side()?.querySelector<HTMLButtonElement>(".side-x")?.click();
+    expect(side()).toBeNull();
+    overlay().querySelector<HTMLButtonElement>(".off")?.click();
+    expect(side()?.style.left).toBe("300px");
+    expect(side()?.style.top).toBe("200px");
+  });
+
+  it("shows a bar button closed as soon as it's clicked closed, hovered or not", async () => {
+    await start();
+    const count = () => overlay().querySelector<HTMLButtonElement>(".count");
+    count()?.click();
+    expect(count()?.classList.contains("settled")).toBe(false);
+    count()?.click();
+    expect(count()?.getAttribute("aria-expanded")).toBe("false");
+    expect(count()?.classList.contains("settled")).toBe(true);
+    // Clicked open again without leaving it: shown open.
+    count()?.click();
+    expect(count()?.getAttribute("aria-expanded")).toBe("true");
+    expect(count()?.classList.contains("settled")).toBe(false);
+    count()?.click();
+    // Back to normal once the pointer leaves it.
+    count()?.dispatchEvent(new PointerEvent("pointerout", { bubbles: true, relatedTarget: null }));
+    expect(count()?.classList.contains("settled")).toBe(false);
+  });
+
+  describe("a note's actions", () => {
+    const actions = () =>
+      [...overlay().querySelectorAll<HTMLButtonElement>(".card .note-action")].map((b) =>
+        b.getAttribute("aria-label"),
+      );
+    const action = (label: string) =>
+      overlay().querySelector<HTMLButtonElement>(`.card .note-action[aria-label="${label}"]`);
+    /** The API: the page for reads, and `answer` for a note's action. */
+    function api(answer: () => Response) {
+      const fetchMock = vi.fn(async (_url: string, init?: RequestInit) =>
+        init?.method === "POST" ? answer() : new Response(JSON.stringify(PAGE)),
+      );
+      vi.stubGlobal("fetch", fetchMock);
+      return fetchMock;
+    }
+
+    it("marks a note done, keeping its card open and showing the change", async () => {
+      await start(structuredClone(PAGE));
+      clickAt(150, 135); // The heading's card: one new note.
+      expect(actions()).toEqual(["Mark as read", "Mark done", "Archive"]);
+      const fetchMock = api(() => new Response("{}"));
+      action("Mark done")?.click();
+      await vi.waitFor(() =>
+        expect(overlay().querySelector(".card .note-meta")?.textContent).toMatch(/^Done/),
+      );
+      const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+      expect(url).toBe(`${INGEST}/review/notes/fb_%23projects%20h2`);
+      expect(init.body).toBe(JSON.stringify({ status: "done" }));
+      expect((init.headers as Record<string, string>).Authorization).toBe("Bearer tok_123");
+      // Done now: it can be reopened.
+      expect(actions()).toEqual(["Reopen", "Archive"]);
+    });
+
+    it("takes an archived note out, with the counts", async () => {
+      await start(structuredClone(PAGE));
+      clickAt(150, 135);
+      api(() => new Response("{}"));
+      action("Archive")?.click();
+      await vi.waitFor(() => expect(overlay().querySelector(".count")?.textContent).toBe("6/39"));
+      // Its element had no other note: no card, no highlight.
+      expect(overlay().querySelector(".card")).toBeNull();
+      expect(areas().filter((a) => !a.hidden)).toHaveLength(2);
+    });
+
+    it("says so when an action didn't work, and changes nothing", async () => {
+      await start(structuredClone(PAGE));
+      clickAt(150, 135);
+      api(() => new Response("{}", { status: 500 }));
+      action("Mark done")?.click();
+      await vi.waitFor(() =>
+        expect(overlay().querySelector(".toast")?.textContent).toBe(
+          "Couldn't change that note. Try again.",
+        ),
+      );
+      expect(overlay().querySelector(".card .note-meta")?.textContent).toMatch(/^New/);
+      expect(action("Mark done")?.disabled).toBe(false);
     });
   });
 

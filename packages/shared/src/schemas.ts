@@ -304,6 +304,8 @@ export interface ReviewPage {
   truncated: boolean;
   /** Notes on every page of the site, counted the same way (not archived or deleted). */
   siteTotal: number;
+  /** The site's pages with notes (counted the same way), busiest first, up to REVIEW_PAGES_MAX. */
+  pages: { path: string; total: number }[];
 }
 
 export interface Feedback {
