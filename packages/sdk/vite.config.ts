@@ -21,6 +21,11 @@ export default defineConfig({
       fileName: (format) => (format === "es" ? "flooper.mjs" : "flooper.js"),
     },
     target: "es2020",
+    // The widget's CSS already needs :focus-visible and :is() (Safari 15.4,
+    // 2022). Targeting those browsers drops fallbacks that only old ones
+    // would use: every :is() rule repeated as :-webkit-any(), and rule lists
+    // split in two around :focus-visible, a -moz- prefix. About 30 bytes gzipped.
+    cssTarget: ["chrome90", "edge90", "firefox94", "safari15.4"],
     sourcemap: true,
     // Terser over Vite's default (esbuild): slower, but it squeezes out a few
     // hundred more bytes, and the widget has a 10 KB budget (scripts/check-size.mjs).

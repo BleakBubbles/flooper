@@ -168,6 +168,17 @@ svg.lucide {
   transform-origin: bottom right;
   animation: pop 160ms ease-out;
 }
+/* Close: the chip's remove button, in the panel's top right corner. That's
+   the widget's too (the panel is its widest part, at the top), so no
+   position: relative here. Last in the panel, so $(".target-clear") still
+   finds the chip's, and outside its forms, so it needs no type="button". */
+/* Centred on the title's line, its × on the content's right edge (the
+   panel's 1px border and 16px padding, less the button's 3px). */
+.x {
+  position: absolute;
+  top: 18px;
+  right: 14px;
+}
 .flooper[data-position="bottom-left"] .panel {
   transform-origin: bottom left;
 }
@@ -179,7 +190,7 @@ svg.lucide {
 }
 
 .title {
-  margin: 0 0 12px;
+  margin: 0 24px 12px 0;
   font-size: 15px;
   font-weight: 700;
   letter-spacing: -0.01em;
