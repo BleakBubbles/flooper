@@ -63,9 +63,10 @@ export const api = {
 
   listProjects: () => request<{ data: ProjectWithSummary[] }>("GET", "/v1/projects"),
   /** "View on site": a short-lived review link to the site (a page, or its home page). */
-  reviewLink: (projectId: string, path?: string) =>
+  reviewLink: (projectId: string, path?: string, origin?: string) =>
     request<{ url: string; expiresAt: string }>("POST", `/v1/projects/${projectId}/review`, {
       path,
+      origin,
     }),
   /** The sidebar's order, after a drag: every site's ID, first to last. */
   reorderProjects: (ids: string[]) => request<void>("PUT", "/v1/projects/order", { ids }),

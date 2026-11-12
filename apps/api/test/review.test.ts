@@ -54,6 +54,17 @@ describe("review mode", () => {
     expect(home.url.startsWith(`${SITE}/#flooper-review=`)).toBe(true);
   });
 
+  it("opens the page a note was on: its query, and only the site's own addresses", async () => {
+    const { link } = await setup();
+    const res = await link({ path: "/checkout?step=2", origin: SITE });
+    expect(res.status).toBe(200);
+    const { url } = (await res.json()) as { url: string };
+    expect(url.startsWith(`${SITE}/checkout?step=2#flooper-review=`)).toBe(true);
+
+    const elsewhere = await link({ path: "/", origin: "https://evil.example" });
+    expect(elsewhere.status).toBe(400);
+  });
+
   it("gives the page's notes by element, busiest first, without visitor details", async () => {
     const { link, read } = await setup();
     const { url } = (await (await link()).json()) as { url: string };

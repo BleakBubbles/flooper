@@ -1,9 +1,10 @@
 import { type FeedbackStatus, REACTION_EMOJI } from "@flooper/shared";
 import type { Feedback } from "@flooper/shared/schemas";
-import type { ReactNode } from "react";
+import type { MouseEvent, ReactNode } from "react";
 import { Link } from "react-router";
 import { pageUrl, showMeUrl } from "../feedbackLinks";
 import { fullDate, timeAgo } from "../time";
+import { viewOnSite } from "../viewOnSite";
 import { CloseIcon } from "./icons";
 import { DeletedActions, REACTION_LABELS, StatusActions } from "./NoteActions";
 import { wantsReply } from "./ReplyDialog";
@@ -46,6 +47,14 @@ export function FeedbackDetail({
   const { context, target, visitor, metadata } = feedback;
   const showMe = showMeUrl(feedback, allowedOrigins);
   const page = pageUrl(feedback, allowedOrigins);
+  // The page in review mode, its notes drawn over it. The link keeps the plain
+  // address, so a new-tab click (⌘/Ctrl or middle) or "Copy link" still gives
+  // the page as visitors see it.
+  const reviewPage = (event: MouseEvent) => {
+    if (!page || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey) return;
+    event.preventDefault();
+    viewOnSite(feedback.projectId, page.pathname + page.search, page.origin);
+  };
 
   return (
     <article className="detail" aria-labelledby="detail-heading">
@@ -132,6 +141,8 @@ export function FeedbackDetail({
               href={page.toString()}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={reviewPage}
+              title="Open in review mode"
             >
               {context.url}
             </a>

@@ -268,7 +268,10 @@ export interface ProjectWithSummary extends Project {
  * "/checkout"; the site's home page if left out).
  */
 export const reviewLinkSchema = z.object({
+  /** The page, with its query if any. The site's home page if left out. */
   path: z.string().startsWith("/").max(2000).optional(),
+  /** Which of the site's allowed origins to open. Its first if left out. */
+  origin: z.string().max(200).optional(),
 });
 
 /** A note as review mode shows it over the page: no visitor details. */
