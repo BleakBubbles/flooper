@@ -78,9 +78,18 @@ Stepping stones, each useful on its own:
       ask `GET /v1/ingest/:key/review?path=` (Bearer token, from the site's
       own addresses) for that page's notes, grouped by element, busiest
       first. Migration 0009 (`review_tokens`, hashed like sessions).
-   2. **The overlay:** "View on site" in the app; the widget lazy-loads a
-      separate review bundle that draws a glow per element and pins with
-      reaction counts.
+   2. **The overlay** (done, 2026-11-11). "Review on site" in a site's
+      header (or "View on site" in its menu) opens it in a new tab in review
+      mode. The widget sees the token, keeps it for the tab and loads
+      `sdk/review.js` (its own file, so visitors never download it): a
+      translucent pink fill on each element with notes, stronger the more it
+      has (nested ones stack darker). Like DevTools' element picker, hovering
+      outlines what a click opens and shows its reaction counts; clicking
+      opens its notes, each linking to Flooper. A bar at the top switches
+      review mode off and on, counts this page's notes against the site's,
+      and exits. To fit the loader in the widget's 10 KB, its CSS variables
+      get short names at build time and the launcher's logo has rounded
+      coordinates (no visible change).
    3. **The rest:** a sidebar for notes with no element or whose element has
       drifted, then triage from the overlay if it's worth it.
 

@@ -7,7 +7,7 @@ export default defineConfig({
     __SDK_VERSION__: JSON.stringify(pkg.version),
     __DEFAULT_API_URL__: JSON.stringify(process.env.FLOOPER_API_URL ?? "http://localhost:8787"),
   },
-  plugins: [compactIcons()],
+  plugins: [compactIcons(), shortCssVariables()],
   // `pnpm dev` serves index.html: a fake personal site for trying the widget.
   server: { port: 5174, strictPort: true },
   build: {
@@ -31,6 +31,31 @@ export default defineConfig({
     environment: "happy-dom",
   },
 });
+
+/**
+ * The widget's CSS keeps readable custom property names (--border-strong,
+ * --launcher-shadow...); the shipped file gets short ones (--a, --b...), which
+ * is worth about 60 bytes of the 10 KB budget. Only widget.css's own
+ * variables, all defined on its :host, and no code reads them by name.
+ */
+function shortCssVariables(): Plugin {
+  return {
+    name: "short-css-variables",
+    enforce: "pre",
+    transform(code, id) {
+      if (!/[\\/]ui[\\/]widget\.css/.test(id)) return null;
+      // Longest first, so --surface-raised isn't caught as --surface.
+      const names = [...new Set(code.match(/--[a-z][\w-]*/g) ?? [])].sort(
+        (a, b) => b.length - a.length,
+      );
+      let out = code;
+      names.forEach((name, i) => {
+        out = out.replace(new RegExp(`${name}(?![\\w-])`, "g"), `--${i.toString(36)}`);
+      });
+      return out;
+    },
+  };
+}
 
 /**
  * Lucide's icons arrive as pretty-printed SVG strings. Squeeze them before they

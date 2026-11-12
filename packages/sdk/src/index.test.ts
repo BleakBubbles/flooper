@@ -286,3 +286,32 @@ describe("init", () => {
     history.replaceState(null, "", "/");
   });
 });
+
+describe("review mode's loader", () => {
+  afterEach(() => {
+    sessionStorage.clear();
+    for (const s of document.querySelectorAll('script[src$="/sdk/review.js"]')) s.remove();
+    history.replaceState(null, "", "/");
+  });
+
+  it("takes the token from the address, keeps it for the tab, and loads the overlay", () => {
+    history.replaceState(null, "", "/checkout?x=1#flooper-review=tok_123");
+    instance = init({ projectKey: "pk_test", apiUrl: "https://api.test" });
+
+    expect(location.hash).toBe("");
+    expect(location.pathname + location.search).toBe("/checkout?x=1");
+    expect(sessionStorage.getItem("flooper-review")).toBe("tok_123");
+    const script = document.querySelector<HTMLScriptElement>('script[src$="/sdk/review.js"]');
+    expect(script?.src).toBe("https://api.test/sdk/review.js");
+  });
+
+  it("stays in review mode on the tab's next pages, and does nothing otherwise", () => {
+    instance = init({ projectKey: "pk_test", apiUrl: "https://api.test" });
+    expect(document.querySelector('script[src$="/sdk/review.js"]')).toBeNull();
+    instance.destroy();
+
+    sessionStorage.setItem("flooper-review", "tok_123");
+    instance = init({ projectKey: "pk_test", apiUrl: "https://api.test" });
+    expect(document.querySelector('script[src$="/sdk/review.js"]')).not.toBeNull();
+  });
+});

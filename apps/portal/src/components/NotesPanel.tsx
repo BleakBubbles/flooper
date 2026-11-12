@@ -24,6 +24,7 @@ import { sortNotes } from "../sortNotes";
 import { timeAgo } from "../time";
 import { useMarkRead } from "../useMarkRead";
 import { useMediaQuery } from "../useMediaQuery";
+import { viewOnSite } from "../viewOnSite";
 import { Checkbox } from "./Checkbox";
 import { DigestPrompt } from "./DigestPrompt";
 import { ErrorState } from "./ErrorState";
@@ -38,6 +39,7 @@ import {
   MailIcon,
   MailOpenIcon,
   ReplyIcon,
+  ReviewIcon,
   SmileIcon,
   TrashIcon,
   XIcon,
@@ -837,6 +839,20 @@ export function NotesPanel({
                   disabled={markAllRead.isPending}
                 >
                   <MailOpenIcon />
+                </button>
+              )}
+              {/* Review mode: one site's notes drawn over it (so not under "All
+                  sites"), on the page picked if there is one. Needs the
+                  site's address, from its allowed origins. */}
+              {site && site.allowedOrigins.length > 0 && (
+                <button
+                  type="button"
+                  className="icon-button"
+                  aria-label={page ? `Review ${page} on ${site.name}` : `Review on ${site.name}`}
+                  data-tooltip="Review on site"
+                  onClick={() => viewOnSite(site.id, page ?? undefined)}
+                >
+                  <ReviewIcon />
                 </button>
               )}
               <Menu

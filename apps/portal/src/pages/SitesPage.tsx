@@ -14,7 +14,14 @@ import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
 import { api, keys } from "../api";
 import { AccountSettings } from "../components/AccountSettings";
 import { ErrorState } from "../components/ErrorState";
-import { GearIcon, InboxIcon, MailOpenIcon, MoreIcon, SidebarIcon } from "../components/icons";
+import {
+  GearIcon,
+  InboxIcon,
+  MailOpenIcon,
+  MoreIcon,
+  ReviewIcon,
+  SidebarIcon,
+} from "../components/icons";
 import { Menu } from "../components/Menu";
 import { NotesPanel, type Show } from "../components/NotesPanel";
 import { SetupPanel } from "../components/SetupPanel";
@@ -24,6 +31,7 @@ import { showToast } from "../components/Toasts";
 import { isTyping } from "../keys";
 import { usePref } from "../prefs";
 import { usePageTitle } from "../usePageTitle";
+import { viewOnSite } from "../viewOnSite";
 
 /** What a click away from the open note must not land on. */
 const INTERACTIVE_OR_NOTE =
@@ -420,6 +428,14 @@ function SiteMenu({ site }: { site: ProjectWithSummary }) {
           <span className="with-icon">
             <MailOpenIcon />
             Mark all as read
+          </span>
+        </button>
+      )}
+      {site.allowedOrigins.length > 0 && (
+        <button type="button" onClick={() => viewOnSite(site.id)}>
+          <span className="with-icon">
+            <ReviewIcon />
+            View on site
           </span>
         </button>
       )}

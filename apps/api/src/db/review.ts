@@ -72,15 +72,24 @@ export async function reviewPage(
   projectId: string,
   path: string,
 ): Promise<ReviewPage> {
-  const { results } = await db
-    .prepare(
-      `SELECT id, reaction, message, status, created_at, target FROM feedback
-       WHERE project_id = ? AND deleted_at IS NULL AND status <> 'archived'
-         AND json_extract(context, '$.path') = ?
-       ORDER BY created_at DESC LIMIT ?`,
-    )
-    .bind(projectId, path, REVIEW_NOTES_MAX + 1)
-    .all<ReviewRow>();
+  const [page, site] = await db.batch([
+    db
+      .prepare(
+        `SELECT id, reaction, message, status, created_at, target FROM feedback
+         WHERE project_id = ? AND deleted_at IS NULL AND status <> 'archived'
+           AND json_extract(context, '$.path') = ?
+         ORDER BY created_at DESC LIMIT ?`,
+      )
+      .bind(projectId, path, REVIEW_NOTES_MAX + 1),
+    // The whole site's, for the bar's "this page / all pages".
+    db
+      .prepare(
+        `SELECT COUNT(*) AS n FROM feedback
+         WHERE project_id = ? AND deleted_at IS NULL AND status <> 'archived'`,
+      )
+      .bind(projectId),
+  ]);
+  const results = (page?.results ?? []) as ReviewRow[];
 
   const rows = results.slice(0, REVIEW_NOTES_MAX);
   const elements = new Map<string, ReviewElement>();
@@ -118,5 +127,6 @@ export async function reviewPage(
     elements: [...elements.values()].sort((a, b) => b.total - a.total),
     unpinned,
     truncated: results.length > REVIEW_NOTES_MAX,
+    siteTotal: ((site?.results[0] as { n: number } | undefined)?.n ?? 0) as number,
   };
 }

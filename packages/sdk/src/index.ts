@@ -86,6 +86,7 @@ export function init(options: FlooperOptions): FlooperInstance {
   whenDomReady(() => {
     widget.mount();
     void widget.revealFromUrl();
+    startReview(ingestUrl, apiUrl);
   });
 
   current = {
@@ -146,4 +147,31 @@ if (typeof document !== "undefined") {
       title: script.dataset.title,
     });
   }
+}
+
+/**
+ * Review mode ("View on site" in Flooper): the link's token arrives in the
+ * URL fragment, goes from the address bar at once, and is kept for this tab
+ * so moving between pages stays in review mode. Then the overlay loads, as
+ * its own script: visitors never download it.
+ */
+function startReview(ingestUrl: string, apiUrl: string): void {
+  let token: string | null = null;
+  try {
+    token = /flooper-review=([\w-]+)/.exec(location.hash)?.[1] ?? null;
+    if (token) {
+      sessionStorage.setItem("flooper-review", token);
+      history.replaceState(history.state, "", location.href.split("#")[0]);
+    }
+    token ??= sessionStorage.getItem("flooper-review");
+  } catch {}
+  if (!token) return;
+  const script = document.createElement("script");
+  script.src = `${apiUrl}/sdk/review.js`;
+  script.onload = () =>
+    (window as { FlooperReview?: (url: string, token: string) => void }).FlooperReview?.(
+      ingestUrl,
+      token,
+    );
+  document.head.append(script);
 }

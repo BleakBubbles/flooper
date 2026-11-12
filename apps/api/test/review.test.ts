@@ -73,6 +73,8 @@ describe("review mode", () => {
     expect(page.elements[0]?.notes.map((n) => n.message)).toEqual(["Pay what?", "Does nothing"]);
     expect(page.unpinned.map((n) => n.message)).toEqual(["Nice page"]);
     expect(page.truncated).toBe(false);
+    // Three on /checkout, one on /about.
+    expect(page.siteTotal).toBe(4);
     // Shown on the live site: nothing about who sent them.
     expect(JSON.stringify(page)).not.toMatch(/visitor|contactEmail|userAgent/);
   });
