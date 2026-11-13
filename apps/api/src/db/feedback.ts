@@ -122,9 +122,11 @@ export async function countNotesSince(
 }
 
 export async function countFeedback(db: D1Database, projectId: string): Promise<FeedbackCounts> {
+  // From the running counts (migration 0011), not by counting notes.
   const { results } = await db
     .prepare(
-      "SELECT status, COUNT(*) AS n FROM feedback WHERE project_id = ? AND deleted_at IS NULL GROUP BY status",
+      `SELECT status, SUM(n) AS n FROM site_counts
+       WHERE project_id = ? AND deleted = 0 AND n > 0 GROUP BY status`,
     )
     .bind(projectId)
     .all<{ status: FeedbackStatus; n: number }>();
@@ -351,9 +353,11 @@ const DAY = 24 * 60 * 60 * 1000;
 export const ACTIVITY_DAYS = 14;
 
 /**
- * Each of the owner's sites' summary, for the home screen's cards: two grouped
- * queries over all their sites at once, rather than a few per site. Sites with
- * no notes are missing from the map.
+ * Each of the owner's sites' summary, for the app's sidebar: three queries over
+ * all their sites at once. None reads every note: the counts come from the
+ * running counts (migration 0011), each site's latest note from the
+ * (project_id, created_at) index, and the activity only from the last 14 days.
+ * Sites with no notes are missing from the map.
  */
 export async function summarizeProjects(
   db: D1Database,
@@ -363,12 +367,22 @@ export async function summarizeProjects(
   const owned = "project_id IN (SELECT id FROM projects WHERE owner_id = ?)";
   // Days are 24-hour windows counting back from now, so no time zone is needed.
   const since = now - ACTIVITY_DAYS * DAY;
-  const [counts, days] = await db.batch<Record<string, string | number | null>>([
+  const [counts, lasts, days] = await db.batch<Record<string, string | number | null>>([
     db
       .prepare(
-        `SELECT project_id, status, reaction, deleted_at IS NOT NULL AS gone,
-                COUNT(*) AS n, MAX(created_at) AS last
-         FROM feedback WHERE ${owned} GROUP BY project_id, status, reaction, gone`,
+        `SELECT project_id, status, reaction, deleted AS gone, n
+         FROM site_counts WHERE ${owned} AND n > 0`,
+      )
+      .bind(ownerId),
+    // Each site's newest note that isn't deleted: the index, newest first,
+    // stopping at the first one.
+    db
+      .prepare(
+        `SELECT p.id AS project_id,
+                (SELECT f.created_at FROM feedback f
+                 WHERE f.project_id = p.id AND f.deleted_at IS NULL
+                 ORDER BY f.created_at DESC LIMIT 1) AS last
+         FROM projects p WHERE p.owner_id = ?`,
       )
       .bind(ownerId),
     db
@@ -399,13 +413,16 @@ export async function summarizeProjects(
     s.total += n;
     if (row.status === "archived") s.archived += n;
     if (row.status === "done") s.done += n;
-    const last = new Date(row.last as number).toISOString();
-    if (!s.lastNoteAt || last > s.lastNoteAt) s.lastNoteAt = last;
     if (row.status === "new") {
       s.newCount += n;
-      const reaction = row.reaction as Reaction | null;
+      // '' is a note with no reaction.
+      const reaction = (row.reaction as Reaction | "") || null;
       if (reaction) s.newByReaction[reaction] = (s.newByReaction[reaction] ?? 0) + n;
     }
+  }
+  for (const row of lasts?.results ?? []) {
+    if (row.last === null) continue;
+    get(row.project_id as string).lastNoteAt = new Date(row.last as number).toISOString();
   }
   for (const row of days?.results ?? []) {
     const day = row.day as number;
@@ -452,6 +469,9 @@ export async function markAllSeen(
   return results.map((r) => r.id);
 }
 
+// Counts of notes changed come from RETURNING, not D1's meta.changes, which
+// also counts the rows the running-count triggers change (migration 0011).
+
 /**
  * Several notes to one status at once, but only the owner's. The ids go in
  * as one JSON array, so there's no limit on bound parameters.
@@ -466,11 +486,12 @@ export async function setStatuses(
     .prepare(
       `UPDATE feedback SET status = ?
        WHERE id IN (SELECT value FROM json_each(?)) AND deleted_at IS NULL
-         AND project_id IN (SELECT id FROM projects WHERE owner_id = ?)`,
+         AND project_id IN (SELECT id FROM projects WHERE owner_id = ?)
+       RETURNING id`,
     )
     .bind(status, JSON.stringify(ids), ownerId)
     .run();
-  return result.meta.changes ?? 0;
+  return result.results.length;
 }
 
 /** How long a deleted note stays in "Recently deleted". */
@@ -491,11 +512,12 @@ export async function setDeleted(
       `UPDATE feedback SET deleted_at = ?
        WHERE id IN (SELECT value FROM json_each(?))
          AND ${at === null ? "deleted_at IS NOT NULL" : "deleted_at IS NULL"}
-         AND project_id IN (SELECT id FROM projects WHERE owner_id = ?)`,
+         AND project_id IN (SELECT id FROM projects WHERE owner_id = ?)
+       RETURNING id`,
     )
     .bind(at, JSON.stringify(ids), ownerId)
     .run();
-  return result.meta.changes ?? 0;
+  return result.results.length;
 }
 
 /** "Delete forever": only notes already deleted, and only the owner's. */
@@ -508,20 +530,21 @@ export async function deleteForever(
     .prepare(
       `DELETE FROM feedback
        WHERE id IN (SELECT value FROM json_each(?)) AND deleted_at IS NOT NULL
-         AND project_id IN (SELECT id FROM projects WHERE owner_id = ?)`,
+         AND project_id IN (SELECT id FROM projects WHERE owner_id = ?)
+       RETURNING id`,
     )
     .bind(JSON.stringify(ids), ownerId)
     .run();
-  return result.meta.changes ?? 0;
+  return result.results.length;
 }
 
 /** The daily job: notes deleted more than 30 days ago go for good. */
 export async function purgeDeleted(db: D1Database, now = Date.now()): Promise<number> {
   const result = await db
-    .prepare("DELETE FROM feedback WHERE deleted_at IS NOT NULL AND deleted_at < ?")
+    .prepare("DELETE FROM feedback WHERE deleted_at IS NOT NULL AND deleted_at < ? RETURNING id")
     .bind(now - DELETED_KEPT_MS)
     .run();
-  return result.meta.changes ?? 0;
+  return result.results.length;
 }
 
 /** One note, but only if it belongs to one of the owner's projects. */
