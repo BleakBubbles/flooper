@@ -126,28 +126,64 @@ describe("POST /api/v1/ingest/:publicKey/feedback", () => {
 
   it("caps a site's notes per day, whoever sends them", async () => {
     const { cookie, project, path } = await setup();
-    // Fill today's counter for the site to the cap, as if 1000 notes came in.
-    const day = 24 * 60 * 60 * 1000;
-    const today = Date.now() - (Date.now() % day);
-    await env.DB.prepare("INSERT INTO rate_limits (key, window_start, count) VALUES (?, ?, ?)")
-      .bind(`site-day:${project.id}`, today, Number(env.NOTES_PER_SITE_PER_DAY))
-      .run();
-
-    // A fresh visitor (no per-visitor limit in play) is still refused.
-    const res = await json("POST", path, submission(), {
-      Origin: SITE,
-      "CF-Connecting-IP": "198.51.100.99",
-    });
-    expect(res.status).toBe(429);
-    const body = (await res.json()) as { error: { code: string } };
-    expect(body.error.code).toBe("site_limit_reached");
-    // Until the day turns over: longer than the SDK will wait, so it doesn't retry.
-    expect(Number(res.headers.get("Retry-After"))).toBeGreaterThan(10);
+    // A cap of 2 for the test, counted from the site's notes today. (The
+    // generated types know the configured value, "1000", as its only one.)
+    const vars = env as { NOTES_PER_SITE_PER_DAY: string };
+    const cap = vars.NOTES_PER_SITE_PER_DAY;
+    vars.NOTES_PER_SITE_PER_DAY = "2";
+    try {
+      // Two visitors' notes go in (each well under the per-visitor limit).
+      for (const ip of ["198.51.100.1", "198.51.100.2"]) {
+        const ok = await json("POST", path, submission(), { Origin: SITE, "CF-Connecting-IP": ip });
+        expect(ok.status).toBe(202);
+      }
+      // A third visitor is refused: the site's had its two for today.
+      const res = await json("POST", path, submission(), {
+        Origin: SITE,
+        "CF-Connecting-IP": "198.51.100.99",
+      });
+      expect(res.status).toBe(429);
+      const body = (await res.json()) as { error: { code: string } };
+      expect(body.error.code).toBe("site_limit_reached");
+      // Until the day turns over: longer than the SDK will wait, so it doesn't retry.
+      expect(Number(res.headers.get("Retry-After"))).toBeGreaterThan(10);
+    } finally {
+      vars.NOTES_PER_SITE_PER_DAY = cap;
+    }
 
     const inbox = await request(`/api/v1/projects/${project.id}/feedback`, {
       headers: { Cookie: cookie },
     });
-    expect(((await inbox.json()) as { data: unknown[] }).data).toHaveLength(0);
+    expect(((await inbox.json()) as { data: unknown[] }).data).toHaveLength(2);
+  });
+
+  it("counts today's notes for the cap from the (site, time) index", async () => {
+    const plan = (
+      await env.DB.prepare(
+        `EXPLAIN QUERY PLAN SELECT COUNT(*) AS n FROM (
+           SELECT 1 FROM feedback WHERE project_id = 'p' AND created_at >= 0 LIMIT 1000)`,
+      ).all<{ detail: string }>()
+    ).results
+      .map((r) => r.detail)
+      .join(" | ");
+    expect(plan).toMatch(/USING (COVERING )?INDEX feedback_project_created/);
+  });
+
+  it("stores a note with one database write, not one per limit", async () => {
+    const { path } = await setup();
+    const before = await env.DB.prepare("SELECT COUNT(*) AS n FROM rate_limits").first<{
+      n: number;
+    }>();
+    const res = await json("POST", path, submission(), {
+      Origin: SITE,
+      "CF-Connecting-IP": "198.51.100.50",
+    });
+    expect(res.status).toBe(202);
+    // The limits no longer keep counters in the database.
+    const after = await env.DB.prepare("SELECT COUNT(*) AS n FROM rate_limits").first<{
+      n: number;
+    }>();
+    expect(after?.n).toBe(before?.n);
   });
 
   it("refuses every note while paused, and accepts them again after", async () => {

@@ -26,6 +26,15 @@
     }
   ],
 
+  // A visitor's notes to one site: at most 10 a minute. Cloudflare's rate
+  // limiter, counted at its edge, so sending a note costs no database write
+  // for it. (Counts are per Cloudflare location, so not exact worldwide: fine
+  // for stopping one visitor flooding a widget.) namespace_id is any number
+  // unique to this limiter in the account.
+  "ratelimits": [
+    { "name": "VISITOR_LIMIT", "namespace_id": "1001", "simple": { "limit": 10, "period": 60 } }
+  ],
+
   // Non-secret config. Secrets (GITHUB_CLIENT_SECRET etc.) go in .dev.vars
   // locally and `wrangler secret put` in production.
   "vars": {
@@ -69,6 +78,10 @@
         "REPLY_TO": "Flooper <hello@flooper.app>"
       },
       "triggers": { "crons": ["0 13 * * *", "* * * * *"] },
+      // Bindings aren't inherited by environments: the same limiter again.
+      "ratelimits": [
+        { "name": "VISITOR_LIMIT", "namespace_id": "1001", "simple": { "limit": 10, "period": 60 } }
+      ],
       "d1_databases": [
         {
           "binding": "DB",

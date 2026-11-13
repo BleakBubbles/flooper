@@ -99,6 +99,28 @@ export async function setContactEmail(
   return updated !== null;
 }
 
+/**
+ * How many notes a site has had since `since` (deleted ones too: they still
+ * came in). For the daily cap: a read on the (project_id, created_at) index
+ * instead of a counter written on every note. Stops counting past `atMost`.
+ */
+export async function countNotesSince(
+  db: D1Database,
+  projectId: string,
+  since: number,
+  atMost: number,
+): Promise<number> {
+  const row = await db
+    .prepare(
+      `SELECT COUNT(*) AS n FROM (
+         SELECT 1 FROM feedback WHERE project_id = ? AND created_at >= ? LIMIT ?
+       )`,
+    )
+    .bind(projectId, since, atMost)
+    .first<{ n: number }>();
+  return row?.n ?? 0;
+}
+
 export async function countFeedback(db: D1Database, projectId: string): Promise<FeedbackCounts> {
   const { results } = await db
     .prepare(
