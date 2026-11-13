@@ -5,9 +5,8 @@ import {
   updateFeedbackSchema,
 } from "@flooper/shared/schemas";
 import { type Context, Hono } from "hono";
-import { insertFeedback, setContactEmail } from "../db/feedback";
+import { countNotesSince, insertFeedback, setContactEmail } from "../db/feedback";
 import { allowedOrigins, getProjectByPublicKey, type ProjectRow } from "../db/projects";
-import { hitRateLimit } from "../db/rate-limit";
 import { projectForReviewToken, reviewPage, setReviewNoteStatus } from "../db/review";
 import type { AppEnv } from "../env";
 import { sha256Hex } from "../lib/crypto";
@@ -30,7 +29,6 @@ import { parseJsonBody } from "../lib/validate";
  */
 export const ingest = new Hono<AppEnv>();
 
-const RATE_LIMIT = { limit: 10, windowMs: 60_000 };
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 ingest.use("*", async (c, next) => {
@@ -140,26 +138,27 @@ ingest.post("/:publicKey/feedback", async (c) => {
     return c.json({ id: newId("feedback") }, 202);
   }
 
-  // Rate limit per visitor per project. The IP is hashed together with the
-  // project ID, so we never store raw IPs and hashes can't be correlated
-  // across projects.
+  // Rate limit per visitor per project, with Cloudflare's rate limiter (10 a
+  // minute; see wrangler.jsonc): no database write. The IP is hashed together
+  // with the project ID, so raw IPs are never used as keys and hashes can't be
+  // correlated across projects.
   const ip = c.req.header("CF-Connecting-IP") ?? "unknown";
   const visitorKey = await sha256Hex(`${project.id}:${ip}`);
-  const rate = await hitRateLimit(c.env.DB, `ingest:${visitorKey}`, RATE_LIMIT);
-  if (!rate.allowed) {
+  const { success } = await c.env.VISITOR_LIMIT.limit({ key: visitorKey });
+  if (!success) {
     throw new ApiError(429, "rate_limited", "Slow down a little and try again soon", undefined, {
-      "Retry-After": String(rate.retryAfter),
+      // The limiter's window is a minute.
+      "Retry-After": "60",
     });
   }
 
-  // And a daily cap per site, whoever sends: a flood from many visitors (or
-  // many addresses) stops here instead of filling the inbox and the database.
+  // And a daily cap per site (UTC days), whoever sends: a flood from many
+  // visitors (or many addresses) stops here instead of filling the inbox and
+  // the database. Counted from the notes themselves: a read, not a write.
   const perDay = Number(c.env.NOTES_PER_SITE_PER_DAY) || 1000;
-  const today = await hitRateLimit(c.env.DB, `site-day:${project.id}`, {
-    limit: perDay,
-    windowMs: DAY_MS,
-  });
-  if (!today.allowed) {
+  const now = Date.now();
+  const dayStart = now - (now % DAY_MS);
+  if ((await countNotesSince(c.env.DB, project.id, dayStart, perDay)) >= perDay) {
     log("warn", "site daily limit reached", {
       requestId: c.get("requestId"),
       projectId: project.id,
@@ -169,7 +168,7 @@ ingest.post("/:publicKey/feedback", async (c) => {
       "site_limit_reached",
       "This site has had a lot of notes today. Try again tomorrow",
       undefined,
-      { "Retry-After": String(today.retryAfter) },
+      { "Retry-After": String(Math.ceil((dayStart + DAY_MS - now) / 1000)) },
     );
   }
 
