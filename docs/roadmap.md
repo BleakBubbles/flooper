@@ -7,14 +7,25 @@ place to keep ideas so they don't get lost. Finished items move to the bottom.
 
 ### Scaling, from the surge audit (2026-11-07)
 
-The per-site cap and the pause switch are in (see docs/operations.md). Next,
-as volume grows:
+The per-site cap and the pause switch are in (see docs/operations.md). Done,
+2026-11-12/13:
 
-- **Running counts** for the home screen's per-site summaries, instead of
-  counting every note on each load.
-- **Cloudflare's rate limiting binding** instead of a database write per note.
-- **Indexes or limits** for sorting by site, note or page, which read every note.
-- **A retention policy** for old archived notes.
+- **Cache headers** for the widget (5 minutes, then revalidated in the
+  background) and the app's hashed files (#77).
+- **An index on each note's page path**, for review mode and grouping by page
+  (#77).
+- **One write per note** instead of three: Cloudflare's rate limiter per
+  visitor, and the daily cap counted from the notes (#78). The old
+  `rate_limits` table is gone (migration 0012).
+- **Running counts** of each site's notes, kept by triggers, for the sidebar's
+  summaries instead of counting every note on each load (#79). A note costs
+  two writes now: itself and its count.
+
+Next, as volume grows:
+
+- **Indexes or limits** for sorting by site, note or reaction, which read
+  every note, and a full-text index (FTS5) for search.
+- **A retention policy** for old archived notes (a product decision).
 
 ### App polish
 

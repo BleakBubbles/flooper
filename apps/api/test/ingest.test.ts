@@ -169,21 +169,11 @@ describe("POST /api/v1/ingest/:publicKey/feedback", () => {
     expect(plan).toMatch(/USING (COVERING )?INDEX feedback_project_created/);
   });
 
-  it("stores a note with one database write, not one per limit", async () => {
-    const { path } = await setup();
-    const before = await env.DB.prepare("SELECT COUNT(*) AS n FROM rate_limits").first<{
-      n: number;
-    }>();
-    const res = await json("POST", path, submission(), {
-      Origin: SITE,
-      "CF-Connecting-IP": "198.51.100.50",
-    });
-    expect(res.status).toBe(202);
-    // The limits no longer keep counters in the database.
-    const after = await env.DB.prepare("SELECT COUNT(*) AS n FROM rate_limits").first<{
-      n: number;
-    }>();
-    expect(after?.n).toBe(before?.n);
+  it("keeps no rate-limit counters in the database", async () => {
+    const table = await env.DB.prepare(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'rate_limits'",
+    ).first();
+    expect(table).toBeNull();
   });
 
   it("refuses every note while paused, and accepts them again after", async () => {

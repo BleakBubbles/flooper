@@ -75,8 +75,11 @@ once, with zod, in `schemas.ts`:
   which project, not who you are. The **origin allowlist** stops other websites
   from embedding your key. It doesn't stop curl (anyone can fake an `Origin`
   header outside a browser), which is why rate limits and validation exist.
-- **Rate limiting** is per visitor per project, keyed on a SHA-256 of
-  `projectId:ip`. Raw IPs are never stored.
+- **Rate limiting** is per visitor per project (10 notes a minute), keyed on
+  a SHA-256 of `projectId:ip`, with Cloudflare's rate limiter (`VISITOR_LIMIT`
+  in `wrangler.jsonc`): counted at the edge, no database write. Raw IPs are
+  never stored. A **daily cap per site** (1,000 notes) counts the site's notes
+  since midnight UTC on the `(project_id, created_at)` index.
 - **Honeypot:** a hidden form field. Bots fill it in and get a fake success
   response. Nothing is stored, and they learn nothing.
 - **Sessions:** a random 256-bit token in an `HttpOnly; SameSite=Lax` cookie
