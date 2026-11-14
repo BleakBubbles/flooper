@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { type MouseEvent, type ReactNode, useEffect } from "react";
 import { Link } from "react-router";
 import { api, keys } from "../api";
-import { GithubButton } from "../components/GithubButton";
+import { GithubButton, GithubMark, REPO_URL } from "../components/GithubButton";
 import { inReviewMode, openAppFromReview } from "../reviewMode";
 import { usePageTitle } from "../usePageTitle";
 import { DevtoolsShowcase } from "./DevtoolsShowcase";
@@ -38,6 +38,15 @@ export function LandingPage() {
           Flooper
         </Link>
         <nav>
+          {/* The code, for those who want to read it before trusting it. */}
+          <a
+            className="landing-icon-link"
+            href={REPO_URL}
+            aria-label="Flooper on GitHub"
+            title="Flooper on GitHub"
+          >
+            <GithubMark size={20} />
+          </a>
           {loggedIn ? (
             <Link className="btn primary" to="/" onClick={openApp}>
               Open the app
@@ -68,7 +77,11 @@ export function LandingPage() {
               straight from the page they're on.
             </p>
             <GithubButton />
-            <p className="fine">free while it's small · under 10 KB gzip · no cookies</p>
+            <p className="fine">
+              free while it's small · <a href={REPO_URL}>open source</a>
+              <br />
+              under 10 KB gzip · no cookies
+            </p>
           </>
         }
       />
@@ -123,18 +136,24 @@ export function LandingPage() {
 
       <footer className="landing-footer">
         <span>Flooper. Made for small sites.</span>
-        {/* Signed out, straight to GitHub like "Log in": one click, not two. */}
-        {loggedIn ? (
-          <Link to="/" className="landing-footer-link" onClick={openApp}>
-            Open the app
-            <FooterArrow />
-          </Link>
-        ) : (
-          <a href="/api/auth/github" className="landing-footer-link">
-            Open the app
+        <div className="landing-footer-links">
+          <a href={REPO_URL} className="landing-footer-link">
+            GitHub
             <FooterArrow />
           </a>
-        )}
+          {/* Signed out, straight to GitHub like "Log in": one click, not two. */}
+          {loggedIn ? (
+            <Link to="/" className="landing-footer-link" onClick={openApp}>
+              Open the app
+              <FooterArrow />
+            </Link>
+          ) : (
+            <a href="/api/auth/github" className="landing-footer-link">
+              Open the app
+              <FooterArrow />
+            </a>
+          )}
+        </div>
       </footer>
     </div>
   );
