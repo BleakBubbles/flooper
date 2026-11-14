@@ -104,7 +104,21 @@ body:has(.landing) {
 }
 .landing-header nav {
   display: flex;
+  align-items: center;
   gap: 6px;
+}
+/* The repo, beside Log in: an icon, like a site's own GitHub link. */
+.landing-icon-link {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  color: var(--fg-2);
+}
+.landing-icon-link:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--fg);
 }
 
 /* The hero: notes on a turning ring around the headline (see NoteRing.tsx). */
@@ -350,6 +364,15 @@ body:has(.landing) {
 }
 /* The fine print sits low, where the ring's cards come closer in, so it
    wraps (balanced) before it reaches them. */
+.fine a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
+  text-underline-offset: 3px;
+}
+.fine a:hover {
+  color: var(--fg);
+}
 .ring:not(.compact) .fine {
   max-width: calc(100% - 80px);
 }
@@ -676,6 +699,10 @@ body:has(.landing) {
   border-top: 1px solid var(--border);
   color: var(--muted);
   font-size: 13px;
+}
+.landing-footer-links {
+  display: flex;
+  gap: 20px;
 }
 .landing-footer-link {
   display: inline-flex;
