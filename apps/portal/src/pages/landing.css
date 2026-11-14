@@ -107,19 +107,6 @@ body:has(.landing) {
   align-items: center;
   gap: 6px;
 }
-/* The repo, beside Log in: an icon, like a site's own GitHub link. */
-.landing-icon-link {
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  color: var(--fg-2);
-}
-.landing-icon-link:hover {
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--fg);
-}
 
 /* The hero: notes on a turning ring around the headline (see NoteRing.tsx). */
 

@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { type MouseEvent, type ReactNode, useEffect } from "react";
 import { Link } from "react-router";
 import { api, keys } from "../api";
-import { GithubButton, GithubMark, REPO_URL } from "../components/GithubButton";
+import { GithubButton, REPO_URL } from "../components/GithubButton";
 import { inReviewMode, openAppFromReview } from "../reviewMode";
 import { usePageTitle } from "../usePageTitle";
 import { DevtoolsShowcase } from "./DevtoolsShowcase";
@@ -38,15 +38,6 @@ export function LandingPage() {
           Flooper
         </Link>
         <nav>
-          {/* The code, for those who want to read it before trusting it. */}
-          <a
-            className="landing-icon-link"
-            href={REPO_URL}
-            aria-label="Flooper on GitHub"
-            title="Flooper on GitHub"
-          >
-            <GithubMark size={20} />
-          </a>
           {loggedIn ? (
             <Link className="btn primary" to="/" onClick={openApp}>
               Open the app
