@@ -106,6 +106,15 @@ export function init(options: FlooperOptions): FlooperInstance {
   return current;
 }
 
+// The running widget's controls, as functions of their own: what a script-tag
+// site calls as Flooper.open() and so on (the global is this module's
+// exports), e.g. from its own button with data-launcher="false". Before
+// init(), or after destroy(), they do nothing.
+export const open = (): void => current?.open();
+export const close = (): void => current?.close();
+export const identify: FlooperInstance["identify"] = (v) => current?.identify(v);
+export const setMetadata: FlooperInstance["setMetadata"] = (m) => current?.setMetadata(m);
+
 /** For the site's developer: how to fix a refusal that comes from setup. */
 function setupHint(code: SubmitErrorCode): string {
   if (code === "origin_not_allowed") {

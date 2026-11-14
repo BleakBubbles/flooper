@@ -1,4 +1,5 @@
 import { defineConfig } from "vite";
+import { BROWSERS } from "./vite.config";
 
 // Review mode's overlay, built on its own as dist/review.js: loaded by the
 // widget only when the owner opens their site from "View on site", so it's
@@ -12,7 +13,9 @@ export default defineConfig({
       formats: ["iife"],
       fileName: () => "review.js",
     },
-    target: "es2020",
+    // The same browsers as the widget (see vite.config.ts).
+    target: "es2022",
+    cssTarget: BROWSERS,
     sourcemap: true,
     // Beside flooper.js, which the main build has just written.
     emptyOutDir: false,

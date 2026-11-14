@@ -86,6 +86,9 @@ export function SetupPanel({
                 }}
               />
               {!copied && <p className="small muted">Copying it moves you on to the last step.</p>}
+              <p className="small muted">
+                Its corner, colors and button can be changed later, in the site's settings.
+              </p>
             </>
           )}
         </Step>

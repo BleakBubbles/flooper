@@ -707,6 +707,41 @@ select {
   border-color: var(--fg-2);
   color: var(--fg);
 }
+/* The snippet changed since it was last copied: Copy is the next step. */
+.copy-button.attention {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+.copy-button.attention:hover {
+  border-color: var(--accent);
+  color: var(--accent-fg);
+  filter: brightness(1.08);
+}
+/* Above the snippet once it changes, until the new one is copied. */
+.snippet-alert {
+  margin: 0 0 10px;
+  padding: 8px 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+  color: var(--fg);
+  font-weight: 500;
+}
+/* Everything copied. */
+.snippet-alert.done {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-color: color-mix(in srgb, var(--ok) 45%, transparent);
+  background: color-mix(in srgb, var(--ok) 8%, var(--surface));
+}
+.snippet-alert.done svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--ok);
+}
 .waiting {
   display: flex;
   align-items: center;
@@ -2509,4 +2544,231 @@ kbd,
   max-width: 760px;
   margin: 4px 0 16px;
   padding-inline: 18px;
+}
+
+/* A site's widget options (Site settings → Widget): a row per option, label
+   and control, beside a sketch of the widget open on a page. */
+.widget-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px 28px;
+  align-items: flex-start;
+}
+.widget-option-rows {
+  flex: 1 1 260px;
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 12px 16px;
+  align-items: start;
+}
+/* As tall as a control, so it lines up with the control's first line even
+   when a hint sits under the control. */
+.widget-option-name {
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+  font-weight: 600;
+}
+/* A few choices as one pill (like the theme picker). */
+.segmented {
+  justify-self: start;
+  display: flex;
+  gap: 2px;
+  margin: 0;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.segmented .icon-button {
+  width: 36px;
+  height: 30px;
+}
+.segmented-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  height: 30px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+.segmented-text:hover {
+  color: var(--fg);
+}
+.segmented [aria-pressed="true"] {
+  background: var(--segment);
+  color: var(--fg);
+}
+.segmented .segmented-text svg {
+  width: 16px;
+  height: 16px;
+}
+/* Under the snippet, with your own button: what to add to it. */
+/* Under the snippet, with your own button: the step that wires it up. */
+.widget-own-step {
+  margin-top: 14px;
+}
+.widget-own-step p {
+  margin: 0 0 8px;
+  color: var(--fg);
+  font-weight: 500;
+}
+.widget-title-input {
+  max-width: 300px;
+}
+/* Update snippet (and Undo), under the options, lined up with the controls. */
+.widget-actions {
+  grid-column: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  white-space: nowrap;
+}
+.widget-undo.hidden {
+  visibility: hidden;
+}
+/* The title's label: as tall as its text field, which is taller than a pill. */
+label.widget-option-name {
+  min-height: 40px;
+}
+
+/* The sketch: a page, the widget's panel open in its colors with its title,
+   and its button (or the site's own, in the header). */
+.widget-preview {
+  position: relative;
+  flex: none;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  width: 220px;
+  height: 168px;
+  padding: 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface-raised);
+  overflow: hidden;
+}
+.widget-preview-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+.widget-preview-line {
+  display: block;
+  width: 70%;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--border);
+}
+.widget-preview-line.short {
+  width: 45%;
+}
+.widget-preview-bar .widget-preview-line {
+  width: 35%;
+}
+/* Kept in place when hidden, so the sketch doesn't shift between options. */
+.widget-preview-own.hidden {
+  visibility: hidden;
+}
+.widget-preview-own {
+  padding: 2px 8px;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+}
+.widget-preview-panel {
+  --p-bg: #ffffff;
+  --p-fg: #1a1a1a;
+  --p-tile: #efefea;
+  --p-line: #e3e3de;
+  position: absolute;
+  bottom: 44px;
+  display: grid;
+  gap: 5px;
+  width: 122px;
+  padding: 7px;
+  border: 1px solid var(--p-line);
+  border-radius: 7px;
+  background: var(--p-bg);
+  color: var(--p-fg);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+.widget-preview-panel.dark {
+  --p-bg: #141416;
+  --p-fg: #ededed;
+  --p-tile: #1f1f23;
+  --p-line: #2f2f34;
+}
+/* Match the system: light and dark, split corner to corner, the title kept
+   on the light side. */
+.widget-preview-panel.auto {
+  background: linear-gradient(135deg, #ffffff 72%, #141416 72%);
+}
+.widget-preview-panel.bottom-right {
+  right: 10px;
+}
+.widget-preview-panel.bottom-left {
+  left: 10px;
+}
+.widget-preview-title {
+  overflow: hidden;
+  font-size: 8px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.widget-preview-panel.auto .widget-preview-title {
+  color: #1a1a1a;
+}
+.widget-preview-tiles {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 3px;
+}
+.widget-preview-tiles i {
+  height: 9px;
+  border-radius: 2px;
+  background: var(--p-tile);
+}
+.widget-preview-panel.auto .widget-preview-tiles i {
+  background: rgba(128, 128, 128, 0.3);
+}
+.widget-preview-box {
+  height: 16px;
+  border: 1px solid var(--p-line);
+  border-radius: 3px;
+}
+.widget-preview-panel.auto .widget-preview-box {
+  border-color: rgba(128, 128, 128, 0.4);
+}
+.widget-preview-launcher {
+  position: absolute;
+  bottom: 10px;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #000;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+.widget-preview-launcher.bottom-right {
+  right: 10px;
+}
+.widget-preview-launcher.bottom-left {
+  left: 10px;
+}
+.widget-preview-launcher img {
+  width: 22px;
+  height: 22px;
 }

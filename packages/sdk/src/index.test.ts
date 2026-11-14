@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { type FlooperInstance, init } from "./index";
+import { close, type FlooperInstance, init, open } from "./index";
 
 let instance: FlooperInstance | undefined;
 
@@ -199,6 +199,19 @@ describe("init", () => {
     textarea.value = "Hi";
     arrow();
     expect(textarea.value).toBe("Hi");
+  });
+
+  it("opens and closes from the global's own functions, as script-tag sites do", () => {
+    // Flooper.open() before the widget exists does nothing.
+    expect(() => open()).not.toThrow();
+    // A site with its own button: data-launcher="false", then Flooper.open().
+    instance = init({ projectKey: "pk_test", launcher: false });
+    const panel = shadow().querySelector<HTMLElement>(".panel");
+    expect(shadow().querySelector<HTMLElement>(".launcher")?.hidden).toBe(true);
+    open();
+    expect(panel?.hidden).toBe(false);
+    close();
+    expect(panel?.hidden).toBe(true);
   });
 
   it("closes on Escape", () => {

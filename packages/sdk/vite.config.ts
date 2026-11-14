@@ -2,6 +2,9 @@ import type { Plugin } from "vite";
 import { defineConfig } from "vitest/config";
 import pkg from "./package.json" with { type: "json" };
 
+/** The browsers the widget supports (see build.target). */
+export const BROWSERS = ["chrome90", "edge90", "firefox94", "safari15.4"];
+
 export default defineConfig({
   define: {
     __SDK_VERSION__: JSON.stringify(pkg.version),
@@ -20,12 +23,16 @@ export default defineConfig({
       formats: ["iife", "es"],
       fileName: (format) => (format === "es" ? "flooper.mjs" : "flooper.js"),
     },
-    target: "es2020",
-    // The widget's CSS already needs :focus-visible and :is() (Safari 15.4,
-    // 2022). Targeting those browsers drops fallbacks that only old ones
-    // would use: every :is() rule repeated as :-webkit-any(), and rule lists
-    // split in two around :focus-visible, a -moz- prefix. About 30 bytes gzipped.
-    cssTarget: ["chrome90", "edge90", "firefox94", "safari15.4"],
+    // The browsers the widget runs in: its CSS already needs :focus-visible
+    // and :is() (Safari 15.4, 2022). So no fallbacks only older ones would use:
+    // for the CSS, every :is() rule repeated as :-webkit-any(), rule lists
+    // split around :focus-visible and a -moz- prefix (about 30 bytes gzipped);
+    // for the script, class fields rewritten through helper functions. The
+    // script targets a language level (ES2022, all of which it uses those
+    // browsers have) rather than the browser list, which would also rewrite
+    // every ?. to work around a Chrome 90 bug.
+    target: "es2022",
+    cssTarget: BROWSERS,
     sourcemap: true,
     // Terser over Vite's default (esbuild): slower, but it squeezes out a few
     // hundred more bytes, and the widget has a 10 KB budget (scripts/check-size.mjs).
