@@ -66,6 +66,22 @@ export const SunIcon = () => (
   </Icon>
 );
 
+/** The widget's corner: bottom left. */
+export const CornerLeftIcon = () => (
+  <Icon>
+    <path d="M17 7 7 17" />
+    <path d="M17 17H7V7" />
+  </Icon>
+);
+
+/** The widget's corner: bottom right. */
+export const CornerRightIcon = () => (
+  <Icon>
+    <path d="m7 7 10 10" />
+    <path d="M17 7v10H7" />
+  </Icon>
+);
+
 /** Theme: dark. */
 export const MoonIcon = () => (
   <Icon>

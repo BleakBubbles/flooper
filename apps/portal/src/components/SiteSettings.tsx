@@ -5,14 +5,22 @@ import { Link, useNavigate } from "react-router";
 import { api, keys } from "../api";
 import { timeAgo } from "../time";
 import { FieldErrors } from "./FieldErrors";
-import { CloseIcon } from "./icons";
-import { OriginsForm, Snippet } from "./SiteSetup";
+import { CheckIcon, CloseIcon } from "./icons";
+import {
+  CodeBlock,
+  OPEN_SNIPPET,
+  OriginsForm,
+  Snippet,
+  useWidgetSnippet,
+  WidgetOptionsForm,
+} from "./SiteSetup";
 
 /**
  * A site's settings, in the notes panel's place (the sidebar stays beside
  * it): whether it's working, then its name, addresses and snippet, then delete.
  */
 export function SiteSettings({ site }: { site: ProjectWithSummary }) {
+  const widget = useWidgetSnippet(site.id);
   return (
     <section className="notes-panel wide-panel" aria-labelledby="settings-heading">
       <div className="notes-bar">
@@ -47,11 +55,52 @@ export function SiteSettings({ site }: { site: ProjectWithSummary }) {
       >
         <RepliesSwitch project={site} />
       </SettingRow>
+      <SettingRow title="Widget" help="Changes go in the snippet below.">
+        <WidgetOptionsForm
+          key={site.id}
+          idPrefix={`widget-${site.id}`}
+          applied={widget.options}
+          onUpdate={widget.update}
+        />
+      </SettingRow>
       <SettingRow
         title="Install snippet"
         help="Paste it just before the closing </body> tag on every page that should have the widget."
       >
-        <Snippet project={site} />
+        {/* What's left to put on the site: the snippet, the button's onclick, or both. */}
+        {(widget.changed || widget.buttonChanged) && (
+          <p className="snippet-alert" role="status">
+            {widget.changed && widget.buttonChanged
+              ? "Snippet updated. Copy it to your site, then add the onclick below to your button or link."
+              : widget.changed
+                ? "Snippet updated. Copy it and paste it on your site to apply the changes."
+                : "One more step: add the onclick below to your button or link."}
+          </p>
+        )}
+        {widget.done && (
+          <p className="snippet-alert done" role="status">
+            <CheckIcon />
+            All copied. The changes apply once it's on your site.
+          </p>
+        )}
+        <Snippet
+          project={site}
+          options={widget.options}
+          attention={widget.changed}
+          onCopy={widget.copied}
+        />
+        {/* With your own button: the second step, how it opens the widget. */}
+        {!widget.options.launcher && (
+          <div className="widget-own-step">
+            <p>Then add an onclick to your own button or link, to open the widget:</p>
+            <CodeBlock
+              code={OPEN_SNIPPET}
+              what="Button"
+              attention={widget.buttonChanged}
+              onCopy={widget.buttonCopied}
+            />
+          </div>
+        )}
         <p className="small muted">
           Project key <span className="mono">{site.publicKey}</span> is public by design, like a
           Stripe publishable key.
