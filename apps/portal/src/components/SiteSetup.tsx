@@ -149,12 +149,15 @@ export function Snippet({
   options,
   onCopy,
   attention = false,
+  copied = false,
 }: {
   project: Project;
   options?: WidgetOptions;
   onCopy?: () => void;
   /** It changed since it was last copied: its Copy button stands out. */
   attention?: boolean;
+  /** It was copied before: its button says so (and still copies). */
+  copied?: boolean;
 }) {
   return (
     <CodeBlock
@@ -162,6 +165,7 @@ export function Snippet({
       what="Snippet"
       onCopy={onCopy}
       attention={attention}
+      copied={copied}
     />
   );
 }
@@ -172,12 +176,15 @@ export function CodeBlock({
   what = "Code",
   onCopy,
   attention = false,
+  copied = false,
 }: {
   code: string;
   /** For screen readers: "<what> copied". */
   what?: string;
   onCopy?: () => void;
   attention?: boolean;
+  /** Copied before: the button stays a pink "Copied", and copies again. */
+  copied?: boolean;
 }) {
   const [state, setState] = useState<"idle" | "copied" | "selected">("idle");
   const pre = useRef<HTMLPreElement>(null);
@@ -199,7 +206,7 @@ export function CodeBlock({
 
   const shortcut = /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘C" : "Ctrl+C";
   const label = {
-    idle: "Copy",
+    idle: copied ? "Copied" : "Copy",
     copied: "Copied",
     selected: `Press ${shortcut}`,
   }[state];
@@ -211,10 +218,11 @@ export function CodeBlock({
       </pre>
       <button
         type="button"
-        className={attention ? "copy-button attention" : "copy-button"}
+        className={attention || copied ? "copy-button attention" : "copy-button"}
         onClick={copy}
+        aria-label={copied && state === "idle" ? "Copied. Copy again" : undefined}
       >
-        {state === "copied" ? <CheckIcon /> : <CopyIcon />}
+        {state === "copied" || (copied && state === "idle") ? <CheckIcon /> : <CopyIcon />}
         {label}
       </button>
       {/* Announce the result to screen readers, since the button text alone may not be re-read. */}
