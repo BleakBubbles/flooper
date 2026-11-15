@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SubmitResult } from "../api";
 import { type SubmitHandler, Widget } from "./widget";
 
@@ -111,5 +111,52 @@ describe("Widget", () => {
     x?.click();
     expect(root.querySelector<HTMLElement>(".panel")?.hidden).toBe(true);
     expect(root.querySelector(".launcher")?.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  describe("its button's label on a visitor's first look", () => {
+    const mount = (launcher = true) => {
+      widget?.destroy();
+      widget = new Widget(
+        { position: "bottom-right", launcher, theme: "auto", title: "Hi", homeUrl: "" },
+        vi.fn(),
+      );
+      widget.mount();
+      return widget.host.shadowRoot?.querySelector(".launcher") as HTMLElement;
+    };
+    const showing = (button: HTMLElement) => button.classList.contains("hello");
+
+    // Opening the widget counts as having seen it, and other tests open it.
+    beforeEach(() => localStorage.clear());
+    afterEach(() => vi.useRealTimers());
+
+    it("shows a moment after load, then tucks away, and only the first time", () => {
+      vi.useFakeTimers();
+      let button = mount();
+      expect(showing(button)).toBe(false);
+      vi.advanceTimersByTime(1000);
+      expect(showing(button)).toBe(true);
+      vi.advanceTimersByTime(4000);
+      expect(showing(button)).toBe(false);
+
+      // The next page: the visitor has seen it.
+      button = mount();
+      vi.advanceTimersByTime(6000);
+      expect(showing(button)).toBe(false);
+    });
+
+    it("goes when the widget opens", () => {
+      vi.useFakeTimers();
+      const button = mount();
+      vi.advanceTimersByTime(1000);
+      widget?.open();
+      expect(showing(button)).toBe(false);
+    });
+
+    it("doesn't count as seen on a site with its own button", () => {
+      vi.useFakeTimers();
+      mount(false);
+      vi.advanceTimersByTime(6000);
+      expect(localStorage.getItem("flooper-hello")).toBeNull();
+    });
   });
 });
