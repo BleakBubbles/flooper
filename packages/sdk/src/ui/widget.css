@@ -108,12 +108,14 @@ svg.lucide {
   align-items: flex-start;
 }
 
+/* A circle, that widens into a pill when its label shows. */
 .launcher {
-  width: 48px;
+  display: flex;
+  align-items: center;
   height: 48px;
   padding: 9px;
   border: 0;
-  border-radius: 50%;
+  border-radius: 24px;
   background: var(--launcher-bg);
   color: var(--launcher-fg);
   box-shadow: var(--launcher-shadow);
@@ -130,14 +132,29 @@ svg.lucide {
    at 295deg round the coil, so 65deg on); on hover (or focus) it turns up
    into the logo's own pose, with a slight springy overshoot. */
 .launcher svg {
-  display: block;
-  width: 100%;
-  height: 100%;
+  flex: none;
+  width: 30px;
+  height: 30px;
   transform: rotate(65deg);
   transition: transform 450ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-.launcher:is(:hover, :focus-visible) svg {
+.launcher:is(:hover, :focus-visible, .hello) svg {
   transform: none;
+}
+/* "Feedback", on a visitor's first look (see Widget.hello). */
+.hint {
+  max-width: 0;
+  overflow: hidden;
+  font: 600 15px var(--font);
+  white-space: nowrap;
+  opacity: 0;
+  transition: 400ms ease;
+  transition-property: max-width, opacity, padding;
+}
+.hello .hint {
+  max-width: 90px;
+  padding: 0 8px 0 9px;
+  opacity: 1;
 }
 .launcher .w {
   fill: currentColor;

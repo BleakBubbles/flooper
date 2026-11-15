@@ -98,6 +98,7 @@ export class Widget {
   /** Already went straight to pointing for this note (after 🐛 or 🤔). */
   private pointed = false;
   private resetTimer: ReturnType<typeof setTimeout> | undefined;
+  private helloTimer: ReturnType<typeof setTimeout> | undefined;
   private readonly onOpen: (() => void) | undefined;
   private readonly onReply: WidgetOptions["onReply"];
   /** The site offers replies (asked when the panel first opens). */
@@ -208,10 +209,24 @@ export class Widget {
   mount(parent: HTMLElement = document.body): void {
     parent.appendChild(this.host);
     document.addEventListener("pointerdown", this.onOutsidePointer, true);
+    // A visitor's first look: the button says what it is, for a moment.
+    if (!this.el.launcher.hidden) this.helloTimer = setTimeout(() => this.hello(true), 1000);
+  }
+
+  /** Show (once per visitor) or hide the button's "Feedback" label. */
+  private hello(show: boolean): void {
+    clearTimeout(this.helloTimer);
+    try {
+      if (show && localStorage.getItem(HELLO)) return;
+      localStorage.setItem(HELLO, "1");
+    } catch {}
+    this.el.launcher.classList.toggle("hello", show);
+    if (show) this.helloTimer = setTimeout(() => this.hello(false), 4000);
   }
 
   destroy(): void {
     clearTimeout(this.resetTimer);
+    clearTimeout(this.helloTimer);
     this.picker.cancel();
     this.highlighter.hide();
     document.removeEventListener("pointerdown", this.onOutsidePointer, true);
@@ -219,6 +234,7 @@ export class Widget {
   }
 
   open(): void {
+    this.hello(false);
     this.onOpen?.();
     this.el.panel.hidden = false;
     this.el.launcher.setAttribute("aria-expanded", "true");
@@ -439,6 +455,8 @@ function scrollToCenter(el: Element): void {
 }
 
 const SENT = "The dev will see this soon.";
+/** Set once the button's label has been shown to this visitor. */
+const HELLO = "flooper-hello";
 const NOTIFY = "Notify me";
 
 function template(position: WidgetOptions["position"]): string {
@@ -495,7 +513,7 @@ function template(position: WidgetOptions["position"]): string {
     <button class="target-clear x" aria-label="Close">${ICONS.close}</button>
   </div>
   <button type="button" class="launcher" aria-label="Leave feedback" aria-expanded="false"
-    aria-controls="flooper-panel">${LOGO_SVG}</button>
+    aria-controls="flooper-panel">${LOGO_SVG}<span class="hint">Feedback</span></button>
 </div>
 <div class="highlight" hidden><span class="highlight-label"></span></div>
 <div class="notice" role="status" hidden></div>
