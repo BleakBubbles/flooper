@@ -23,16 +23,12 @@ export function SetupPanel({
   closeHref?: string;
 }) {
   const [copied, setCopied] = useRememberedFlag(site ? `flooper:copied:${site.id}` : null);
-  const [open, setOpen] = useState<"address" | "snippet" | null>(null);
+  const [open, setOpen] = useState<"address" | null>(null);
   const hasAddress = (site?.allowedOrigins.length ?? 0) > 0;
   useFirstNote(site);
 
   const address: StepState = hasAddress && open !== "address" ? "done" : "current";
-  const snippet: StepState = !hasAddress
-    ? "upcoming"
-    : copied && open !== "snippet"
-      ? "done"
-      : "current";
+  const snippet: StepState = !hasAddress ? "upcoming" : copied ? "done" : "current";
   const test: StepState = hasAddress && copied ? "current" : "upcoming";
   const firstOrigin = site?.allowedOrigins[0];
   const hosts = site?.allowedOrigins.map((o) => new URL(o).host).join(", ");
@@ -72,19 +68,12 @@ export function SetupPanel({
           title="Paste this into your site"
           hint="One line of code, just before the closing </body> tag."
           state={snippet}
-          summary={<span className="small muted">Copied</span>}
-          editLabel="Show"
-          onEdit={() => setOpen("snippet")}
+          // Done once copied, but still there to copy again.
+          stayOpen
         >
           {site && (
             <>
-              <Snippet
-                project={site}
-                onCopy={() => {
-                  setCopied();
-                  setOpen(null);
-                }}
-              />
+              <Snippet project={site} copied={copied} onCopy={setCopied} />
               {!copied && <p className="small muted">Copying it moves you on to the last step.</p>}
               <p className="small muted">
                 Its corner, colors and button can be changed later, in the site's settings.
@@ -269,6 +258,7 @@ function Step({
   summary,
   editLabel = "Edit",
   onEdit,
+  stayOpen = false,
   children,
 }: {
   n: number;
@@ -278,8 +268,11 @@ function Step({
   summary?: ReactNode;
   editLabel?: string;
   onEdit?: () => void;
+  /** Done, but still open (no summary to fold into). */
+  stayOpen?: boolean;
   children: ReactNode;
 }) {
+  const shown = state === "current" || (state === "done" && stayOpen);
   return (
     <li className={`step ${state}`} aria-current={state === "current" ? "step" : undefined}>
       <span className="step-dot" aria-hidden="true">
@@ -292,15 +285,15 @@ function Step({
               {title}
               {state === "done" && <span className="sr-only"> (done)</span>}
             </h3>
-            {state === "done" ? summary : <span className="small muted">{hint}</span>}
+            {state === "done" && !shown ? summary : <span className="small muted">{hint}</span>}
           </div>
-          {state === "done" && onEdit && (
+          {state === "done" && !shown && onEdit && (
             <button type="button" className="text-button" onClick={onEdit}>
               {editLabel}
             </button>
           )}
         </div>
-        {state === "current" && children}
+        {shown && children}
       </div>
     </li>
   );
