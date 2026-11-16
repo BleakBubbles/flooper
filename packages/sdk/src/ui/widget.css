@@ -107,6 +107,18 @@ svg.lucide {
   left: 20px;
   align-items: flex-start;
 }
+/* Firefox on Android re-pins things to the bottom on every frame of its
+   toolbar sliding away, and they jitter. There, the widget's bottom edge is
+   measured from the top, 20px above the bottom with the toolbar showing
+   (svh), so nothing moves under it: it rides up smoothly as the toolbar goes.
+   (-moz-appearance: Firefox only; elsewhere the bottom is steady.) */
+@supports (-moz-appearance: none) {
+  .flooper {
+    top: calc(100svh - 20px);
+    bottom: auto;
+    transform: translateY(-100%);
+  }
+}
 
 /* A circle, that widens into a pill when its label shows. */
 .launcher {
@@ -253,6 +265,16 @@ textarea,
 textarea {
   min-height: 76px;
   resize: vertical;
+}
+/* iPhone Safari zooms the page in on any field under 16px when it's tapped,
+   and leaves it zoomed. On touch screens the fields (and the placeholder we
+   draw over the box) are 16px. */
+@media (pointer: coarse) {
+  textarea,
+  .reply input,
+  .ghost {
+    font-size: 16px;
+  }
 }
 /* We draw the placeholder ourselves (the "ghost") so the → keycap can sit right
    after its text. The native placeholder stays for :placeholder-shown and
