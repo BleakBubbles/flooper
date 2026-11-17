@@ -159,4 +159,32 @@ describe("Widget", () => {
       expect(localStorage.getItem("flooper-hello")).toBeNull();
     });
   });
+
+  it("keeps keys typed in its boxes from the site's own shortcuts", () => {
+    widget = new Widget(
+      { position: "bottom-right", launcher: true, theme: "auto", title: "Hi", homeUrl: "" },
+      vi.fn(),
+    );
+    widget.mount();
+    widget.open();
+    const root = widget.host.shadowRoot as ShadowRoot;
+    const reached = vi.fn();
+    const types = ["keydown", "keyup", "keypress"];
+    for (const type of types) document.addEventListener(type, reached);
+    const press = (el: Element | null) => {
+      for (const type of types) {
+        el?.dispatchEvent(new KeyboardEvent(type, { key: "/", bubbles: true, composed: true }));
+      }
+    };
+    try {
+      press(root.querySelector("textarea"));
+      press(root.querySelector(".reply input"));
+      expect(reached).not.toHaveBeenCalled();
+      // Anywhere else in the widget, keys still reach the page as usual.
+      press(root.querySelector(".reaction"));
+      expect(reached).toHaveBeenCalledTimes(3);
+    } finally {
+      for (const type of types) document.removeEventListener(type, reached);
+    }
+  });
 });
