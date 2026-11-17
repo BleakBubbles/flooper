@@ -199,6 +199,14 @@ export class Widget {
       // While picking, Escape belongs to the picker (it cancels pick mode).
       if ((event as KeyboardEvent).key === "Escape" && !this.picker.active) this.close();
     });
+    // Keys typed in the widget's boxes stay in the widget. Outside the shadow
+    // root the page sees them come from <flooper-widget>, not a text box, so a
+    // site's own shortcuts ("/" for search, j/k…) would fire mid-note.
+    for (const type of ["keydown", "keyup", "keypress"]) {
+      this.root.addEventListener(type, (event) => {
+        if ((event.target as Element).matches("input,textarea")) event.stopPropagation();
+      });
+    }
     this.refresh();
   }
 

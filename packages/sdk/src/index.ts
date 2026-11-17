@@ -118,9 +118,9 @@ export const setMetadata: FlooperInstance["setMetadata"] = (m) => current?.setMe
 /** For the site's developer: how to fix a refusal that comes from setup. */
 function setupHint(code: SubmitErrorCode): string {
   if (code === "origin_not_allowed") {
-    return `. Add ${location.origin} under Site settings in the Flooper portal.`;
+    return `. Allow ${location.origin} in Flooper.`;
   }
-  if (code === "not_found") return ". Check the project key in your Flooper snippet.";
+  if (code === "not_found") return ". Check the project key.";
   return "";
 }
 
